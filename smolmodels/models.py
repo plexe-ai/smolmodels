@@ -34,6 +34,7 @@ Example Usage:
 
 from enum import Enum
 from typing import Union, List, Generator, Literal, Any
+from dataclasses import dataclass
 
 from smolmodels.callbacks import Callback
 from smolmodels.constraints import Constraint
@@ -45,6 +46,13 @@ class ModelState(Enum):
     BUILDING = "building"
     READY = "ready"
     ERROR = "error"
+
+
+@dataclass
+class ModelReview:
+    summary: str
+    suggested_directives: List[Directive]
+    # todo: this can be fleshed out further
 
 
 class Model:
@@ -159,16 +167,10 @@ class Model:
             "metrics": self.metrics,
         }
 
-    def review(self) -> str:
+    def review(self) -> ModelReview:
         """
-        Return a natural language review of the model.
+        Return a review of the model, which is a structured object consisting of a natural language
+        summary, suggested directives to apply, and more.
         :return: a review of the model
         """
         raise NotImplementedError("Review functionality is not yet implemented.")
-
-    def suggest(self) -> List[Directive]:
-        """
-        Suggest directives for improving the model.
-        :return: a list of directives
-        """
-        raise NotImplementedError("Suggestion functionality is not yet implemented.")
