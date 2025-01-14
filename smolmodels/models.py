@@ -3,12 +3,12 @@
 """
 This module defines the `Model` class, which represents a machine learning model.
 
-A `Model` is characterized by a natural language description of its behaviour, structured input and output schemas,
+A `Model` is characterized by a natural language description of its intent, structured input and output schemas,
 and optional constraints that the model must satisfy. This class provides methods for building the model, making
 predictions, and inspecting its state, metadata, and metrics.
 
 Key Features:
-- Behaviour: A natural language description of the model's purpose.
+- Intent: A natural language description of the model's purpose.
 - Input/Output Schema: Defines the structure and types of inputs and outputs.
 - Constraints: Rules that must hold true for input/output pairs.
 - Mutable State: Tracks the model's lifecycle, training metrics, and metadata.
@@ -16,7 +16,7 @@ Key Features:
 
 Example Usage:
     model = Model(
-        behaviour="Given a dataset of house features, predict the house price.",
+        intent="Given a dataset of house features, predict the house price.",
         output_schema={"price": float},
         input_schema={
             "bedrooms": int,
@@ -49,13 +49,13 @@ class ModelState(Enum):
 
 class Model:
     """
-    Represents a model that transforms inputs to outputs according to a specified behaviour.
+    Represents a model that transforms inputs to outputs according to a specified intent.
 
-    A `Model` is defined by a human-readable description of its expected behaviour, as well as structured
+    A `Model` is defined by a human-readable description of its expected intent, as well as structured
     definitions of its input schema, output schema, and any constraints that must be satisfied by the model.
 
     Attributes:
-        behaviour (str): A human-readable, natural language description of the model's expected behaviour.
+        intent (str): A human-readable, natural language description of the model's expected intent.
         output_schema (dict): A mapping of output key names to their types.
         input_schema (dict): A mapping of input key names to their types.
         constraints (List[Constraint]): A list of Constraint objects that represent rules which must be
@@ -63,7 +63,7 @@ class Model:
 
     Example:
         model = Model(
-            behaviour="Given a dataset of house features, predict the house price.",
+            intent="Given a dataset of house features, predict the house price.",
             output_schema={"price": float},
             input_schema={
                 "bedrooms": int,
@@ -73,12 +73,12 @@ class Model:
         )
     """
 
-    def __init__(self, behaviour: str, output_schema: dict, input_schema: dict, constraints: List[Constraint] = None):
+    def __init__(self, intent: str, output_schema: dict, input_schema: dict, constraints: List[Constraint] = None):
         """
-        Initialise a model with a natural language description of its behaviour, as well as
+        Initialise a model with a natural language description of its intent, as well as
         structured definitions of its input schema, output schema, and any constraints.
 
-        :param [str] behaviour: A human-readable, natural language description of the model's expected behaviour.
+        :param [str] intent: A human-readable, natural language description of the model's expected intent.
         :param [dict] output_schema: A mapping of output key names to their types.
         :param [dict] input_schema: A mapping of input key names to their types.
         :param List[Constraint] constraints: A list of Constraint objects that represent rules which must be
@@ -87,7 +87,7 @@ class Model:
         # todo: analyse natural language inputs and raise errors where applicable
 
         # The model's identity is defined by these fields
-        self.behaviour = behaviour
+        self.intent = intent
         self.output_schema = output_schema
         self.input_schema = input_schema
         self.constraints = constraints or []
@@ -150,7 +150,7 @@ class Model:
         :return: a human-readable description of the model
         """
         return {
-            "behaviour": self.behaviour,
+            "intent": self.intent,
             "output_schema": self.output_schema,
             "input_schema": self.input_schema,
             "constraints": [str(constraint) for constraint in self.constraints],

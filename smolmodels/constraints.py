@@ -2,7 +2,7 @@
 constraint.py
 
 This module defines the `Constraint` class, which represents a rule or condition that a function's
-input/output behavior must satisfy. Constraints are used to specify that a function's behaviour
+input/output intent must satisfy. Constraints are used to specify that a function's intent
 adhere to certain rules, enabling a concise mechanism for providing context about business rule and
 validating function outputs.
 
@@ -49,7 +49,7 @@ from typing import Any, Callable, Optional
 # make sense.
 class Constraint:
     """
-    Represents a constraint on a function's input/output behavior.
+    Represents a constraint on a function's input/output intent.
 
     A `Constraint` is defined by a `condition`, a callable that evaluates whether the constraint
     is satisfied for a given input/output pair, and an optional `description` that provides
