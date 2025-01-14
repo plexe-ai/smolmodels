@@ -16,6 +16,8 @@ imbalanced-learn = "^0.12.4"
 pydantic = "^2.9.2"
 scikit-learn = "^1.5.2"
 seaborn = "^0.12.2"
+aisuite = {extras = ["all"], version = "^0.1.7"}
+
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
