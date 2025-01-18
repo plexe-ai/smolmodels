@@ -17,8 +17,8 @@ Dependencies:
     - Node, Edge: Classes representing graph components.
 """
 
-from smolmodels.internal.model_generation.dataclasses.graphs.graph import Graph
-from smolmodels.internal.model_generation.dataclasses.graphs.node import Node
+from smolmodels.internal.model_generation.entities.graph import Graph
+from smolmodels.internal.model_generation.entities.node import Node
 
 
 def test_graph_initialisation():

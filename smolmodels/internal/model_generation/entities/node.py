@@ -12,7 +12,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import List, Dict
 
-from smolmodels.internal.common.dataclasses.metric import Metric
+from smolmodels.internal.model_generation.entities.metric import Metric
 
 
 @dataclass(eq=False)

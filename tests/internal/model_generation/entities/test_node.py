@@ -12,7 +12,7 @@ The test suite is designed to prevent regressions and ensure consistent behaviou
 as the library evolves.
 """
 
-from smolmodels.internal.model_generation.dataclasses.graphs.node import Node, Edge
+from smolmodels.internal.model_generation.entities.node import Node, Edge
 
 
 def test_node_initialization():

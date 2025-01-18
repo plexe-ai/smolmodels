@@ -15,7 +15,7 @@ Dependencies:
     - Edge: Represents a directed edge between two nodes in the graph.
 
 Example Usage:
-    >>> from smolmodels.internal.model_generation.dataclasses.graphs.graph import Graph
+    >>> from smolmodels.internal.model_generation.entities.graphs.graph import Graph
     >>> graph = Graph()
     >>> node1 = Node(solution_plan="Plan A", training_code="code1", inference_code="code2", tests_code="code3")
     >>> node2 = Node(solution_plan="Plan B", training_code="code4", inference_code="code5", tests_code="code6")
@@ -25,7 +25,7 @@ Example Usage:
     >>> print(graph.edges)
 """
 
-from smolmodels.internal.model_generation.dataclasses.graphs.node import Node, Edge
+from smolmodels.internal.model_generation.entities.node import Node, Edge
 
 
 class Graph:
