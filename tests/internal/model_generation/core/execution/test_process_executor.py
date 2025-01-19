@@ -43,30 +43,30 @@ class TestProcessExecutor:
         self.working_dir = Path(os.getcwd())
         self.timeout = 10
         self.agent_file_name = "test_runfile.py"
-        self.ProcessExecutor = ProcessExecutor(self.code, self.working_dir, self.timeout, self.agent_file_name)
+        self.process_executor = ProcessExecutor(self.code, self.working_dir, self.timeout, self.agent_file_name)
 
     @patch("smolmodels.internal.model_generation.core.execution.process_executor.Process")
     def test_create_process(self, mock_process):
-        self.ProcessExecutor._create_process()
+        self.process_executor._create_process()
         mock_process.assert_called_once()
-        assert self.ProcessExecutor.process is not None
+        assert self.process_executor.process is not None
 
     def test_cleanup_no_process(self):
-        self.ProcessExecutor.cleanup()  # No process, should exit gracefully
+        self.process_executor.cleanup()  # No process, should exit gracefully
 
     @patch("smolmodels.internal.model_generation.core.execution.process_executor.Process")
     def test_cleanup_with_process(self, mock_process):
         mock_proc_instance = MagicMock()
         mock_process.return_value = mock_proc_instance
-        self.ProcessExecutor._create_process()
-        self.ProcessExecutor.cleanup()
+        self.process_executor._create_process()
+        self.process_executor.cleanup()
         mock_proc_instance.terminate.assert_called_once()
         mock_proc_instance.close.assert_called_once()
 
     @patch("smolmodels.internal.model_generation.core.execution.process_executor.RedirectQueue")
     def test_child_proc_setup(self, mock_redirect_queue):
         result_outq = Queue()
-        self.ProcessExecutor._child_proc_setup(result_outq)
+        self.process_executor._child_proc_setup(result_outq)
         mock_redirect_queue.assert_called_once_with(result_outq)
 
     @patch("smolmodels.internal.model_generation.core.execution.process_executor.Queue")
@@ -77,7 +77,7 @@ class TestProcessExecutor:
             "Hello, World!",
             "<|EOF|>",
         ]
-        result = self.ProcessExecutor.run()
+        result = self.process_executor.run()
         assert isinstance(result, ExecutionResult)
         assert "Hello, World!" in result.term_out
 
@@ -85,7 +85,7 @@ class TestProcessExecutor:
     def test_run_timeout(self, mock_queue):
         mock_queue.return_value.get.side_effect = pytest.raises(queue.Empty)
         with pytest.raises(RuntimeError):
-            self.ProcessExecutor.run()
+            self.process_executor.run()
 
     @patch("smolmodels.internal.model_generation.core.execution.process_executor.Queue")
     def test_run_exception(self, mock_queue):
@@ -93,7 +93,7 @@ class TestProcessExecutor:
             ("state:ready",),
             ("state:finished", "Exception", {"args": ["error occurred"]}, []),
         ]
-        result = self.ProcessExecutor.run()
+        result = self.process_executor.run()
         assert isinstance(result, ExecutionResult)
         assert result.exc_type == "Exception"
         assert "error occurred" in result.exc_info["args"]
@@ -105,8 +105,8 @@ class TestProcessExecutor:
         event_outq = Queue()
         code_inq.put("print('test')")
 
-        with patch.object(self.ProcessExecutor, "_child_proc_setup", return_value=None):
-            self.ProcessExecutor._run_session(code_inq, result_outq, event_outq)
+        with patch.object(self.process_executor, "_child_proc_setup", return_value=None):
+            self.process_executor._run_session(code_inq, result_outq, event_outq)
         mock_remove.assert_called_once_with(self.agent_file_name)
 
     @patch("smolmodels.internal.model_generation.core.execution.process_executor.os.remove")
@@ -117,8 +117,8 @@ class TestProcessExecutor:
         event_outq = Queue()
         code_inq.put("print('test')")
 
-        with patch.object(self.ProcessExecutor, "_child_proc_setup", return_value=None):
-            self.ProcessExecutor._run_session(code_inq, result_outq, event_outq)
+        with patch.object(self.process_executor, "_child_proc_setup", return_value=None):
+            self.process_executor._run_session(code_inq, result_outq, event_outq)
         mock_remove.assert_called_once_with(self.agent_file_name)
 
 
