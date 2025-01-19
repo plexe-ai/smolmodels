@@ -214,35 +214,35 @@ class ProcessExecutor(Executor):
             event_outq (Queue): Queue to communicate execution state events.
         """
         self._child_proc_setup(result_outq)
-        while True:
-            # Reset the global scope for each execution to prevent state leakage.
-            global_scope: dict = {}
 
-            code = code_inq.get()
-            os.chdir(str(self.working_dir))
-            with open(self.agent_file_name, "w") as f:
-                f.write(code)
+        # Reset the global scope for each execution to prevent state leakage.
+        global_scope: dict = {}
 
-            event_outq.put(("state:ready",))
-            try:
-                exec(compile(code, self.agent_file_name, "exec"), global_scope)
-                event_outq.put(("state:finished", None, None, None))
-            except BaseException as e:
-                tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
-                e_cls_name = type(e).__name__
-                exc_info = {"args": list(map(str, e.args))} if hasattr(e, "args") else {}
-                exc_stack = traceback.extract_tb(e.__traceback__)
-                exc_stack = [(t.filename, t.lineno, t.name, t.line) for t in exc_stack]
+        code = code_inq.get()
+        os.chdir(str(self.working_dir))
+        with open(self.agent_file_name, "w") as f:
+            f.write(code)
 
-                result_outq.put(tb_str)
-                event_outq.put(("state:finished", e_cls_name, exc_info, exc_stack))
+        event_outq.put(("state:ready",))
+        try:
+            exec(compile(code, self.agent_file_name, "exec"), global_scope)
+            event_outq.put(("state:finished", None, None, None))
+        except BaseException as e:
+            tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+            e_cls_name = type(e).__name__
+            exc_info = {"args": list(map(str, e.args))} if hasattr(e, "args") else {}
+            exc_stack = traceback.extract_tb(e.__traceback__)
+            exc_stack = [(t.filename, t.lineno, t.name, t.line) for t in exc_stack]
 
-            try:
-                os.remove(self.agent_file_name)
-            except FileNotFoundError:
-                pass
+            result_outq.put(tb_str)
+            event_outq.put(("state:finished", e_cls_name, exc_info, exc_stack))
 
-            result_outq.put("<|EOF|>")
+        try:
+            os.remove(self.agent_file_name)
+        except FileNotFoundError:
+            pass
+
+        result_outq.put("<|EOF|>")
 
     def _child_proc_setup(self, result_outq: Queue) -> None:
         """

@@ -41,7 +41,7 @@ class TestProcessExecutor:
     def setup_method(self):
         self.code = "print('Hello, World!')"
         self.working_dir = Path(os.getcwd())
-        self.timeout = 10
+        self.timeout = 5
         self.agent_file_name = "test_runfile.py"
         self.process_executor = ProcessExecutor(self.code, self.working_dir, self.timeout, self.agent_file_name)
 
@@ -69,48 +69,60 @@ class TestProcessExecutor:
         self.process_executor._child_proc_setup(result_outq)
         mock_redirect_queue.assert_called_once_with(result_outq)
 
+    @patch("smolmodels.internal.model_generation.core.execution.process_executor.Process")
     @patch("smolmodels.internal.model_generation.core.execution.process_executor.Queue")
-    def test_run_successful_execution(self, mock_queue):
+    def test_run_successful_execution(self, mock_queue, mock_process):
         mock_queue.return_value.get.side_effect = [
             ("state:ready",),
             ("state:finished", None, None, None),
             "Hello, World!",
             "<|EOF|>",
         ]
+        mock_proc_instance = MagicMock()
+        mock_process.return_value = mock_proc_instance
         result = self.process_executor.run()
         assert isinstance(result, ExecutionResult)
         assert "Hello, World!" in result.term_out
 
+    @patch("smolmodels.internal.model_generation.core.execution.process_executor.Process")
     @patch("smolmodels.internal.model_generation.core.execution.process_executor.Queue")
-    def test_run_timeout(self, mock_queue):
-        mock_queue.return_value.get.side_effect = pytest.raises(queue.Empty)
+    def test_run_timeout(self, mock_queue, mock_process):
+        mock_queue.return_value.get.side_effect = queue.Empty
+        mock_proc_instance = MagicMock()
+        mock_process.return_value = mock_proc_instance
         with pytest.raises(RuntimeError):
             self.process_executor.run()
 
+    @patch("smolmodels.internal.model_generation.core.execution.process_executor.Process")
     @patch("smolmodels.internal.model_generation.core.execution.process_executor.Queue")
-    def test_run_exception(self, mock_queue):
+    def test_run_exception(self, mock_queue, mock_process):
         mock_queue.return_value.get.side_effect = [
             ("state:ready",),
             ("state:finished", "Exception", {"args": ["error occurred"]}, []),
+            "<|EOF|>",
         ]
+        mock_queue.return_value.empty.side_effect = [False, True]
+        mock_proc_instance = MagicMock()
+        mock_process.return_value = mock_proc_instance
         result = self.process_executor.run()
         assert isinstance(result, ExecutionResult)
         assert result.exc_type == "Exception"
         assert "error occurred" in result.exc_info["args"]
 
-    @patch("smolmodels.internal.model_generation.core.execution.process_executor.os.remove")
-    def test_run_session_removes_file(self, mock_remove):
-        code_inq = Queue()
-        result_outq = Queue()
-        event_outq = Queue()
-        code_inq.put("print('test')")
+    def test_run_session_creates_and_removes_file(self):
+        code_in_queue = Queue()
+        result_out_queue = Queue()
+        event_out_queue = Queue()
+        code_in_queue.put("print('test')")
 
         with patch.object(self.process_executor, "_child_proc_setup", return_value=None):
-            self.process_executor._run_session(code_inq, result_outq, event_outq)
-        mock_remove.assert_called_once_with(self.agent_file_name)
+            self.process_executor._run_session(code_in_queue, result_out_queue, event_out_queue)
 
+        assert os.path.exists(self.agent_file_name) is False
+
+    @patch("builtins.open")
     @patch("smolmodels.internal.model_generation.core.execution.process_executor.os.remove")
-    def test_run_session_handles_missing_file(self, mock_remove):
+    def test_run_session_handles_missing_file(self, mock_remove, mock_open):
         mock_remove.side_effect = FileNotFoundError
         code_inq = Queue()
         result_outq = Queue()
