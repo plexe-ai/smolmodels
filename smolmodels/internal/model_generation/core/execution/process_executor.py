@@ -159,59 +159,6 @@ class ProcessExecutor(Executor):
         self.process.close()
         self.process = None
 
-    def _child_proc_setup(self, result_outq: Queue) -> None:
-        """
-        Set up the child process environment.
-
-        Args:
-            result_outq (Queue): The queue to send output messages to.
-        """
-        os.chdir(str(self.working_dir))
-
-        sys.path.append(str(self.working_dir))
-
-        sys.stdout = sys.stderr = RedirectQueue(result_outq)
-
-    def _run_session(self, code_inq: Queue, result_outq: Queue, event_outq: Queue) -> None:
-        """
-        Run the execution session in the child process.
-
-        Args:
-            code_inq (Queue): Queue to receive the code to execute.
-            result_outq (Queue): Queue to send stdout and stderr messages to.
-            event_outq (Queue): Queue to communicate execution state events.
-        """
-        self._child_proc_setup(result_outq)
-        while True:
-            # Reset the global scope for each execution to prevent state leakage.
-            global_scope: dict = {}
-
-            code = code_inq.get()
-            os.chdir(str(self.working_dir))
-            with open(self.agent_file_name, "w") as f:
-                f.write(code)
-
-            event_outq.put(("state:ready",))
-            try:
-                exec(compile(code, self.agent_file_name, "exec"), global_scope)
-                event_outq.put(("state:finished", None, None, None))
-            except BaseException as e:
-                tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
-                e_cls_name = type(e).__name__
-                exc_info = {"args": list(map(str, e.args))} if hasattr(e, "args") else {}
-                exc_stack = traceback.extract_tb(e.__traceback__)
-                exc_stack = [(t.filename, t.lineno, t.name, t.line) for t in exc_stack]
-
-                result_outq.put(tb_str)
-                event_outq.put(("state:finished", e_cls_name, exc_info, exc_stack))
-
-            try:
-                os.remove(self.agent_file_name)
-            except FileNotFoundError:
-                pass
-
-            result_outq.put("<|EOF|>")
-
     def _create_process(self) -> None:
         """
         Create the child process to execute code.
@@ -256,3 +203,56 @@ class ProcessExecutor(Executor):
         if output and output[-1] == "<|EOF|>":
             output.pop()
         return output
+
+    def _run_session(self, code_inq: Queue, result_outq: Queue, event_outq: Queue) -> None:
+        """
+        Run the execution session in the child process.
+
+        Args:
+            code_inq (Queue): Queue to receive the code to execute.
+            result_outq (Queue): Queue to send stdout and stderr messages to.
+            event_outq (Queue): Queue to communicate execution state events.
+        """
+        self._child_proc_setup(result_outq)
+        while True:
+            # Reset the global scope for each execution to prevent state leakage.
+            global_scope: dict = {}
+
+            code = code_inq.get()
+            os.chdir(str(self.working_dir))
+            with open(self.agent_file_name, "w") as f:
+                f.write(code)
+
+            event_outq.put(("state:ready",))
+            try:
+                exec(compile(code, self.agent_file_name, "exec"), global_scope)
+                event_outq.put(("state:finished", None, None, None))
+            except BaseException as e:
+                tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+                e_cls_name = type(e).__name__
+                exc_info = {"args": list(map(str, e.args))} if hasattr(e, "args") else {}
+                exc_stack = traceback.extract_tb(e.__traceback__)
+                exc_stack = [(t.filename, t.lineno, t.name, t.line) for t in exc_stack]
+
+                result_outq.put(tb_str)
+                event_outq.put(("state:finished", e_cls_name, exc_info, exc_stack))
+
+            try:
+                os.remove(self.agent_file_name)
+            except FileNotFoundError:
+                pass
+
+            result_outq.put("<|EOF|>")
+
+    def _child_proc_setup(self, result_outq: Queue) -> None:
+        """
+        Set up the child process environment.
+
+        Args:
+            result_outq (Queue): The queue to send output messages to.
+        """
+        os.chdir(str(self.working_dir))
+
+        sys.path.append(str(self.working_dir))
+
+        sys.stdout = sys.stderr = RedirectQueue(result_outq)
