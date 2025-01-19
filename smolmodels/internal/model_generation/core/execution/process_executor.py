@@ -1,5 +1,5 @@
 """
-Module: Interpreter for Isolated Python Code Execution
+Module: ProcessExecutor for Isolated Python Code Execution
 
 This module provides an implementation of the `Executor` interface for executing Python code snippets
 in an isolated process. It captures stdout, stderr, exceptions, and stack traces, and enforces
@@ -7,10 +7,10 @@ timeout limits on execution.
 
 Classes:
     - RedirectQueue: A helper class to redirect stdout and stderr to a multiprocessing Queue.
-    - Interpreter: A class to execute Python code snippets in an isolated process.
+    - ProcessExecutor: A class to execute Python code snippets in an isolated process.
 
 Usage:
-    Create an instance of `Interpreter`, providing the Python code, working directory, and timeout.
+    Create an instance of `ProcessExecutor`, providing the Python code, working directory, and timeout.
     Call the `run` method to execute the code and return the results in an `ExecutionResult` object.
 
 Exceptions:
@@ -67,7 +67,7 @@ class ProcessExecutor(Executor):
     """
     Execute Python code snippets in an isolated process.
 
-    The `Interpreter` class implements the `Executor` interface, allowing Python code
+    The `ProcessExecutor` class implements the `Executor` interface, allowing Python code
     snippets to be executed with strict isolation, output capture, and timeout enforcement.
     """
 
@@ -79,7 +79,7 @@ class ProcessExecutor(Executor):
         agent_file_name: str = "runfile.py",
     ):
         """
-        Initialize the Interpreter.
+        Initialize the ProcessExecutor.
 
         Args:
             code (str): The Python code to execute.
