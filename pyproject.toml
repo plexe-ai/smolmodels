@@ -10,13 +10,20 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-
+pandas = "^2.2.0"
+fastapi = {extras = ["standard"], version = "^0.115.0"}
+google-generativeai = "^0.8.2"
+imbalanced-learn = "^0.12.4"
+pydantic = "^2.9.2"
+scikit-learn = "^1.5.2"
+seaborn = "^0.12.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
 black = "^24.10.0"
 pre-commit = "^4.0.1"
 ruff = "^0.9.1"
+jupyterlab = "^4.2.5"
 
 [build-system]
 requires = ["poetry-core"]

@@ -31,9 +31,10 @@ Example Usage:
     print(prediction)
 
 """
-
+import pandas as pd
+import logging
 from enum import Enum
-from typing import Union, List, Generator, Literal, Any
+from typing import Dict, Optional, Union, List, Literal, Any
 from dataclasses import dataclass
 
 from smolmodels.callbacks import Callback
@@ -48,11 +49,42 @@ class ModelState(Enum):
     ERROR = "error"
 
 
+logger = logging.getLogger(__name__)
+
+
 @dataclass
 class ModelReview:
     summary: str
     suggested_directives: List[Directive]
     # todo: this can be fleshed out further
+
+
+@dataclass
+class GenerationConfig:
+    """Configuration for data generation/augmentation"""
+
+    n_samples: int
+    augment_existing: bool = False
+    quality_threshold: float = 0.8
+
+    def __post_init__(self):
+        if self.n_samples <= 0:
+            raise ValueError("Number of samples must be positive")
+        if not 0 <= self.quality_threshold <= 1:
+            raise ValueError("Quality threshold must be between 0 and 1")
+
+    @classmethod
+    def from_input(cls, value: Union[int, Dict[str, Any]]) -> "GenerationConfig":
+        """Create config from either number or dictionary input"""
+        if isinstance(value, int):
+            return cls(n_samples=value)
+        elif isinstance(value, dict):
+            return cls(
+                n_samples=value["n_samples"],
+                augment_existing=value.get("augment_existing", False),
+                quality_threshold=value.get("quality_threshold", 0.8),
+            )
+        raise ValueError(f"Invalid generate_samples value: {value}")
 
 
 class Model:
@@ -99,6 +131,8 @@ class Model:
         self.output_schema = output_schema
         self.input_schema = input_schema
         self.constraints = constraints or []
+        self.training_data = None
+        self.synthetic_data = None
 
         # The model's mutable state is defined by these fields
         # todo: this is WIP, trying to flesh out what the model's internal state might look like
@@ -110,15 +144,97 @@ class Model:
         # todo: metrics should be chosen based on problem, model-type, etc.
         # todo: initialise metadata, etc
 
+    def _generate_data(self, config: GenerationConfig, existing_data: Optional[pd.DataFrame] = None) -> pd.DataFrame:
+        """Generate synthetic data based on configuration"""
+        from .internal.data_generation.src.config import Config
+        from .internal.data_generation.src.main import CombinedDataGenerator
+
+        # Initialize generator
+        generator = CombinedDataGenerator(Config())
+
+        # Convert schemas to generator format
+        schema = {
+            "column_names": [*self.input_schema.keys(), *self.output_schema.keys()],
+            "column_types": [str(t) for t in [*self.input_schema.values(), *self.output_schema.values()]],
+            "column_descriptors": [""] * len({**self.input_schema, **self.output_schema}),
+            "column_nullable": [False] * len({**self.input_schema, **self.output_schema}),
+        }
+
+        # Build problem description
+        description = f"{self.intent}\n\n"
+        if self.constraints:
+            description += "Constraints:\n"
+            description += "\n".join(f"- {c.description}" for c in self.constraints)
+
+        if config.augment_existing and existing_data is not None:
+            description += f"\nAugment existing dataset with {config.n_samples} additional samples."
+
+        # For augmentation, save existing data to temporary file
+        temp_file = None
+        if existing_data is not None:
+            import tempfile
+
+            temp_file = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
+            existing_data.to_csv(temp_file.name, index=False)
+
+        try:
+            # Generate data
+            output_path = generator.generate(
+                problem_description=description,
+                n_records_to_generate=config.n_samples,
+                schema=schema,
+                sample_data_path=temp_file.name if temp_file else None,
+            )
+
+            return pd.read_csv(output_path)
+        finally:
+            # Clean up temporary file
+            if temp_file:
+                import os
+
+                os.unlink(temp_file.name)
+
     def build(
         self,
-        dataset: Union[str, Generator],
+        dataset: Optional[Union[str, pd.DataFrame]] = None,
         directives: List[Directive] = None,
+        generate_samples: Optional[Union[int, Dict[str, Any]]] = None,
         callbacks: List[Callback] = None,
         isolation: Literal["local", "subprocess", "docker"] = "local",
     ) -> None:
-        # todo: implement properly, this is a placeholder
-        raise NotImplementedError("Generation of the model is not yet implemented.")
+        try:
+            self.state = ModelState.BUILDING
+
+            # Handle existing dataset
+            if isinstance(dataset, str):
+                self.training_data = pd.read_csv(dataset)
+            elif isinstance(dataset, pd.DataFrame):
+                self.training_data = dataset.copy()
+
+            # Handle data generation if requested
+            if generate_samples is not None:
+                config = GenerationConfig.from_input(generate_samples)
+
+                # Generate synthetic data
+                self.synthetic_data = self._generate_data(config=config, existing_data=self.training_data)
+
+                # Combine with existing data if needed
+                if self.training_data is not None and config.augment_existing:
+                    self.training_data = pd.concat([self.training_data, self.synthetic_data], ignore_index=True)
+                else:
+                    self.training_data = self.synthetic_data
+
+            # Validate we have training data from some source
+            if self.training_data is None:
+                raise ValueError("No training data available. Provide dataset or generate_samples.")
+
+            # TODO: add solution generation logic here
+
+            self.state = ModelState.READY
+        except Exception as e:
+            self.state = ModelState.ERROR
+            logger.error(f"Error during model building: {str(e)}")
+            raise e
 
     def predict(self, x: Any) -> Any:
         """
