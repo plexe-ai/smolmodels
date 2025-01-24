@@ -12,7 +12,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import List, Dict
 
-from smolmodels.internal.model_generation.entities.metric import Metric
+from smolmodels.internal.models.entities.metric import Metric
 
 
 @dataclass(eq=False)
@@ -42,7 +42,8 @@ class Node:
         solution_plan (str): The plan or description of the solution represented by this node.
         training_code (str): The code used for training models in this node.
         inference_code (str): The code used for inference in this node.
-        tests_code (str): The code used for testing the solution in this node.
+        training_tests (str): The code used for testing the training solution in this node.
+        inference_tests (str): The code used for testing the inference solution in this node.
         estimated_value (float): The estimated value or utility of this node.
         estimated_cost (float): The estimated cost associated with this node.
         performance_metrics (List[Metric]): A list of metrics evaluating the solution's performance.
@@ -65,9 +66,10 @@ class Node:
 
     # Pre-execution contents: the solution plan and the generated code
     solution_plan: str
-    training_code: str
-    inference_code: str
-    tests_code: str
+    training_code: str = field(default=None, hash=True, kw_only=True)
+    inference_code: str = field(default=None, hash=True, kw_only=True)
+    training_tests: str = field(default=None, hash=True, kw_only=True)
+    inference_tests: str = field(default=None, hash=True, kw_only=True)
 
     # Pre-execution estimates of the node's value/cost, can be used to guide search
     estimated_value: float = field(default=None, kw_only=True)
