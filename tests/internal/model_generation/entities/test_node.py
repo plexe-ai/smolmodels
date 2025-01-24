@@ -12,7 +12,7 @@ The test suite is designed to prevent regressions and ensure consistent behaviou
 as the library evolves.
 """
 
-from smolmodels.internal.model_generation.entities.node import Node, Edge
+from smolmodels.internal.models.entities.node import Node, Edge
 
 
 def test_node_initialization():
@@ -20,7 +20,7 @@ def test_node_initialization():
         solution_plan="Plan A",
         training_code="print('training code')",
         inference_code="print('inference code')",
-        tests_code="print('tests code')",
+        training_tests="print('tests code')",
         estimated_value=100.0,
         estimated_cost=10.0,
         model_artifacts={"model.pkl": "/path/to/model.pkl"},
@@ -31,7 +31,7 @@ def test_node_initialization():
     assert node.solution_plan == "Plan A"
     assert node.training_code == "print('training code')"
     assert node.inference_code == "print('inference code')"
-    assert node.tests_code == "print('tests code')"
+    assert node.training_tests == "print('tests code')"
     assert node.estimated_value == 100.0
     assert node.estimated_cost == 10.0
     assert node.model_artifacts == {"model.pkl": "/path/to/model.pkl"}
@@ -44,13 +44,13 @@ def test_edge_initialization():
         solution_plan="Plan A",
         training_code="print('training code')",
         inference_code="print('inference code')",
-        tests_code="print('tests code')",
+        training_tests="print('tests code')",
     )
     node2 = Node(
         solution_plan="Plan B",
         training_code="print('other training code')",
         inference_code="print('other inference code')",
-        tests_code="print('tests code')",
+        training_tests="print('tests code')",
     )
 
     edge = Edge(source=node1, target=node2)
@@ -68,7 +68,7 @@ def test_node_is_terminal():
         solution_plan="Plan A",
         training_code="print('training code')",
         inference_code="print('inference code')",
-        tests_code="print('tests code')",
+        training_tests="print('tests code')",
     )
 
     assert node.is_terminal  # Should be terminal since no outgoing edges
@@ -77,7 +77,7 @@ def test_node_is_terminal():
         solution_plan="Plan B",
         training_code="print('other training code')",
         inference_code="print('other inference code')",
-        tests_code="print('other tests code')",
+        training_tests="print('other tests code')",
     )
     edge = Edge(source=node, target=node2)
     node.edges_out.append(edge)
@@ -93,7 +93,7 @@ def test_node_is_root():
         solution_plan="Plan A",
         training_code="print('training code')",
         inference_code="print('inference code')",
-        tests_code="print('tests code')",
+        training_tests="print('tests code')",
     )
 
     assert node.is_root  # Should be root since no incoming edges
@@ -102,7 +102,7 @@ def test_node_is_root():
         solution_plan="Plan B",
         training_code="print('other training code')",
         inference_code="print('other inference code')",
-        tests_code="print('tests code')",
+        training_tests="print('tests code')",
     )
     edge = Edge(source=node2, target=node)
     node.edges_in.append(edge)
@@ -118,7 +118,7 @@ def test_node_execution_fields():
         solution_plan="Plan A",
         training_code="print('training code')",
         inference_code="print('inference code')",
-        tests_code="print('tests code')",
+        training_tests="print('tests code')",
     )
 
     assert node.performance_metrics == []
@@ -135,13 +135,13 @@ def test_uuid_uniqueness():
         solution_plan="Plan A",
         training_code="print('training code')",
         inference_code="print('inference code')",
-        tests_code="print('tests code')",
+        training_tests="print('tests code')",
     )
     node2 = Node(
         solution_plan="Plan B",
         training_code="print('other training code')",
         inference_code="print('other inference code')",
-        tests_code="print('tests code')",
+        training_tests="print('tests code')",
     )
 
     assert node1.id != node2.id

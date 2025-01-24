@@ -20,8 +20,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from smolmodels.internal.model_generation.core.execution.executor import ExecutionResult
-from smolmodels.internal.model_generation.core.execution.process_executor import ProcessExecutor, RedirectQueue
+from smolmodels.internal.models.execution.executor import ExecutionResult
+from smolmodels.internal.models.execution.process_executor import ProcessExecutor, RedirectQueue
 
 
 class TestRedirectQueue:
@@ -45,7 +45,7 @@ class TestProcessExecutor:
         self.agent_file_name = "test_runfile.py"
         self.process_executor = ProcessExecutor(self.code, self.working_dir, self.timeout, self.agent_file_name)
 
-    @patch("smolmodels.internal.model_generation.core.execution.process_executor.Process")
+    @patch("smolmodels.internal.models.execution.process_executor.Process")
     def test_create_process(self, mock_process):
         self.process_executor._create_process()
         mock_process.assert_called_once()
@@ -54,7 +54,7 @@ class TestProcessExecutor:
     def test_cleanup_no_process(self):
         self.process_executor.cleanup()  # No process, should exit gracefully
 
-    @patch("smolmodels.internal.model_generation.core.execution.process_executor.Process")
+    @patch("smolmodels.internal.models.execution.process_executor.Process")
     def test_cleanup_with_process(self, mock_process):
         mock_proc_instance = MagicMock()
         mock_process.return_value = mock_proc_instance
@@ -63,14 +63,14 @@ class TestProcessExecutor:
         mock_proc_instance.terminate.assert_called_once()
         mock_proc_instance.close.assert_called_once()
 
-    @patch("smolmodels.internal.model_generation.core.execution.process_executor.RedirectQueue")
+    @patch("smolmodels.internal.models.execution.process_executor.RedirectQueue")
     def test_child_proc_setup(self, mock_redirect_queue):
         result_outq = Queue()
         self.process_executor._child_proc_setup(result_outq)
         mock_redirect_queue.assert_called_once_with(result_outq)
 
-    @patch("smolmodels.internal.model_generation.core.execution.process_executor.Process")
-    @patch("smolmodels.internal.model_generation.core.execution.process_executor.Queue")
+    @patch("smolmodels.internal.models.execution.process_executor.Process")
+    @patch("smolmodels.internal.models.execution.process_executor.Queue")
     def test_run_successful_execution(self, mock_queue, mock_process):
         mock_queue.return_value.get.side_effect = [
             ("state:ready",),
@@ -84,8 +84,8 @@ class TestProcessExecutor:
         assert isinstance(result, ExecutionResult)
         assert "Hello, World!" in result.term_out
 
-    @patch("smolmodels.internal.model_generation.core.execution.process_executor.Process")
-    @patch("smolmodels.internal.model_generation.core.execution.process_executor.Queue")
+    @patch("smolmodels.internal.models.execution.process_executor.Process")
+    @patch("smolmodels.internal.models.execution.process_executor.Queue")
     def test_run_timeout(self, mock_queue, mock_process):
         mock_queue.return_value.get.side_effect = queue.Empty
         mock_proc_instance = MagicMock()
@@ -93,8 +93,8 @@ class TestProcessExecutor:
         with pytest.raises(RuntimeError):
             self.process_executor.run()
 
-    @patch("smolmodels.internal.model_generation.core.execution.process_executor.Process")
-    @patch("smolmodels.internal.model_generation.core.execution.process_executor.Queue")
+    @patch("smolmodels.internal.models.execution.process_executor.Process")
+    @patch("smolmodels.internal.models.execution.process_executor.Queue")
     def test_run_exception(self, mock_queue, mock_process):
         mock_queue.return_value.get.side_effect = [
             ("state:ready",),
@@ -121,7 +121,7 @@ class TestProcessExecutor:
         assert os.path.exists(self.agent_file_name) is False
 
     @patch("builtins.open")
-    @patch("smolmodels.internal.model_generation.core.execution.process_executor.os.remove")
+    @patch("smolmodels.internal.models.execution.process_executor.os.remove")
     def test_run_session_handles_missing_file(self, mock_remove, mock_open):
         mock_remove.side_effect = FileNotFoundError
         code_inq = Queue()

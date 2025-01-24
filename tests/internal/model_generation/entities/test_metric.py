@@ -19,7 +19,7 @@ Example:
 """
 
 import pytest
-from smolmodels.internal.model_generation.entities.metric import Metric, MetricComparator, ComparisonMethod
+from smolmodels.internal.models.entities.metric import Metric, MetricComparator, ComparisonMethod
 
 
 def test_comparator_higher_is_better():

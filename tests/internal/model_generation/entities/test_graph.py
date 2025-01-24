@@ -17,8 +17,8 @@ Dependencies:
     - Node, Edge: Classes representing graph components.
 """
 
-from smolmodels.internal.model_generation.entities.graph import Graph
-from smolmodels.internal.model_generation.entities.node import Node
+from smolmodels.internal.models.entities.graph import Graph
+from smolmodels.internal.models.entities.node import Node
 
 
 def test_graph_initialisation():
@@ -29,7 +29,7 @@ def test_graph_initialisation():
 
 def test_add_single_node():
     graph = Graph()
-    node = Node(solution_plan="Plan A", training_code="code1", inference_code="code2", tests_code="code3")
+    node = Node(solution_plan="Plan A", training_code="code1", inference_code="code2", training_tests="code3")
     graph.add_node(node)
     assert len(graph.nodes) == 1
     assert graph.nodes[0] == node
@@ -38,8 +38,8 @@ def test_add_single_node():
 
 def test_add_node_with_parent():
     graph = Graph()
-    parent = Node(solution_plan="Plan Parent", training_code="code1", inference_code="code2", tests_code="code3")
-    child = Node(solution_plan="Plan Child", training_code="code4", inference_code="code5", tests_code="code6")
+    parent = Node(solution_plan="Plan Parent", training_code="code1", inference_code="code2", training_tests="code3")
+    child = Node(solution_plan="Plan Child", training_code="code4", inference_code="code5", training_tests="code6")
     graph.add_node(child, parent=parent)
 
     assert len(graph.nodes) == 2
@@ -57,7 +57,7 @@ def test_add_node_with_parent():
 
 def test_add_duplicate_nodes():
     graph = Graph()
-    node = Node(solution_plan="Plan A", training_code="code1", inference_code="code2", tests_code="code3")
+    node = Node(solution_plan="Plan A", training_code="code1", inference_code="code2", training_tests="code3")
     graph.add_node(node)
     graph.add_node(node)
     assert len(graph.nodes) == 1
@@ -65,9 +65,9 @@ def test_add_duplicate_nodes():
 
 def test_duplicate_node_with_different_parents():
     graph = Graph()
-    parent1 = Node(solution_plan="Parent1", training_code="code1", inference_code="code2", tests_code="code3")
-    parent2 = Node(solution_plan="Parent2", training_code="code4", inference_code="code5", tests_code="code6")
-    child = Node(solution_plan="Child", training_code="code7", inference_code="code8", tests_code="code9")
+    parent1 = Node(solution_plan="Parent1", training_code="code1", inference_code="code2", training_tests="code3")
+    parent2 = Node(solution_plan="Parent2", training_code="code4", inference_code="code5", training_tests="code6")
+    child = Node(solution_plan="Child", training_code="code7", inference_code="code8", training_tests="code9")
 
     graph.add_node(child, parent=parent1)
     graph.add_node(child, parent=parent2)
@@ -78,8 +78,8 @@ def test_duplicate_node_with_different_parents():
 
 def test_edges_in_out():
     graph = Graph()
-    parent = Node(solution_plan="Plan Parent", training_code="code1", inference_code="code2", tests_code="code3")
-    child = Node(solution_plan="Plan Child", training_code="code4", inference_code="code5", tests_code="code6")
+    parent = Node(solution_plan="Plan Parent", training_code="code1", inference_code="code2", training_tests="code3")
+    child = Node(solution_plan="Plan Child", training_code="code4", inference_code="code5", training_tests="code6")
     graph.add_node(child, parent=parent)
 
     edge = graph.edges[0]
@@ -89,7 +89,7 @@ def test_edges_in_out():
 
 def test_circular_reference():
     graph = Graph()
-    node = Node(solution_plan="Circular", training_code="code1", inference_code="code2", tests_code="code3")
+    node = Node(solution_plan="Circular", training_code="code1", inference_code="code2", training_tests="code3")
     graph.add_node(node, parent=node)
     assert len(graph.nodes) == 1
     assert len(graph.edges) == 1
@@ -99,8 +99,8 @@ def test_circular_reference():
 
 def test_disconnected_subgraphs():
     graph = Graph()
-    node1 = Node(solution_plan="Subgraph1", training_code="code1", inference_code="code2", tests_code="code3")
-    node2 = Node(solution_plan="Subgraph2", training_code="code4", inference_code="code5", tests_code="code6")
+    node1 = Node(solution_plan="Subgraph1", training_code="code1", inference_code="code2", training_tests="code3")
+    node2 = Node(solution_plan="Subgraph2", training_code="code4", inference_code="code5", training_tests="code6")
     graph.add_node(node1)
     graph.add_node(node2)
     assert len(graph.nodes) == 2
@@ -113,14 +113,14 @@ def test_buggy_nodes():
         solution_plan="Plan A",
         training_code="code1",
         inference_code="code2",
-        tests_code="code3",
+        training_tests="code3",
         exception_was_raised=False,
     )
     node2 = Node(
         solution_plan="Plan B",
         training_code="code4",
         inference_code="code5",
-        tests_code="code6",
+        training_tests="code6",
         exception_was_raised=True,
     )
 
@@ -138,14 +138,14 @@ def test_good_nodes():
         solution_plan="Plan A",
         training_code="code1",
         inference_code="code2",
-        tests_code="code3",
+        training_tests="code3",
         exception_was_raised=False,
     )
     node2 = Node(
         solution_plan="Plan B",
         training_code="code4",
         inference_code="code5",
-        tests_code="code6",
+        training_tests="code6",
         exception_was_raised=True,
     )
 
@@ -160,7 +160,7 @@ def test_good_nodes():
 def test_large_graph():
     graph = Graph()
     nodes = [
-        Node(solution_plan=f"Node {i}", training_code="code", inference_code="code", tests_code="code")
+        Node(solution_plan=f"Node {i}", training_code="code", inference_code="code", training_tests="code")
         for i in range(1000)
     ]
     for i, node in enumerate(nodes):
