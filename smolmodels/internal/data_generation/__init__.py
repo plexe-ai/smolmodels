@@ -9,7 +9,6 @@ validating the synthetic data against real data, if available.
 import logging
 import warnings
 
-
 from .config import config
 from .core.generation.combined import CombinedDataGenerator
 from .core.generation.simple_llm import SimpleLLMDataGenerator

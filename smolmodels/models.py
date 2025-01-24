@@ -40,6 +40,7 @@ from dataclasses import dataclass
 from smolmodels.callbacks import Callback
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
+from .internal.data_generation.generator import generate_data, DataGenerationRequest
 
 
 class ModelState(Enum):
@@ -144,56 +145,6 @@ class Model:
         # todo: metrics should be chosen based on problem, model-type, etc.
         # todo: initialise metadata, etc
 
-    def _generate_data(self, config: GenerationConfig, existing_data: Optional[pd.DataFrame] = None) -> pd.DataFrame:
-        """Generate synthetic data based on configuration"""
-        from .internal.data_generation.config import Config
-        from .internal.data_generation import CombinedDataGenerator
-
-        # Initialize generator
-        generator = CombinedDataGenerator(Config())
-
-        # Convert schemas to generator format
-        schema = {
-            "column_names": [*self.input_schema.keys(), *self.output_schema.keys()],
-            "column_types": [str(t) for t in [*self.input_schema.values(), *self.output_schema.values()]],
-            "column_descriptors": [""] * len({**self.input_schema, **self.output_schema}),
-            "column_nullable": [False] * len({**self.input_schema, **self.output_schema}),
-        }
-
-        # Build problem description
-        description = f"{self.intent}\n\n"
-        if self.constraints:
-            description += "Constraints:\n"
-            description += "\n".join(f"- {c.description}" for c in self.constraints)
-
-        if config.augment_existing and existing_data is not None:
-            description += f"\nAugment existing dataset with {config.n_samples} additional samples."
-
-        # For augmentation, save existing data to temporary file
-        temp_file = None
-        if existing_data is not None:
-            import tempfile
-
-            temp_file = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
-            existing_data.to_csv(temp_file.name, index=False)
-
-        try:
-            # Generate data
-            output_path = generator.generate(
-                problem_description=description,
-                n_records_to_generate=config.n_samples,
-                schema=schema,
-                sample_data_path=temp_file.name if temp_file else None,
-            )
-
-            return pd.read_csv(output_path)
-        finally:
-            # Clean up temporary file
-            if temp_file:
-                import os
-
-                os.unlink(temp_file.name)
-
     def build(
         self,
         dataset: Optional[Union[str, pd.DataFrame]] = None,
@@ -215,10 +166,19 @@ class Model:
             if generate_samples is not None:
                 config = GenerationConfig.from_input(generate_samples)
 
-                # Generate synthetic data
-                self.synthetic_data = self._generate_data(config=config, existing_data=self.training_data)
+                request = DataGenerationRequest(
+                    intent=self.intent,
+                    input_schema=self.input_schema,
+                    output_schema=self.output_schema,
+                    n_samples=config.n_samples,
+                    augment_existing=config.augment_existing,
+                    quality_threshold=config.quality_threshold,
+                    existing_data=self.training_data,
+                )
 
-                # Combine with existing data if needed
+                self.synthetic_data = generate_data(request)
+
+                # Handle augmentation
                 if self.training_data is not None and config.augment_existing:
                     self.training_data = pd.concat([self.training_data, self.synthetic_data], ignore_index=True)
                 else:
