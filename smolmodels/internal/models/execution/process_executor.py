@@ -27,7 +27,7 @@ import traceback
 from multiprocessing import Process, Queue
 from pathlib import Path
 
-from smolmodels.internal.model_generation.core.execution.executor import ExecutionResult, Executor
+from smolmodels.internal.models.execution.executor import ExecutionResult, Executor
 
 logger = logging.getLogger("plexe")
 

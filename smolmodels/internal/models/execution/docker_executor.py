@@ -1,6 +1,6 @@
 from typing import Any
 
-from smolmodels.internal.model_generation.core.execution.executor import Executor, ExecutionResult
+from smolmodels.internal.models.execution.executor import Executor, ExecutionResult
 
 
 class DockerExecutor(Executor):
