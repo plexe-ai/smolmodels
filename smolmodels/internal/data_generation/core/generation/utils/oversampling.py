@@ -13,10 +13,9 @@ def oversample_with_smote(dataset: pd.DataFrame, target_column: str, n_records_t
     :param dataset: dataset to oversample
     :param target_column: name of the column containing the target variable
     :param n_records_to_generate: number of records to generate
-    :return: oversampled dataset
+    :return: oversampled dataset with original class proportions
     """
     # we sample in the same proportion of classes as the original dataset
-    # todo need to check if this is actually doing what I think it's doing - add tests
     smote = SMOTE(
         sampling_strategy={
             target: int(n_samples / dataset[target_column].count() * n_records_to_generate)
