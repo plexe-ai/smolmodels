@@ -146,8 +146,8 @@ class Model:
 
     def _generate_data(self, config: GenerationConfig, existing_data: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         """Generate synthetic data based on configuration"""
-        from .internal.data_generation.src.config import Config
-        from .internal.data_generation.src.main import CombinedDataGenerator
+        from .internal.data_generation.config import Config
+        from .internal.data_generation import CombinedDataGenerator
 
         # Initialize generator
         generator = CombinedDataGenerator(Config())
