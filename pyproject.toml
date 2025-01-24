@@ -18,6 +18,7 @@ scikit-learn = "^1.5.2"
 seaborn = "^0.12.2"
 aisuite = {extras = ["all"], version = "^0.1.7"}
 dataclasses-json = "^0.6.7"
+bandit = "^1.8.2"
 
 
 [tool.poetry.group.dev.dependencies]
