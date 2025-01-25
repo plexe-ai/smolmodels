@@ -1,6 +1,6 @@
-"""
-Module: smolmodels/internal/models/validation/syntax
+# smolmodels/internal/models/validation/syntax.py
 
+"""
 This module defines the SyntaxValidator class, which is responsible for validating the syntax
 of Python code using the AST module.
 
@@ -26,13 +26,18 @@ class SyntaxValidator(Validator):
 
     def validate(self, code: str) -> ValidationResult:
         """
-        Validate the generated code using the Python AST module.
+        Validate Python code using AST.
 
-        :param [str] code: The Python code to be validated.
-        :return: [ValidationResult] The result of the validation, indicating whether the syntax is valid.
+        :param code: Python code to validate.
+        :return: Validation result indicating syntax validity.
         """
         try:
             ast.parse(code)
-            return ValidationResult(self.name, True)
+            return ValidationResult(self.name, passed=True, message="Syntax is valid.")
         except SyntaxError as e:
-            return ValidationResult(self.name, False, message="Syntax is not valid.", exception=e)
+            return ValidationResult(
+                self.name,
+                False,
+                message=f"Syntax is not valid: {e.msg} at line {e.lineno}, column {e.offset}.",
+                exception=e,
+            )

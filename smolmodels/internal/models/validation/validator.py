@@ -1,3 +1,13 @@
+# smolmodels/internal/models/validation/validator.py
+
+"""
+This module defines the `Validator` abstract base class and the `ValidationResult` data class.
+
+The `Validator` class provides a framework for implementing various code validators, while the
+`ValidationResult` class encapsulates the results of a validation, including whether it passed,
+any messages, and exceptions raised during validation.
+"""
+
 import abc
 from dataclasses import dataclass
 

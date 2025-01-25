@@ -1,6 +1,6 @@
-"""
-Module: smolmodels/internal/models/validation/security
+# smolmodels/internal/models/validation/security.py
 
+"""
 This module defines the SecurityValidator class, which is responsible for validating the security
 of Python code using the Bandit tool.
 
