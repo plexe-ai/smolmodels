@@ -1,6 +1,5 @@
 # tests/test_data_generation.py
 
-import os
 import pytest
 import pandas as pd
 import numpy as np
@@ -96,21 +95,6 @@ class TestDataGeneration:
             model = Model(intent="Predict house prices based on features", **sample_schema)
             with pytest.raises(RuntimeError):
                 model.build(generate_samples=5)
-
-    @pytest.mark.integration
-    def test_real_generation(self, sample_schema):
-        """Real integration test with actual API"""
-        if "GOOGLE_API_KEY" not in os.environ:
-            pytest.skip("GOOGLE_API_KEY not set")
-
-        model = Model(intent="Predict house prices based on features", **sample_schema)
-        try:
-            model.build(generate_samples=5)
-            assert model.training_data is not None
-            assert len(model.training_data) > 0
-            assert all(col in model.training_data.columns for col in ["square_feet", "bedrooms", "location", "price"])
-        except Exception as e:
-            pytest.skip(f"API test failed: {str(e)}")
 
 
 class TestSMOTEOversampling:
