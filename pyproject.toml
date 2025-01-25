@@ -1,12 +1,27 @@
 [tool.poetry]
 name = "smolmodels"
 version = "0.1.0"
-description = ""
+description = "A framework for building ML models from natural language"
 authors = [
     "marcellodebernardi <marcello.debernardi@outlook.com>",
     "vaibs-d <vaibhavatlamarts@gmail.com>"
 ]
+license = "Apache-2.0"
 readme = "README.md"
+repository = "https://github.com/plexe-ai/smolmodels"
+homepage = "https://github.com/plexe-ai/smolmodels"
+packages = [{include = "smolmodels"}]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+keywords = ["custom ai", "llm", "machine learning model", "data generation"]
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -51,21 +66,3 @@ ignore = [
     "E501",  # Line length
     "E402",  # Imports not at top of file
 ]
-
-[tool.poetry]
-description = "A framework for building ML models from natural language"
-license = "Apache-2.0"
-repository = "https://github.com/plexe-ai/smolmodels"
-homepage = "https://github.com/plexe-ai/smolmodels"
-packages = [{include = "smolmodels"}]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Software Development :: Libraries :: Python Modules"
-]
-keywords = ["custom ai", "llm", "machine learning model", "data generation"]
