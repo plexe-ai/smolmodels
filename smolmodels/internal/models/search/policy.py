@@ -1,3 +1,29 @@
+"""
+Module: policy
+
+This module defines the `SearchPolicy` abstract base class, which provides an interface
+for implementing various search policies on a graph.
+
+Classes:
+    - SearchPolicy: Abstract base class for defining search policies on a graph.
+
+Dependencies:
+    - Graph: Represents a directed graph structure consisting of nodes and edges.
+    - Node: Represents a node in the graph, with attributes for managing connections
+      and execution results.
+
+Example Usage:
+    >>> from smolmodels.internal.models.entities.graph import Graph
+    >>> from smolmodels.internal.models.search.policy import SearchPolicy
+    >>> class MySearchPolicy(SearchPolicy):
+    >>>     def select_node_enter(self, n: int = 1):
+    >>>         pass
+    >>>     def select_node_expand(self, n: int = 1):
+    >>>         pass
+    >>> graph = Graph()
+    >>> policy = MySearchPolicy(graph)
+"""
+
 import abc
 from typing import List
 
