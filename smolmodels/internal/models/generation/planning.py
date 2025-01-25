@@ -50,7 +50,7 @@ def generate_solution_plan(problem_statement: str, context: str = None) -> str:
     client = ai.Client()
 
     system_prompt = (
-        "You are a Kaggle grandmaster attending a competition. In order to win this competition, "
+        "You are an experienced Machine Learning Engineer attending a Kaggle competition. In order to win this competition, "
         "you need to come up with an excellent and creative plan for a solution"
     )
     prompt: str = (
