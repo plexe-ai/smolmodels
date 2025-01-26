@@ -60,8 +60,8 @@ To set up the development environment:
 1. **Clone the Repository**:
 
     ```bash
-    git clone https://github.com/plexe-ai/smolmodel.git
-    cd smolmodel
+    git clone https://github.com/plexe-ai/smolmodels.git
+    cd smolmodels
     ```
 
 2. **Install Dependencies**:
