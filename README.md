@@ -39,7 +39,7 @@ price = model.predict({
 
 smolmodels uses a multi-step process for model creation:
 
-1. **Intent Analysis**: Your description is analyzed to understand the type of model needed, key requirements, and success criteria.
+1. **Intent Analysis**: Problem description is analyzed to understand the type of model needed, key requirements, and success criteria.
 
 2. **Data Generation**:  Smolmodels can generate synthetic data to enable model build when there is no training data available.
 
@@ -47,9 +47,9 @@ smolmodels uses a multi-step process for model creation:
    - Selects appropriate model architectures
    - Handles feature engineering
    - Manages training and validation
-   - Ensures outputs meet your specified constraints
+   - Ensures outputs meets the specified constraints
 
-4. **Validation & Refinement**: The model is tested against your constraints and refined using directives (like "optimize for speed" or "prioritize explainability").
+4. **Validation & Refinement**: The model is tested against constraints and refined using directives (like "optimize for speed" or "prioritize explainability").
 
 ## Key Features
 
