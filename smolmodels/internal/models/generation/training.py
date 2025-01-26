@@ -16,14 +16,14 @@ Classes:
 import logging
 from typing import List, Dict
 
-import openai
 from pydantic import BaseModel
 
 from smolmodels.config import config
+from smolmodels.internal.common.providers.openai import OpenAIProvider
 
 logger = logging.getLogger(__name__)
 
-client = openai.OpenAI()
+client = OpenAIProvider()
 
 
 def generate_training_code(problem_statement: str, plan: str, history: str = None) -> str:
@@ -38,20 +38,15 @@ def generate_training_code(problem_statement: str, plan: str, history: str = Non
     Returns:
         str: The generated training code.
     """
-    response = client.chat.completions.create(
-        model="openai:gpt-4o",
-        messages=[
-            {"role": "system", "content": config.code_generation.prompt_training_base},
-            {
-                "role": "user",
-                "content": config.code_generation.prompt_training_generate.substitute(
-                    problem_statement=problem_statement, plan=plan, history=history
-                ),
-            },
-        ],
+    return client.query(
+        system_message=config.code_generation.prompt_training_base.safe_substitute(),
+        user_message=config.code_generation.prompt_training_generate.safe_substitute(
+            problem_statement=problem_statement,
+            plan=plan,
+            history=history,
+            allowed_packages=config.code_generation.allowed_packages,
+        ),
     )
-
-    return response.choices[0].message.content
 
 
 def generate_training_tests(problem_statement: str, plan: str, training_code: str) -> str:
@@ -84,25 +79,22 @@ def fix_training_code(training_code: str, plan: str, review: str, problems: str 
         str: The fixed training code.
     """
 
-    class ResponseFormat(BaseModel):
+    class FixResponse(BaseModel):
         plan: str
         code: str
 
-    response = client.beta.chat.completions.parse(
-        model="openai:gpt-4o",
-        messages=[
-            {"role": "system", "content": config.code_generation.prompt_training_base},
-            {
-                "role": "user",
-                "content": config.code_generation.prompt_training_fix.substitute(
-                    plan=plan, training_code=training_code, review=review, problems=problems, history=history
-                ),
-            },
-        ],
-        response_format=ResponseFormat,
+    response: FixResponse = client.query(
+        system_message=config.code_generation.prompt_training_base.safe_substitute(),
+        user_message=config.code_generation.prompt_training_fix.safe_substitute(
+            plan=plan,
+            training_code=training_code,
+            review=review,
+            problems=problems,
+            history=history,
+            allowed_packages=config.code_generation.allowed_packages,
+        ),
     )
-
-    return response.choices[0].message.content
+    return response.code
 
 
 def fix_training_tests(training_tests: str, training_code: str, review: str, problems: str = None) -> str:
@@ -137,24 +129,17 @@ def review_training_code(
     Returns:
         str: The review of the training code with suggestions for improvements.
     """
-    response = client.chat.completions.create(
-        model="openai:gpt-4o",
-        messages=[
-            {"role": "system", "content": config.code_generation.prompt_training_base},
-            {
-                "role": "user",
-                "content": config.code_generation.prompt_training_review.substitute(
-                    problem_statement=problem_statement,
-                    plan=plan,
-                    training_code=training_code,
-                    problems=problems,
-                    history=history,
-                ),
-            },
-        ],
+    return client.query(
+        system_message=config.code_generation.prompt_training_base.safe_substitute(),
+        user_message=config.code_generation.prompt_training_review.safe_substitute(
+            problem_statement=problem_statement,
+            plan=plan,
+            training_code=training_code,
+            problems=problems,
+            history=history,
+            allowed_packages=config.code_generation.allowed_packages,
+        ),
     )
-
-    return response.choices[0].message.content
 
 
 def review_training_tests(

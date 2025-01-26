@@ -1,10 +1,9 @@
-# todo: algorithms for generating the inference code
 from typing import List, Dict
+
 from smolmodels.config import config
+from smolmodels.internal.common.providers.openai import OpenAIProvider
 
-import openai
-
-client = openai.OpenAI()
+client = OpenAIProvider()
 
 
 def generate_inference_code(problem_statement: str, plan: str, training_code: str, context: str = None) -> str:
@@ -20,23 +19,16 @@ def generate_inference_code(problem_statement: str, plan: str, training_code: st
     Returns:
         str: The generated inference code.
     """
-    response = client.chat.completions.create(
-        model="openai:gpt-4o",
-        messages=[
-            {"role": "system", "content": config.code_generation.prompt_inference_base},
-            {
-                "role": "user",
-                "content": config.code_generation.prompt_inference_generate.substitute(
-                    problem_statement=problem_statement,
-                    plan=plan,
-                    training_code=training_code,
-                    context=context,
-                ),
-            },
-        ],
+    return client.query(
+        system_message=config.code_generation.prompt_inference_base.safe_substitute(),
+        user_message=config.code_generation.prompt_inference_generate.safe_substitute(
+            problem_statement=problem_statement,
+            plan=plan,
+            training_code=training_code,
+            context=context,
+            allowed_packages=config.code_generation.allowed_packages,
+        ),
     )
-
-    return response.choices[0].message.content
 
 
 def generate_inference_tests(problem_statement: str, plan: str, training_code: str, inference_code: str) -> str:
@@ -67,22 +59,14 @@ def fix_inference_code(inference_code: str, review: str, problems: str) -> str:
     Returns:
         str: The fixed inference code.
     """
-    response = client.chat.completions.create(
-        model="openai:gpt-4o",
-        messages=[
-            {"role": "system", "content": config.code_generation.prompt_inference_base},
-            {
-                "role": "user",
-                "content": config.code_generation.prompt_inference_fix.substitute(
-                    inference_code=inference_code,
-                    review=review,
-                    problems=problems,
-                ),
-            },
-        ],
+    return client.query(
+        system_message=config.code_generation.prompt_inference_base.safe_substitute(),
+        user_message=config.code_generation.prompt_inference_fix.safe_substitute(
+            inference_code=inference_code,
+            review=review,
+            problems=problems,
+        ),
     )
-
-    return response.choices[0].message.content
 
 
 def fix_inference_tests(inference_tests: str, inference_code: str, review: str, problems: str) -> str:
@@ -114,23 +98,15 @@ def review_inference_code(inference_code: str, problem_statement: str, plan: str
     Returns:
         str: The review of the inference code with suggestions for improvements.
     """
-    response = client.chat.completions.create(
-        model="openai:gpt-4o",
-        messages=[
-            {"role": "system", "content": config.code_generation.prompt_inference_base},
-            {
-                "role": "user",
-                "content": config.code_generation.prompt_inference_review.substitute(
-                    problem_statement=problem_statement,
-                    plan=plan,
-                    inference_code=inference_code,
-                    context=context,
-                ),
-            },
-        ],
+    return client.query(
+        system_message=config.code_generation.prompt_inference_base.safe_substitute(),
+        user_message=config.code_generation.prompt_inference_review.safe_substitute(
+            problem_statement=problem_statement,
+            plan=plan,
+            inference_code=inference_code,
+            context=context,
+        ),
     )
-
-    return response.choices[0].message.content
 
 
 def review_inference_tests(

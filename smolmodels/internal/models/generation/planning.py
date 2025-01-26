@@ -4,20 +4,21 @@
 This module provides functions and classes for generating and planning solutions for machine learning problems.
 """
 
+import json
 import logging
 from typing import List, Dict
 
-import openai
 import pandas as pd
 from pydantic import BaseModel
 
 from smolmodels.config import config
+from smolmodels.internal.common.providers.openai import OpenAIProvider
 from smolmodels.internal.models.entities.metric import Metric, MetricComparator, ComparisonMethod
 from smolmodels.internal.models.entities.stopping_condition import StoppingCondition
 
 logger = logging.getLogger(__name__)
 
-client = openai.OpenAI()
+client = OpenAIProvider()
 
 
 def select_metric_to_optimise(problem_statement: str, dataset: pd.DataFrame) -> Metric:
@@ -29,29 +30,24 @@ def select_metric_to_optimise(problem_statement: str, dataset: pd.DataFrame) -> 
     :return: the metric to optimise
     """
 
-    class ResponseFormat(BaseModel):
+    class MetricResponse(BaseModel):
         name: str
         comparison_method: ComparisonMethod
         comparison_target: float = None
 
-    messages = [
-        {"role": "system", "content": config.code_generation.prompt_planning_select_metric.safe_substitute()},
-        {
-            "role": "user",
-            "content": f"Problem statement:\n{problem_statement}\n\nDataset Schema:\n{dataset}",
-            # todo: legible dataset schema
-        },
-    ]
-    logger.debug(f"Invoking chat completion with messages: {messages}")
-    completion = client.beta.chat.completions.parse(
-        model="gpt-4o-2024-08-06",
-        messages=messages,
-        response_format=ResponseFormat,
+    response: MetricResponse = MetricResponse(
+        **json.loads(
+            client.query(
+                system_message=config.code_generation.prompt_planning_select_metric.safe_substitute(),
+                user_message=f"Problem statement:\n{problem_statement}\n\nDataset Schema:\n{dataset}",
+                response_format=MetricResponse,
+            )
+        )
     )
-    logger.debug(f"Received completion: {completion}")
-    metric_response = completion.choices[0].message.parsed
     return Metric(
-        metric_response.name, 0, MetricComparator(metric_response.comparison_method, metric_response.comparison_target)
+        name=response.name,
+        value=float("inf") if response.comparison_method == ComparisonMethod.LOWER_IS_BETTER else -float("inf"),
+        comparator=MetricComparator(response.comparison_method, response.comparison_target),
     )
 
 
@@ -65,29 +61,25 @@ def select_stopping_condition(problem_statement: str, dataset: pd.DataFrame, met
     :return: the stopping condition
     """
 
-    class ResponseFormat(BaseModel):
+    class StoppingConditionResponse(BaseModel):
         max_generations: int
         max_time: int
         metric_threshold: float
 
-    messages = [
-        {"role": "system", "content": config.code_generation.prompt_planning_select_stop_condition.safe_substitute()},
-        {"role": "user", "content": f"Problem:\n{problem_statement}\n\nDataset:\n{dataset}\n\nMetric:\n{metric}"},
-    ]
-
-    logger.debug(f"Invoking chat completion with messages: {messages}")
-    completion = client.beta.chat.completions.parse(
-        model="gpt-4o-2024-08-06",
-        messages=messages,
-        response_format=ResponseFormat,
+    response: StoppingConditionResponse = StoppingConditionResponse(
+        **json.loads(
+            client.query(
+                system_message=config.code_generation.prompt_planning_select_stop_condition.safe_substitute(),
+                user_message=f"Problem:\n{problem_statement}\n\nDataset:\n{dataset}\n\nMetric:\n{metric}",
+                response_format=StoppingConditionResponse,
+            )
+        )
     )
-    logger.debug(f"Received completion: {completion}")
 
-    stopping_condition_response = completion.choices[0].message.parsed
     return StoppingCondition(
-        max_generations=stopping_condition_response.max_generations,
-        max_time=stopping_condition_response.max_time,
-        metric=Metric(metric.name, stopping_condition_response.metric_threshold, metric.comparator),
+        max_generations=response.max_generations,
+        max_time=response.max_time,
+        metric=Metric(metric.name, response.metric_threshold, metric.comparator),
     )
 
 
@@ -99,21 +91,13 @@ def generate_solution_plan(problem_statement: str, context: str = None) -> str:
     :param context: additional context or memory for the solution
     :return: the generated solution plan
     """
-    response = client.chat.completions.create(
-        model="gpt-4o-2024-08-06",
-        messages=[
-            {"role": "system", "content": config.code_generation.prompt_planning_base.safe_substitute()},
-            {
-                "role": "user",
-                "content": config.code_generation.prompt_planning_generate_plan.safe_substitute(
-                    problem_statement=problem_statement,
-                    context=context,
-                ),
-            },
-        ],
+    return client.query(
+        system_message=config.code_generation.prompt_planning_base.safe_substitute(),
+        user_message=config.code_generation.prompt_planning_generate_plan.safe_substitute(
+            problem_statement=problem_statement,
+            context=context,
+        ),
     )
-
-    return response.choices[0].message.content
 
 
 class SolutionPlanGenerator:
