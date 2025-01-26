@@ -12,6 +12,7 @@ class OpenAIProvider(Provider):
     def __init__(self, api_key: str = None, model: str = "gpt-4o-2024-08-06"):
         self.key = api_key or os.environ.get("OPENAI_API_KEY", default=None)
         self.model = model
+        self.max_tokens = 20000
         self.client = openai.OpenAI(api_key=self.key)
 
     def query(self, system_message: str, user_message: str, response_format=None) -> str:
@@ -24,6 +25,7 @@ class OpenAIProvider(Provider):
                     {"role": "user", "content": user_message},
                 ],
                 response_format=response_format,
+                max_tokens=self.max_tokens,
             )
             content = response.choices[0].message.content
         else:
@@ -33,6 +35,7 @@ class OpenAIProvider(Provider):
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": user_message},
                 ],
+                max_tokens=self.max_tokens,
             )
             content = response.choices[0].message.content
         logger.debug(f"Received completion from {self.model}: {content}")
