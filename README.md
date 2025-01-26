@@ -41,7 +41,7 @@ smolmodels uses a multi-step process for model creation:
 
 1. **Intent Analysis**: Your description is analyzed to understand the type of model needed, key requirements, and success criteria.
 
-2. **Data Generation**:  If you don't have training data, smolmodels can generate synthetic data.
+2. **Data Generation**:  Smolmodels can generate synthetic data to enable model build when there is no training data available.
 
 3. **Model Building**: The library:
    - Selects appropriate model architectures
