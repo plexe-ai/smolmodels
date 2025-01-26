@@ -21,6 +21,9 @@ class ExecutionResult:
     exc_type: Optional[str] = None
     exc_info: Optional[dict] = None
     exc_stack: Optional[list[tuple]] = None
+    model_artifacts: Optional[dict] = None
+    analysis: Optional[str] = None
+    performance: Optional[float] = None
 
 
 class Executor(ABC):

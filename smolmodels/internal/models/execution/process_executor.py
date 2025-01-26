@@ -19,12 +19,10 @@ Exceptions:
 """
 
 import logging
-import os
 import queue
+import subprocess
 import sys
 import time
-import traceback
-from multiprocessing import Process, Queue
 from pathlib import Path
 
 from smolmodels.internal.models.execution.executor import ExecutionResult, Executor
@@ -41,7 +39,7 @@ class RedirectQueue:
     and redirect them to a multiprocessing queue for further processing.
     """
 
-    def __init__(self, queue: Queue):
+    def __init__(self):
         """
         Initialize the RedirectQueue.
 
@@ -78,6 +76,7 @@ class ProcessExecutor(Executor):
         working_dir: Path | str,
         timeout: int = 3600,
         code_execution_file_name: str = config.execution.runfile_name,
+        dataset_path: str = None,
     ):
         """
         Initialize the ProcessExecutor.
@@ -89,172 +88,74 @@ class ProcessExecutor(Executor):
             code_execution_file_name (str): The filename to use for the executed script.
         """
         super().__init__(code, timeout)
-        # Ensure the working directory exists
         self.working_dir = Path(working_dir).resolve()
         self.working_dir.mkdir(parents=True, exist_ok=True)
         self.execution_file_name = code_execution_file_name
-        self.process: Process = None  # type: ignore
+        self.dataset_path = dataset_path
 
     def run(self) -> ExecutionResult:
-        """
-        Execute the provided Python code in an isolated process and return the results.
-
-        Returns:
-            ExecutionResult: The results of the execution, including output and exception details.
-
-        Raises:
-            RuntimeError: If the child process dies unexpectedly.
-        """
+        """Execute code in a subprocess and return results."""
         logger.debug("REPL is executing code")
-
-        if self.process is not None:
-            self.cleanup()
-        self._create_process()
-
-        assert self.process.is_alive()
-
-        self.code_inq.put(self.code)
-        self._wait_for_ready_state()
-
         start_time = time.time()
 
-        while True:
-            try:
-                state = self.event_outq.get(timeout=1)
-                assert state[0] == "state:finished", state
-                exec_time = time.time() - start_time
-                break
-            except queue.Empty:
-                if not self.process.is_alive():
-                    msg = "REPL child process died unexpectedly"
-                    logger.critical(msg)
-                    while not self.result_outq.empty():
-                        logger.error(f"REPL output queue dump: {self.result_outq.get()}")
-                    raise RuntimeError(msg) from None
-                running_time = time.time() - start_time
-                if running_time > self.timeout:
-                    logger.warning("Execution exceeded the time limit. Terminating the process.")
-                    self.process.kill()
-                    state = (None, "TimeoutError", {}, [])
-                    exec_time = self.timeout
-                    break
+        # Write code to file
+        code_file = self.working_dir / self.execution_file_name
+        with open(code_file, "w") as f:
+            f.write(self.code)
 
-        output = self._read_output()
-        e_cls_name, exc_info, exc_stack = state[1:]
-        return ExecutionResult(output, exec_time, e_cls_name, exc_info, exc_stack)
+        try:
+            # Execute the code in a subprocess
+            process = subprocess.Popen(
+                [sys.executable, str(code_file)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=str(self.working_dir),
+                text=True,
+            )
+
+            stdout, stderr = process.communicate(timeout=self.timeout)
+            exec_time = time.time() - start_time
+
+            # Check for model artifacts in working directory
+            model_artifacts = {}
+            if (self.working_dir / "model.joblib").exists():
+                model_artifacts["model"] = str(self.working_dir / "model.joblib")
+
+            if process.returncode != 0:
+                return ExecutionResult(
+                    term_out=[stdout],
+                    exec_time=exec_time,
+                    exc_type="RuntimeError",
+                    exc_info={"args": [stderr]},
+                    exc_stack=None,
+                    model_artifacts=model_artifacts,
+                )
+
+            return ExecutionResult(
+                term_out=[stdout],
+                exec_time=exec_time,
+                exc_type=None,
+                exc_info=None,
+                exc_stack=None,
+                model_artifacts=model_artifacts,
+            )
+
+        except subprocess.TimeoutExpired:
+            process.kill()
+            return ExecutionResult(
+                term_out=[],
+                exec_time=self.timeout,
+                exc_type="TimeoutError",
+                exc_info={"args": [f"Execution exceeded {self.timeout}s timeout"]},
+                exc_stack=None,
+                model_artifacts={},
+            )
+        finally:
+            try:
+                code_file.unlink()
+            except:
+                raise
 
     def cleanup(self):
-        """
-        Terminate the child process and perform cleanup.
-
-        This method ensures that the child process is terminated, even if it fails
-        to exit gracefully. It also releases resources associated with the process.
-        """
-        if self.process is None:
-            return
-        self.process.terminate()
-        self.process.join(timeout=2)
-        if self.process.exitcode is None:
-            logger.warning("Child process failed to terminate gracefully, killing it..")
-            self.process.kill()
-            self.process.join()
-        self.process.close()
-        self.process = None
-
-    def _create_process(self) -> None:
-        """
-        Create the child process to execute code.
-
-        This method initializes the multiprocessing queues and starts the child process
-        that runs the code execution session.
-        """
-        self.code_inq, self.result_outq, self.event_outq = Queue(), Queue(), Queue()
-        self.process = Process(
-            target=self._run_session,
-            args=(self.code_inq, self.result_outq, self.event_outq),
-        )
-        self.process.start()
-
-    def _wait_for_ready_state(self):
-        """
-        Wait for the child process to signal readiness.
-
-        Raises:
-            RuntimeError: If the child process fails to start.
-        """
-        try:
-            state = self.event_outq.get(timeout=10)
-        except queue.Empty:
-            msg = "REPL child process failed to start execution"
-            logger.critical(msg)
-            while not self.result_outq.empty():
-                logger.error(f"REPL output queue dump: {self.result_outq.get()}")
-            raise RuntimeError(msg) from None
-        assert state[0] == "state:ready", state
-
-    def _read_output(self) -> list[str]:
-        """
-        Read all output from the child process.
-
-        Returns:
-            list[str]: A list of output lines.
-        """
-        output: list[str] = []
-        while not self.result_outq.empty() or not output or output[-1] != "<|EOF|>":
-            output.append(self.result_outq.get())
-        if output and output[-1] == "<|EOF|>":
-            output.pop()
-        return output
-
-    def _run_session(self, code_in_q: Queue, result_out_q: Queue, event_out_q: Queue) -> None:
-        """
-        Run the execution session in the child process.
-
-        Args:
-            code_in_q (Queue): Queue to receive the code to execute.
-            result_out_q (Queue): Queue to send stdout and stderr messages to.
-            event_out_q (Queue): Queue to communicate execution state events.
-        """
-        self._child_proc_setup(result_out_q)
-
-        # Reset the global scope for each execution to prevent state leakage.
-        global_scope: dict = {}
-
-        code = code_in_q.get()
-        os.chdir(str(self.working_dir))
-        with open(self.execution_file_name, "w") as f:
-            f.write(code)
-
-        event_out_q.put(("state:ready",))
-        try:
-            exec(compile(code, self.execution_file_name, "exec"), global_scope)
-            event_out_q.put(("state:finished", None, None, None))
-        except BaseException as e:
-            tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
-            e_cls_name = type(e).__name__
-            exc_info = {"args": list(map(str, e.args))} if hasattr(e, "args") else {}
-            exc_stack = traceback.extract_tb(e.__traceback__)
-            exc_stack = [(t.filename, t.lineno, t.name, t.line) for t in exc_stack]
-
-            result_out_q.put(tb_str)
-            event_out_q.put(("state:finished", e_cls_name, exc_info, exc_stack))
-
-        try:
-            os.remove(self.execution_file_name)
-        except FileNotFoundError:
-            pass
-
-        result_out_q.put("<|EOF|>")
-
-    def _child_proc_setup(self, result_out_q: Queue) -> None:
-        """
-        Set up the child process environment.
-
-        Args:
-            result_out_q (Queue): The queue to send output messages to.
-        """
-        os.chdir(str(self.working_dir))
-
-        sys.path.append(str(self.working_dir))
-
-        sys.stdout = sys.stderr = RedirectQueue(result_out_q)
+        """Required by abstract base class."""
+        pass
