@@ -13,19 +13,19 @@ def join_problem_statement(intent: str, input_schema: dict, output_schema: dict,
         "\n\n"
         "# Input Schema"
         "\n\n"
-        f"{json.dumps(input_schema, indent=4)}"
+        f"{json.dumps(input_schema, indent=4, default=str)}"
         "\n\n"
         "# Output Schema"
         "\n\n"
-        f"{json.dumps(output_schema, indent=4)}"
+        f"{json.dumps(output_schema, indent=4, default=str)}"
         "\n\n"
         "# Constraints"
         "\n\n"
-        f"{json.dumps(constraints, indent=4)}"
+        f"{json.dumps(constraints, indent=4, default=str)}"
         "\n\n"
         "# Directives"
         "\n\n"
-        f"{json.dumps(directives, indent=4)}"
+        f"{json.dumps(directives, indent=4, default=str)}"
     )
 
 
