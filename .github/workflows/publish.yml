@@ -11,7 +11,7 @@ jobs:
     environment: release
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
-      contents: write  # Needed for gh release
+      contents: write  # Needed for release asset uploads
       
     steps:
       - name: Checkout Code
@@ -35,11 +35,10 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
 
-      - name: Create GitHub Release
+      - name: Upload Release Assets
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: dist/*
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
