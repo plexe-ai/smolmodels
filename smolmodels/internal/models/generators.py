@@ -12,6 +12,7 @@ Constants:
 
 """
 
+import pandas as pd
 import time
 from typing import List, Optional, Tuple, Callable
 
@@ -54,7 +55,7 @@ def generate(
     intent: str,
     input_schema: dict,
     output_schema: dict,
-    dataset: str,
+    dataset: pd.DataFrame,
     constraints: List[Constraint] = None,
     directives: List[Directive] = None,
     callbacks: List[Callback] = None,

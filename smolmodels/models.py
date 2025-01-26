@@ -40,7 +40,8 @@ from dataclasses import dataclass
 from smolmodels.callbacks import Callback
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
-from .internal.data_generation.generator import generate_data, DataGenerationRequest
+from smolmodels.internal.data_generation.generator import generate_data, DataGenerationRequest
+from smolmodels.internal.models.generators import generate
 
 
 class ModelState(Enum):
@@ -188,7 +189,16 @@ class Model:
             if self.training_data is None:
                 raise ValueError("No training data available. Provide dataset or generate_samples.")
 
-            # TODO: add solution generation logic here
+            self.trainer, self.predictor = generate(
+                self.intent,
+                self.input_schema,
+                self.output_schema,
+                self.training_data,
+                self.constraints,
+                directives,
+                callbacks,
+                isolation,
+            )
 
             self.state = ModelState.READY
         except Exception as e:
