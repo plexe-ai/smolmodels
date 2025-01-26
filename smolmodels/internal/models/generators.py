@@ -39,7 +39,6 @@ from smolmodels.internal.models.generation.planning import (
 )
 from smolmodels.internal.models.generation.training import (
     generate_training_code,
-    generate_training_tests,
     fix_training_code,
     review_training_code,
 )
@@ -122,7 +121,7 @@ def generate(
 
         # Generate the code for the node
         node.training_code = generate_training_code(problem_statement, node.solution_plan)
-        node.training_tests = generate_training_tests(problem_statement, node.solution_plan, node.training_code)
+        # node.training_tests = generate_training_tests(problem_statement, node.solution_plan, node.training_code)
 
         # Review the generated training code
         for _ in range(config.model_search.max_fixing_attempts):
@@ -132,7 +131,7 @@ def generate(
                     review = review_training_code(
                         node.training_code, problem_statement, node.solution_plan, str(result)
                     )
-                    node.training_code = fix_training_code(node.training_code, review)
+                    node.training_code = fix_training_code(node.training_code, node.solution_plan, review)
                     continue
 
         # TODO: Training can happen in parallel to further exploration
