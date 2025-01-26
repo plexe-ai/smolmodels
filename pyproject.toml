@@ -39,6 +39,11 @@ pre-commit = "^4.0.1"
 ruff = "^0.9.1"
 jupyterlab = "^4.2.5"
 
+[tool.semantic_release]
+version_variables = ["pyproject.toml:version"]
+commit_parser = "angular"
+build_command = "poetry build"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
