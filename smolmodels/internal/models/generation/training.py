@@ -13,6 +13,7 @@ Classes:
     TrainingCodeGenerator: A class to generate, fix, and review machine learning model training code.
 """
 
+import json
 import logging
 from typing import List, Dict
 
@@ -83,16 +84,20 @@ def fix_training_code(training_code: str, plan: str, review: str, problems: str 
         plan: str
         code: str
 
-    response: FixResponse = client.query(
-        system_message=config.code_generation.prompt_training_base.safe_substitute(),
-        user_message=config.code_generation.prompt_training_fix.safe_substitute(
-            plan=plan,
-            training_code=training_code,
-            review=review,
-            problems=problems,
-            history=history,
-            allowed_packages=config.code_generation.allowed_packages,
-        ),
+    response: FixResponse = FixResponse(
+        **json.loads(
+            client.query(
+                system_message=config.code_generation.prompt_training_base.safe_substitute(),
+                user_message=config.code_generation.prompt_training_fix.safe_substitute(
+                    plan=plan,
+                    training_code=training_code,
+                    review=review,
+                    problems=problems,
+                    history=history,
+                    allowed_packages=config.code_generation.allowed_packages,
+                ),
+            )
+        )
     )
     return response.code
 
