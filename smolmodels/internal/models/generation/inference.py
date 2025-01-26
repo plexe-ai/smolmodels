@@ -1,13 +1,10 @@
 # todo: algorithms for generating the inference code
 from typing import List, Dict
+from smolmodels.config import config
 
 import openai
 
-ALLOWED_PACKAGES = [
-    "numpy",
-    "pandas",
-    "scikit-learn",
-]
+client = openai.OpenAI()
 
 
 def generate_inference_code(problem_statement: str, plan: str, training_code: str, context: str = None) -> str:
@@ -23,32 +20,19 @@ def generate_inference_code(problem_statement: str, plan: str, training_code: st
     Returns:
         str: The generated inference code.
     """
-    client = openai.OpenAI()
-
-    system_prompt = (
-        "You are an experienced Machine Learning Engineer tasked with deploying a trained machine learning model. "
-        "You must write an inference script based on a given problem statement, solution plan, and training code. "
-        "The script should take in new data, preprocess it appropriately, load the trained model, and return predictions. "
-        "Make sure to handle common errors gracefully."
-    )
-    prompt = (
-        f"# Task description: {problem_statement}\n"
-        f"# Solution plan: {plan}\n"
-        f"# Training code:\n{training_code}\n"
-        f"# Context: {context if context else 'N/A'}\n"
-        "\n"
-        "Write a Python script for inference that:\n"
-        "1. Loads the trained model saved in 'model.joblib' from the './working' directory.\n"
-        "2. Takes a new input dataset, preprocesses it as per the training pipeline, and generates predictions.\n"
-        "3. Outputs the predictions as a CSV file named 'predictions.csv' in the './working' directory.\n"
-        f"Your solution can only use the following ML frameworks: {ALLOWED_PACKAGES}."
-    )
-
     response = client.chat.completions.create(
         model="openai:gpt-4o",
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
+            {"role": "system", "content": config.code_generation.prompt_inference_base},
+            {
+                "role": "user",
+                "content": config.code_generation.prompt_inference_generate.substitute(
+                    problem_statement=problem_statement,
+                    plan=plan,
+                    training_code=training_code,
+                    context=context,
+                ),
+            },
         ],
     )
 
@@ -83,23 +67,18 @@ def fix_inference_code(inference_code: str, review: str, problems: str) -> str:
     Returns:
         str: The fixed inference code.
     """
-    client = openai.OpenAI()
-
-    system_prompt = "You are an experienced Machine Learning Engineer tasked with fixing an inference script."
-    prompt = (
-        f"# Original Inference Code:\n{inference_code}\n"
-        f"# Review of Issues:\n{review}\n"
-        f"# Specific Errors/Bugs:\n{problems}\n"
-        "\n"
-        "Revise the inference code to address the identified issues and ensure it performs as expected. "
-        "The code should handle common errors gracefully and ensure compatibility with the training pipeline."
-    )
-
     response = client.chat.completions.create(
         model="openai:gpt-4o",
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
+            {"role": "system", "content": config.code_generation.prompt_inference_base},
+            {
+                "role": "user",
+                "content": config.code_generation.prompt_inference_fix.substitute(
+                    inference_code=inference_code,
+                    review=review,
+                    problems=problems,
+                ),
+            },
         ],
     )
 
@@ -135,24 +114,19 @@ def review_inference_code(inference_code: str, problem_statement: str, plan: str
     Returns:
         str: The review of the inference code with suggestions for improvements.
     """
-    client = openai.OpenAI()
-
-    system_prompt = "You are an experienced Machine Learning Engineer tasked with reviewing an inference script."
-    prompt = (
-        f"# Problem Statement:\n{problem_statement}\n"
-        f"# Solution Plan:\n{plan}\n"
-        f"# Inference Code:\n{inference_code}\n"
-        f"# Context:\n{context if context else 'N/A'}\n"
-        "\n"
-        "Review the inference code to identify potential improvements, ensure it aligns with the solution plan, and "
-        "handles inputs and outputs as expected. Provide suggestions for optimisation and error handling."
-    )
-
     response = client.chat.completions.create(
         model="openai:gpt-4o",
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
+            {"role": "system", "content": config.code_generation.prompt_inference_base},
+            {
+                "role": "user",
+                "content": config.code_generation.prompt_inference_review.substitute(
+                    problem_statement=problem_statement,
+                    plan=plan,
+                    inference_code=inference_code,
+                    context=context,
+                ),
+            },
         ],
     )
 

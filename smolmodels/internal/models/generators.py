@@ -15,6 +15,7 @@ Constants:
 import time
 from typing import List, Optional, Tuple, Callable
 
+from smolmodels.config import config
 from smolmodels.callbacks import Callback
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
@@ -47,9 +48,6 @@ from smolmodels.internal.models.validation.security import SecurityValidator
 from smolmodels.internal.models.validation.syntax import SyntaxValidator
 from smolmodels.internal.models.validation.validator import Validator
 import smolmodels.internal.models.utils as sm_utils
-
-NUMBER_INITIAL_NODES = 5
-MAX_FIXING_ATTEMPTS = 5
 
 
 def generate(
@@ -98,7 +96,7 @@ def generate(
     # Create classes used in code generation and review
     validators: List[Validator] = [SyntaxValidator(), SecurityValidator()]
 
-    for i in range(NUMBER_INITIAL_NODES):
+    for i in range(config.model_search.initial_nodes):
         graph.add_node(Node(solution_plan=generate_solution_plan(problem_statement)), None)
 
     # Explore the solution space until the stopping condition is met
@@ -126,7 +124,7 @@ def generate(
         node.training_tests = generate_training_tests(problem_statement, node.solution_plan, node.training_code)
 
         # Review the generated training code
-        for _ in range(MAX_FIXING_ATTEMPTS):
+        for _ in range(config.model_search.max_fixing_attempts):
             for validator in validators:
                 result = validator.validate(node.training_code)
                 if not result.passed:
@@ -153,7 +151,7 @@ def generate(
     )
 
     # Review the generated inference code
-    for _ in range(MAX_FIXING_ATTEMPTS):
+    for _ in range(config.model_search.max_fixing_attempts):
         for validator in validators:
             result = validator.validate(best_node.inference_code)
             if not result.passed:

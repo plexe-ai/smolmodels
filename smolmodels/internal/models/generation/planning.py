@@ -7,20 +7,16 @@ This module provides functions and classes for generating and planning solutions
 import logging
 from typing import List, Dict
 
-import aisuite as ai
 import openai
 from pydantic import BaseModel
 
+from smolmodels.config import config
 from smolmodels.internal.models.entities.metric import Metric, MetricComparator, ComparisonMethod
 from smolmodels.internal.models.entities.stopping_condition import StoppingCondition
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_PACKAGES = [
-    "numpy",
-    "pandas",
-    "scikit-learn",
-]
+client = openai.OpenAI()
 
 
 def select_metric_to_optimise(problem_statement: str, dataset: str) -> Metric:
@@ -37,13 +33,11 @@ def select_metric_to_optimise(problem_statement: str, dataset: str) -> Metric:
         comparison_method: ComparisonMethod
         comparison_target: float = None
 
-    client = openai.OpenAI()
-
     # fixme: the dataset is currently just being passed as-is into the completion
     completion = client.beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
         messages=[
-            {"role": "system", "content": "Select the metric to optimise for the given problem statement and dataset."},
+            {"role": "system", "content": config.code_generation.prompt_planning_select_metric},
             {"role": "user", "content": f"Problem statement: {problem_statement}\nDataset: {dataset}"},
         ],
         response_format=ResponseFormat,
@@ -70,13 +64,11 @@ def select_stopping_condition(problem_statement: str, dataset: str, metric: Metr
         max_time: int
         metric_threshold: float
 
-    client = openai.OpenAI()
-
     # fixme: the dataset is currently just being passed as-is into the completion
     completion = client.beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
         messages=[
-            {"role": "system", "content": "Select the stopping condition for the given problem statement and dataset."},
+            {"role": "system", "content": config.code_generation.prompt_planning_select_stopping_condition},
             {
                 "role": "user",
                 "content": f"Problem statement: {problem_statement}\nDataset: {dataset}\nMetric: {metric}",
@@ -101,33 +93,17 @@ def generate_solution_plan(problem_statement: str, context: str = None) -> str:
     :param context: additional context or memory for the solution
     :return: the generated solution plan
     """
-    client = ai.Client()
-
-    system_prompt = (
-        "You are an experienced Machine Learning Engineer attending a Kaggle competition. In order to win this competition, "
-        "you need to come up with an excellent and creative plan for a solution"
-    )
-    prompt: str = (
-        "We will now provide a description of the task. Write a plan for a solution to the following task.\n\n"
-        f"**Task description:** {problem_statement}\n\n"
-        f"**Memory:** {context}\n\n"
-        "Your response should be a brief outline/sketch of your proposed solution in natural language (3-5 sentences), "
-        "followed by a single markdown code block (wrapped in ```) which implements this solution and prints out the evaluation metric. "
-        "There should be no additional headings or text in your response. Just natural language text followed by a newline and then the markdown code block.\n\n"
-        "This first solution design should be relatively simple, without ensembling or hyper-parameter optimization."
-        "Take the Memory section into consideration when proposing the design"
-        " don't propose the same modelling solution but keep the evaluation the same."
-        "The solution sketch should be 3-5 sentences."
-        "Propose an evaluation metric that is reasonable for this task."
-        "Don't suggest to do EDA.\n\n"
-        f"Your solution can only use the following ML frameworks: {ALLOWED_PACKAGES}."
-    )
-
     response = client.chat.completions.create(
         model="openai:gpt-4o",
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
+            {"role": "system", "content": config.code_generation.prompt_planning_base},
+            {
+                "role": "user",
+                "content": config.code_generation.prompt_planning_generate_plan.substitute(
+                    problem_statement=problem_statement,
+                    context=context,
+                ),
+            },
         ],
     )
 

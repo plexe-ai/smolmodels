@@ -11,21 +11,19 @@ Functions:
 
 Classes:
     TrainingCodeGenerator: A class to generate, fix, and review machine learning model training code.
-
-Constants:
-    ALLOWED_PACKAGES: List of allowed packages for generating training code.
 """
 
+import logging
 from typing import List, Dict
 
 import openai
 from pydantic import BaseModel
 
-ALLOWED_PACKAGES = [
-    "numpy",
-    "pandas",
-    "scikit-learn",
-]
+from smolmodels.config import config
+
+logger = logging.getLogger(__name__)
+
+client = openai.OpenAI()
 
 
 def generate_training_code(problem_statement: str, plan: str, history: str = None) -> str:
@@ -40,35 +38,16 @@ def generate_training_code(problem_statement: str, plan: str, history: str = Non
     Returns:
         str: The generated training code.
     """
-    client = openai.OpenAI()
-
-    system_prompt = (
-        "You are an experienced Machine Learning Engineer working on a Kaggle competition. "
-        "To win this competition, you must write an excellent machine learning model training code, "
-        "based on a given problem statement and solution plan. Your training code should implement the "
-        "proposed solution plan."
-    )
-    prompt = (
-        "Write a Python script that trains a machine learning model to solve the following task, "
-        "following the outlined solution plan.\n\n"
-        f"# Task description: {problem_statement}\n\n"
-        f"# Solution plan: {plan}\n\n"
-        f"# History: {history if history is not None else "N/A"}\n\n"
-        "The code should **implement the proposed solution** and **print the value of the evaluation metric "
-        "computed on a hold-out validation set**. Train a new model and save it as 'model.joblib' in the './working' "
-        "directory using `joblib.dump()`. Feel free to produce any other joblib files. **DO NOT SAVE any "
-        "preprocessors in the same joblib file using keys**. ALWAYS use separate joblib files for different objects. "
-        "No parts of the code should be skipped; don't terminate before finishing the script. Your response should "
-        "only contain a single code block. All the provided input data is stored in the './input' directory. "
-        "You can use the './working' directory to store any temporary files that your code needs to create.\n\n"
-        f"Your solution can only use the following ML frameworks: {ALLOWED_PACKAGES}."
-    )
-
     response = client.chat.completions.create(
         model="openai:gpt-4o",
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
+            {"role": "system", "content": config.code_generation.prompt_training_base},
+            {
+                "role": "user",
+                "content": config.code_generation.prompt_training_generate.substitute(
+                    problem_statement=problem_statement, plan=plan, history=history
+                ),
+            },
         ],
     )
 
@@ -104,27 +83,6 @@ def fix_training_code(training_code: str, plan: str, review: str, problems: str 
     Returns:
         str: The fixed training code.
     """
-    client = openai.OpenAI()
-
-    system_prompt = "You are an experienced Machine Learning Engineer working on a Kaggle competition. "
-    prompt = (
-        "Your previous solution had a bug, so based on the information below, you should revise it in order "
-        "to fix this bug. Your response should consist of an implementation outline plan in natural language, "
-        "and a rewritten version of the code in which all highlighted problems are fixed.\n\n"
-        f"# Original Solution Plan:\n{plan}\n\n"
-        f"# Previous Solution:\n{training_code}\n\n"
-        f"# Review of Issues:\n{review}\n\n"
-        f"# Specific Errors/Bugs:\n{problems if problems is not None else "N/A"}\n\n"
-        f"# History:\n{history if history is not None else "N/A"}\n\n"
-        "The code should **implement the proposed solution** and **print the value of the evaluation metric "
-        "computed on a hold-out validation set**. Train a new model and save it as 'model.joblib' in the './working' "
-        "directory using `joblib.dump()`. Feel free to produce any other joblib files. **DO NOT SAVE any "
-        "preprocessors in the same joblib file using keys**. ALWAYS use separate joblib files for different objects. "
-        "No parts of the code should be skipped; don't terminate before finishing the script. Your response should "
-        "only contain a single code block. All the provided input data is stored in the './input' directory. "
-        "You can use the './working' directory to store any temporary files that your code needs to create.\n\n"
-        f"Your solution can only use the following ML frameworks: {ALLOWED_PACKAGES}."
-    )
 
     class ResponseFormat(BaseModel):
         plan: str
@@ -133,8 +91,13 @@ def fix_training_code(training_code: str, plan: str, review: str, problems: str 
     response = client.beta.chat.completions.parse(
         model="openai:gpt-4o",
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
+            {"role": "system", "content": config.code_generation.prompt_training_base},
+            {
+                "role": "user",
+                "content": config.code_generation.prompt_training_fix.substitute(
+                    plan=plan, training_code=training_code, review=review, problems=problems, history=history
+                ),
+            },
         ],
         response_format=ResponseFormat,
     )
@@ -174,32 +137,20 @@ def review_training_code(
     Returns:
         str: The review of the training code with suggestions for improvements.
     """
-    client = openai.OpenAI()
-
-    system_prompt = "You are an experienced Machine Learning Engineer working on a Kaggle competition. "
-    prompt = (
-        "You are provided with a previously developed solution below, and should review it in order to further "
-        "increase the (test time) performance and fix any highlighted issues/bugs. Write a review of the code, "
-        "any issues that should be fixed, and any other suggestions for how the solution could be improved while "
-        "still implementing the original plan.\n\n"
-        f"# Problem Statement:\n{problem_statement}\n\n"
-        f"# Original Solution Plan:\n{plan}\n\n"
-        f"# Previous Solution:\n{training_code}\n\n"
-        f"# Specific Errors/Bugs:\n{problems if problems is not None else "N/A"}\n\n"
-        f"# History:\n{history if history is not None else "N/A"}\n\n"
-        "The solution sketch should be a brief natural language description of how the previous solution "
-        "can be improved. You should be very specific and should only propose a single actionable improvement. "
-        "This improvement should be atomic so that we can experimentally evaluate the effect of the proposed change. "
-        "Take the 'history' section of previous reviews into consideration when proposing the improvement. The "
-        "review should be 3-5 sentences. Don't suggest to do EDA.\n\n"
-        f"Your solution can only use the following ML frameworks: {ALLOWED_PACKAGES}."
-    )
-
     response = client.chat.completions.create(
         model="openai:gpt-4o",
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
+            {"role": "system", "content": config.code_generation.prompt_training_base},
+            {
+                "role": "user",
+                "content": config.code_generation.prompt_training_review.substitute(
+                    problem_statement=problem_statement,
+                    plan=plan,
+                    training_code=training_code,
+                    problems=problems,
+                    history=history,
+                ),
+            },
         ],
     )
 
