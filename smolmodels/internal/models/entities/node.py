@@ -46,7 +46,7 @@ class Node:
         inference_tests (str): The code used for testing the inference solution in this node.
         estimated_value (float): The estimated value or utility of this node.
         estimated_cost (float): The estimated cost associated with this node.
-        performance_metrics (List[Metric]): A list of metrics evaluating the solution's performance.
+        performance (List[Metric]): A list of metrics evaluating the solution's performance.
         execution_time (float): The time taken to execute the solution code.
         execution_stdout (list[str]): The standard output from the solution's execution.
         execution_stderr (list[str]): The standard error from the solution's execution.
@@ -76,7 +76,7 @@ class Node:
     estimated_cost: float = field(default=None, kw_only=True)
 
     # Post-execution results: model performance, execution time, exceptions, etc.
-    performance_metrics: List[Metric] = field(default_factory=list, kw_only=True)
+    performance: Metric = field(default=None, kw_only=True)
     execution_time: float = field(default=None, kw_only=True)
     execution_stdout: list[str] = field(default_factory=list, kw_only=True)
     execution_stderr: list[str] = field(default_factory=list, kw_only=True)

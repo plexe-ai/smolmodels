@@ -121,7 +121,7 @@ def test_node_execution_fields():
         training_tests="print('tests code')",
     )
 
-    assert node.performance_metrics == []
+    assert node.performance == []
     assert node.execution_stdout == []
     assert node.execution_stderr == []
     assert node.execution_time is None
