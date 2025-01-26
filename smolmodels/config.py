@@ -28,8 +28,8 @@ class _Config:
 
     @dataclass(frozen=True)
     class _CodeGenerationConfig:
-        allowed_packages: List[str]
-        k_fold_validation: int
+        allowed_packages: List[str] = field(default_factory=lambda: ["pandas", "numpy", "sklearn"])
+        k_fold_validation: int = field(default=5)
         # prompts used in generating plans or making decisions
         prompt_planning_base: Template = field(
             default=Template("Experienced ML Engineer competing in a Kaggle competition.")
