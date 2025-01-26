@@ -15,7 +15,7 @@ class GoogleProvider(Provider):
         self.generation_config = genai.GenerationConfig(max_output_tokens=4096)
 
     def query(self, system_message: str, user_message: str, response_format=None) -> str:
-        logger.debug(f"Requesting chat completion from {self.model} with messages: {system_message}, {user_message}")
+        self._log_request(system_message, user_message, self.model, logger)
 
         llm = genai.GenerativeModel(
             model_name=self.model,
@@ -27,5 +27,7 @@ class GoogleProvider(Provider):
             raise NotImplementedError("Google GenAI does not support function calling for now.")
         else:
             response = llm.generate_content(user_message)
-        logger.debug(f"Received completion from {self.model}: {response.text}")
+
+        self._log_response(response.text, self.model, logger)
+
         return response.text

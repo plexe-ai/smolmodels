@@ -15,7 +15,8 @@ class DeepSeekProvider(Provider):
         self.client = openai.OpenAI(api_key=self.key, base_url="https://api.deepseek.com")
 
     def query(self, system_message: str, user_message: str, response_format=None) -> str:
-        logger.debug(f"Requesting chat completion from {self.model} with messages: {system_message}, {user_message}")
+        self._log_request(system_message, user_message, self.model, logger)
+
         if response_format is not None:
             response = self.client.beta.chat.completions.parse(
                 model=self.model,
@@ -35,5 +36,7 @@ class DeepSeekProvider(Provider):
                 ],
             )
             content = response.choices[0].message.content
-        logger.debug(f"Received completion from {self.model}: {content}")
+
+        self._log_response(content, self.model, logger)
+
         return content

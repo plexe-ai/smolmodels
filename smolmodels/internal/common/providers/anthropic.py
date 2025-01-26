@@ -16,7 +16,8 @@ class AnthropicProvider(Provider):
         self.client = anthropic.Anthropic(api_key=self.key)
 
     def query(self, system_message: str, user_message: str, response_format=None) -> str:
-        logger.debug(f"Requesting chat completion from {self.model} with messages: {system_message}, {user_message}")
+        self._log_request(system_message, user_message, self.model, logger)
+
         if response_format is not None:
             raise NotImplementedError("Anthropic does not support response format parsing.")
         # todo: implement https://python.useinstructor.com/blog/2024/10/23/structured-outputs-and-prompt-caching-with-anthropic/#structured-outputs-with-anthropic-and-instructor
@@ -30,5 +31,7 @@ class AnthropicProvider(Provider):
                 ],
             )
             content = response.content
-        logger.debug(f"Received completion from {self.model}: {content}")
-        return content
+
+        self._log_response(content, self.model, logger)
+
+        return str(content)  # fixme: this is a temporary fix for the issue with the response type
