@@ -145,6 +145,7 @@ class Model:
         self.metadata = dict()  # todo: this is a dictionary of metadata about the model
         # todo: metrics should be chosen based on problem, model-type, etc.
         # todo: initialise metadata, etc
+        logger.debug(f"Model initialised with state: {vars(self)}")
 
     def build(
         self,

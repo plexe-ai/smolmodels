@@ -2,7 +2,6 @@
 Configuration for the smolmodels library.
 """
 
-import logging
 from dataclasses import dataclass, field
 from typing import List
 from string import Template
@@ -35,7 +34,7 @@ class _Config:
             default=Template("Experienced ML Engineer competing in a Kaggle competition.")
         )
         prompt_planning_select_metric: Template = field(default=Template("Select the metric to optimise for the task."))
-        prompt_planning_select_stopping_condition: Template = field(
+        prompt_planning_select_stop_condition: Template = field(
             default=Template("Define the stopping condition for the task.")
         )
         prompt_planning_generate_plan: Template = field(
@@ -134,13 +133,3 @@ def load_config() -> _Config:
 
 
 config: _Config = load_config()
-
-# setup logging module with the configuration
-# todo: where should this be done?
-logging.basicConfig(
-    level=config.logging.level,
-    format=config.logging.format,
-    handlers=[logging.StreamHandler(), logging.FileHandler("smolmodels.log")],
-)
-logging.getLogger().handlers[0].setLevel(config.logging.level)
-logging.getLogger().handlers[1].setLevel(logging.DEBUG)

@@ -88,7 +88,7 @@ def generate(
 
     # Decide what metric to optimise based on the definition of the problem
     metric_to_optimise: Metric = select_metric_to_optimise(problem_statement, dataset)
-    stopping_condition: StoppingCondition = select_stopping_condition(problem_statement, dataset)
+    stopping_condition: StoppingCondition = select_stopping_condition(problem_statement, dataset, metric_to_optimise)
 
     # Create the solution graph with initial nodes
     graph: Graph = Graph()
