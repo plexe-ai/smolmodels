@@ -12,6 +12,7 @@ Constants:
 
 """
 
+from tqdm import tqdm
 import pandas as pd
 import time
 from typing import List, Optional, Tuple, Callable
@@ -96,7 +97,7 @@ def generate(
     # Create classes used in code generation and review
     validators: List[Validator] = [SyntaxValidator(), SecurityValidator()]
 
-    for i in range(config.model_search.initial_nodes):
+    for i in tqdm(range(config.model_search.initial_nodes), desc="Initialising solution graph"):
         graph.add_node(Node(solution_plan=generate_solution_plan(problem_statement)), None)
 
     # Explore the solution space until the stopping condition is met
@@ -124,7 +125,7 @@ def generate(
         # node.training_tests = generate_training_tests(problem_statement, node.solution_plan, node.training_code)
 
         # Review the generated training code
-        for _ in range(config.model_search.max_fixing_attempts):
+        for _ in tqdm(range(config.model_search.max_fixing_attempts), desc=f"Node {i}, reviewing training code"):
             for validator in validators:
                 result = validator.validate(node.training_code)
                 if not result.passed:
@@ -135,14 +136,16 @@ def generate(
                     continue
 
         # TODO: Training can happen in parallel to further exploration
+        print(f"Executing node {i}...")
         sm_utils.execute_node(node, ProcessExecutor(node.training_code, "./workdir"))
+        print(f"Node {i} executed.")
 
         # If this node achieved a better metric, update the best metric
         i += 1
-        best_metric = max(best_metric, node.metric)
+        best_metric = max(best_metric, node.performance)
 
     # Generate the inference code for the best node
-    best_node: Node = graph.nodes.sort(key=lambda n: n.metric)[-1]
+    best_node: Node = sorted(graph.nodes, key=lambda n: n.metric)[-1]
     best_node.inference_code = generate_inference_code(
         problem_statement, best_node.solution_plan, best_node.training_code
     )
@@ -151,7 +154,7 @@ def generate(
     )
 
     # Review the generated inference code
-    for _ in range(config.model_search.max_fixing_attempts):
+    for _ in tqdm(range(config.model_search.max_fixing_attempts), desc="Reviewing inference code"):
         for validator in validators:
             result = validator.validate(best_node.inference_code)
             if not result.passed:
