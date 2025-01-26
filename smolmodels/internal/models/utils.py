@@ -42,4 +42,4 @@ def execute_node(node: Node, executor: Executor) -> None:
     node.exception = result.exc_stack or None
     node.model_artifacts = result.model_artifacts
     node.analysis = result.analysis
-    node.performance_metrics = result.metrics
+    node.performance = result.performance

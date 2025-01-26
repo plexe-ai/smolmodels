@@ -16,14 +16,14 @@ class _Config:
 
     @dataclass(frozen=True)
     class _ModelSearchConfig:
-        initial_nodes: int = field(default=5)
-        max_nodes: int = field(default=20)
-        max_fixing_attempts: int = field(default=5)
+        initial_nodes: int = field(default=1)
+        max_nodes: int = field(default=5)
+        max_fixing_attempts: int = field(default=2)
 
     @dataclass(frozen=True)
     class _ExecutionConfig:
         timeout: int = field(default=3600)
-        runfile_name: str = field(default="runfile.py")
+        runfile_name: str = field(default="execution_script.py")
 
     @dataclass(frozen=True)
     class _CodeGenerationConfig:
@@ -48,7 +48,7 @@ class _Config:
         )
         # prompts used in generating, fixing or reviewing training code
         prompt_training_base: Template = field(
-            default=Template("Experienced ML Engineer developing a Kaggle solution.")
+            default=Template("You are an experienced ML Engineer developing a Kaggle solution.")
         )
         prompt_training_generate: Template = field(
             default=Template(
@@ -56,6 +56,7 @@ class _Config:
                 "# Task: ${problem_statement}\n"
                 "# Plan: ${plan}\n"
                 "# History: ${history}\n\n"
+                "Do not write any explanation of your approach. Only return the code. "
                 "Train the model, compute and print the evaluation metric, and save the model as 'model.joblib' in './working'. "
                 "Use ${allowed_packages}. Do not skip steps or combine preprocessors and models in the same joblib file."
             )

@@ -145,12 +145,12 @@ def generate(
                     review = review_training_code(
                         node.training_code, problem_statement, node.solution_plan, str(result)
                     )
-                    node.training_code = fix_training_code(node.training_code, node.solution_plan, review)
+                    node.training_code = fix_training_code(node.training_code, node.solution_plan, review, str(result))
                     continue
 
         # TODO: Training can happen in parallel to further exploration
         print(f"Executing node {i}...")
-        sm_utils.execute_node(node, ProcessExecutor(node.training_code, "./workdir"))
+        sm_utils.execute_node(node, ProcessExecutor(node.training_code, "./workdir", 60))
         print(f"Node {i} executed.")
 
         # If this node achieved a better metric, update the best metric
