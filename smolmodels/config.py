@@ -140,7 +140,7 @@ config: _Config = load_config()
 logging.basicConfig(
     level=config.logging.level,
     format=config.logging.format,
-    handlers=[logging.StreamHandler(), logging.FileHandler("app.log")],
+    handlers=[logging.StreamHandler(), logging.FileHandler("smolmodels.log")],
 )
 logging.getLogger().handlers[0].setLevel(config.logging.level)
 logging.getLogger().handlers[1].setLevel(logging.DEBUG)
