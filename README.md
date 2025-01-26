@@ -1,6 +1,6 @@
 # smolmodels 🤖✨
 
-Build specialized ML models using natural language specifications.
+Build specialized ML models using natural language.
 
 ## What is smolmodels?
 
