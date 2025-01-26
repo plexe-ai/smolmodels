@@ -28,6 +28,7 @@ from multiprocessing import Process, Queue
 from pathlib import Path
 
 from smolmodels.internal.models.execution.executor import ExecutionResult, Executor
+from smolmodels.config import config
 
 logger = logging.getLogger("plexe")
 
@@ -76,7 +77,7 @@ class ProcessExecutor(Executor):
         code: str,
         working_dir: Path | str,
         timeout: int = 3600,
-        agent_file_name: str = "runfile.py",
+        code_execution_file_name: str = config.execution.runfile_name,
     ):
         """
         Initialize the ProcessExecutor.
@@ -85,12 +86,13 @@ class ProcessExecutor(Executor):
             code (str): The Python code to execute.
             working_dir (Path | str): The working directory for execution.
             timeout (int): The maximum allowed execution time in seconds.
-            agent_file_name (str): The filename to use for the executed script.
+            code_execution_file_name (str): The filename to use for the executed script.
         """
         super().__init__(code, timeout)
+        # Ensure the working directory exists
         self.working_dir = Path(working_dir).resolve()
-        assert self.working_dir.exists(), f"Working directory {self.working_dir} does not exist"
-        self.agent_file_name = agent_file_name
+        self.working_dir.mkdir(parents=True, exist_ok=True)
+        self.execution_file_name = code_execution_file_name
         self.process: Process = None  # type: ignore
 
     def run(self) -> ExecutionResult:
@@ -204,29 +206,29 @@ class ProcessExecutor(Executor):
             output.pop()
         return output
 
-    def _run_session(self, code_inq: Queue, result_outq: Queue, event_outq: Queue) -> None:
+    def _run_session(self, code_in_q: Queue, result_out_q: Queue, event_out_q: Queue) -> None:
         """
         Run the execution session in the child process.
 
         Args:
-            code_inq (Queue): Queue to receive the code to execute.
-            result_outq (Queue): Queue to send stdout and stderr messages to.
-            event_outq (Queue): Queue to communicate execution state events.
+            code_in_q (Queue): Queue to receive the code to execute.
+            result_out_q (Queue): Queue to send stdout and stderr messages to.
+            event_out_q (Queue): Queue to communicate execution state events.
         """
-        self._child_proc_setup(result_outq)
+        self._child_proc_setup(result_out_q)
 
         # Reset the global scope for each execution to prevent state leakage.
         global_scope: dict = {}
 
-        code = code_inq.get()
+        code = code_in_q.get()
         os.chdir(str(self.working_dir))
-        with open(self.agent_file_name, "w") as f:
+        with open(self.execution_file_name, "w") as f:
             f.write(code)
 
-        event_outq.put(("state:ready",))
+        event_out_q.put(("state:ready",))
         try:
-            exec(compile(code, self.agent_file_name, "exec"), global_scope)
-            event_outq.put(("state:finished", None, None, None))
+            exec(compile(code, self.execution_file_name, "exec"), global_scope)
+            event_out_q.put(("state:finished", None, None, None))
         except BaseException as e:
             tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
             e_cls_name = type(e).__name__
@@ -234,25 +236,25 @@ class ProcessExecutor(Executor):
             exc_stack = traceback.extract_tb(e.__traceback__)
             exc_stack = [(t.filename, t.lineno, t.name, t.line) for t in exc_stack]
 
-            result_outq.put(tb_str)
-            event_outq.put(("state:finished", e_cls_name, exc_info, exc_stack))
+            result_out_q.put(tb_str)
+            event_out_q.put(("state:finished", e_cls_name, exc_info, exc_stack))
 
         try:
-            os.remove(self.agent_file_name)
+            os.remove(self.execution_file_name)
         except FileNotFoundError:
             pass
 
-        result_outq.put("<|EOF|>")
+        result_out_q.put("<|EOF|>")
 
-    def _child_proc_setup(self, result_outq: Queue) -> None:
+    def _child_proc_setup(self, result_out_q: Queue) -> None:
         """
         Set up the child process environment.
 
         Args:
-            result_outq (Queue): The queue to send output messages to.
+            result_out_q (Queue): The queue to send output messages to.
         """
         os.chdir(str(self.working_dir))
 
         sys.path.append(str(self.working_dir))
 
-        sys.stdout = sys.stderr = RedirectQueue(result_outq)
+        sys.stdout = sys.stderr = RedirectQueue(result_out_q)

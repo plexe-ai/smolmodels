@@ -21,6 +21,7 @@ from pydantic import BaseModel
 
 from smolmodels.config import config
 from smolmodels.internal.common.providers.openai import OpenAIProvider
+from smolmodels.internal.common.utils.response import extract_code
 
 logger = logging.getLogger(__name__)
 
@@ -39,14 +40,16 @@ def generate_training_code(problem_statement: str, plan: str, history: str = Non
     Returns:
         str: The generated training code.
     """
-    return client.query(
-        system_message=config.code_generation.prompt_training_base.safe_substitute(),
-        user_message=config.code_generation.prompt_training_generate.safe_substitute(
-            problem_statement=problem_statement,
-            plan=plan,
-            history=history,
-            allowed_packages=config.code_generation.allowed_packages,
-        ),
+    return extract_code(
+        client.query(
+            system_message=config.code_generation.prompt_training_base.safe_substitute(),
+            user_message=config.code_generation.prompt_training_generate.safe_substitute(
+                problem_statement=problem_statement,
+                plan=plan,
+                history=history,
+                allowed_packages=config.code_generation.allowed_packages,
+            ),
+        )
     )
 
 
@@ -98,7 +101,7 @@ def fix_training_code(training_code: str, plan: str, review: str, problems: str 
             )
         )
     )
-    return response.code
+    return extract_code(response.code)
 
 
 def fix_training_tests(training_tests: str, training_code: str, review: str, problems: str = None) -> str:
