@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     permissions:
-      id-token: write  # IMPORTANT: mandatory for trusted publishing
       contents: write  # Needed for release asset uploads
       
     steps:
@@ -29,11 +28,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install poetry
 
+      - name: Configure Poetry with PyPI token
+        run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+
       - name: Build Package
         run: poetry build
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        run: poetry publish
 
       - name: Upload Release Assets
         if: github.event_name == 'release'
