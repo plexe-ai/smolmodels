@@ -12,13 +12,17 @@ Constants:
 
 """
 
-from tqdm import tqdm
-import pandas as pd
+import json
+import logging
 import time
 from typing import List, Optional, Tuple, Callable
 
-from smolmodels.config import config
+import pandas as pd
+from tqdm import tqdm
+
+import smolmodels.internal.models.utils as sm_utils
 from smolmodels.callbacks import Callback
+from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
 from smolmodels.internal.models.entities.graph import Graph
@@ -48,7 +52,8 @@ from smolmodels.internal.models.search.random_policy import RandomSearchPolicy
 from smolmodels.internal.models.validation.security import SecurityValidator
 from smolmodels.internal.models.validation.syntax import SyntaxValidator
 from smolmodels.internal.models.validation.validator import Validator
-import smolmodels.internal.models.utils as sm_utils
+
+logger = logging.getLogger(__name__)
 
 
 def generate(
@@ -112,9 +117,16 @@ def generate(
                 Node(
                     solution_plan=generate_solution_plan(
                         problem_statement=problem_statement,
-                        context=str(node_expand),  # TODO: Pass a proper summary of the parent node (or the whole graph)
+                        context=json.dumps(
+                            {
+                                "previous_plan": node_expand.solution_plan,
+                                "previous_code": node_expand.training_code,
+                                "previous_performance": str(node_expand.performance),
+                            }
+                        ),
                     )
                 ),
+                parent=node_expand,
             )
 
         # Select a node to evaluate using the search policy
@@ -129,6 +141,7 @@ def generate(
             for validator in validators:
                 result = validator.validate(node.training_code)
                 if not result.passed:
+                    logger.warning(f"Node {i}, attempts {_}: code failed validation: {result}")
                     review = review_training_code(
                         node.training_code, problem_statement, node.solution_plan, str(result)
                     )
