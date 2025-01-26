@@ -1,6 +1,6 @@
-# Contributing to SmolModel
+# Contributing to SmolModels
 
-Thank you for considering contributing to SmolModel! Your contributions help improve this project for everyone.
+Thank you for considering contributing to SmolModels! Your contributions help improve this project for everyone.
 
 ## Table of Contents
 
