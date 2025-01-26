@@ -94,7 +94,6 @@ def fix_training_code(training_code: str, plan: str, review: str, problems: str 
                     review=review,
                     problems=problems,
                     history=history,
-                    allowed_packages=config.code_generation.allowed_packages,
                 ),
             )
         )
