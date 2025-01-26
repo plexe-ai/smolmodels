@@ -11,7 +11,7 @@ from smolmodels import Model
 
 # Create a house price predictor with just a description
 model = Model(
-    intent="Predict house prices based on property features, optimizing for accuracy within 10% of actual values",
+    intent="Predict house prices based on property features",
     input_schema={
         "square_feet": float,
         "bedrooms": int,
@@ -24,7 +24,7 @@ model = Model(
 )
 
 # Build the model - optionally generate synthetic training data
-model.build(generate_samples=1000)
+model.build("house-prices.csv", generate_samples=1000)
 
 # Make predictions
 price = model.predict({
@@ -37,11 +37,11 @@ price = model.predict({
 
 ## How Does It Work?
 
-smolmodels uses a multi-step process to turn your natural language description into a working model:
+smolmodels uses a multi-step process for model creation:
 
 1. **Intent Analysis**: Your description is analyzed to understand the type of model needed, key requirements, and success criteria.
 
-2. **Data Generation**: If you don't have training data, smolmodels can generate synthetic data that matches your problem description and schema.
+2. **Data Generation**:  If you don't have training data, smolmodels can generate synthetic data.
 
 3. **Model Building**: The library:
    - Selects appropriate model architectures
@@ -54,13 +54,24 @@ smolmodels uses a multi-step process to turn your natural language description i
 ## Key Features
 
 ### Natural Language Intent 📝
-Specify what you want your model to do in plain English. No need to worry about model architecture or hyperparameters.
+Models are defined through natural language descriptions and schema specifications, abstracting away architecture decisions.
 
-### Smart Data Generation 🎲
-Need training data? smolmodels can generate synthetic data that matches your problem description.
+### Data Generation 🎲
+Built-in synthetic data generation for training and validation.
 
-### Constraints & Validation ✅
-Define rules your model must follow:
+### Directives for fine-grained Control 🎯
+Guide the model building process with high-level directives:
+```python
+from smolmodels import Directive
+
+model.build(directives=[
+    Directive("Optimize for inference speed"),
+    Directive("Prioritize interpretability")
+])
+```
+
+### Optional Constraints ✅
+Optional declarative constraints for model validation:
 ```python
 from smolmodels import Constraint
 
@@ -75,17 +86,6 @@ model = Model(
     constraints=[positive_constraint],
     ...
 )
-```
-
-### Directives for Fine-tuning 🎯
-Guide the model building process with high-level instructions:
-```python
-from smolmodels import Directive
-
-model.build(directives=[
-    Directive("Optimize for inference speed"),
-    Directive("Prioritize interpretability")
-])
 ```
 
 ## Installation
