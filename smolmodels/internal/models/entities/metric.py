@@ -58,7 +58,7 @@ class MetricComparator:
         :raises ValueError: If TARGET_IS_BETTER is used without a target value.
         """
         self.comparison_method = comparison_method
-        self.target = target
+        self.target = target if comparison_method == ComparisonMethod.TARGET_IS_BETTER else None
         self.epsilon = epsilon
 
         if self.comparison_method == ComparisonMethod.TARGET_IS_BETTER and self.target is None:
