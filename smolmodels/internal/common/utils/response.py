@@ -1,7 +1,10 @@
 import json
 import re
+import logging
 
 import black
+
+logging.getLogger("blib2to3.pgen2.driver").setLevel(logging.WARNING)
 
 
 def wrap_code(code: str, lang="python") -> str:
