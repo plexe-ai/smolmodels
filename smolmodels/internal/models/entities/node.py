@@ -59,6 +59,7 @@ class Node:
     # General attributes
     id: str = field(default_factory=lambda: uuid.uuid4().hex, kw_only=True)
     created_time: float = field(default_factory=lambda: time.time(), kw_only=True)
+    visited: bool = field(default=False, kw_only=True)
 
     # Directed edges to/from other nodes
     edges_in: List[Edge] = field(default_factory=list, hash=True, kw_only=True)

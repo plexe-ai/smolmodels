@@ -85,7 +85,7 @@ class Graph:
 
         :return: A list of nodes with exceptions raised during their execution.
         """
-        return [n for n in self._nodes if n.exception_was_raised]
+        return [n for n in self._nodes if n.exception_was_raised and n.visited]
 
     @property
     def good_nodes(self) -> list[Node]:
@@ -94,4 +94,13 @@ class Graph:
 
         :return: A list of nodes without exceptions raised during their execution.
         """
-        return [n for n in self._nodes if not n.exception_was_raised]
+        return [n for n in self._nodes if not n.exception_was_raised and n.visited]
+
+    @property
+    def unvisited_nodes(self) -> list[Node]:
+        """
+        Returns a list of nodes that have not been visited.
+
+        :return: A list of nodes that have not been visited.
+        """
+        return [n for n in self._nodes if not n.visited]

@@ -50,11 +50,11 @@ class RandomSearchPolicy(SearchPolicy):
         :return: A list containing one randomly selected node.
         :raises NotImplementedError: If n is not 1.
         """
-        if not self.graph.good_nodes:
+        # if there are no unvisited nodes, return the first node
+        if not self.graph.unvisited_nodes:
             return [self.graph.nodes[0]] if self.graph.nodes else []
-        return random.sample(
-            self.graph.good_nodes, min(n, len(self.graph.good_nodes))
-        )  # todo: this should actually be entering unexplored nodes
+        # else return a random sample of unvisited nodes
+        return random.sample(self.graph.unvisited_nodes, min(n, len(self.graph.unvisited_nodes)))
 
     def select_node_expand(self, n: int = 1) -> List[Node]:
         """
@@ -64,4 +64,8 @@ class RandomSearchPolicy(SearchPolicy):
         :return: A list containing one randomly selected node.
         :raises NotImplementedError: If n is not 1.
         """
-        return self.select_node_enter()
+        # if there are no good nodes, return the first node
+        if not self.graph.good_nodes:
+            return [self.graph.nodes[0]] if self.graph.nodes else []
+        # else return a random sample of good nodes
+        return random.sample(self.graph.good_nodes, min(n, len(self.graph.good_nodes)))
