@@ -16,6 +16,7 @@ import json
 import logging
 import time
 from typing import List, Optional, Tuple, Callable
+import textwrap
 
 import pandas as pd
 from tqdm import tqdm
@@ -90,21 +91,25 @@ def generate(
     problem_statement: str = sm_utils.join_problem_statement(
         intent, input_schema, output_schema, constraints, directives
     )
+    logger.debug(f"Problem statement: {textwrap.shorten(problem_statement, 40)}")
 
     # Decide what metric to optimise based on the definition of the problem
     metric_to_optimise: Metric = select_metric_to_optimise(problem_statement, dataset)
-    if metric_to_optimise is None:
-        raise ValueError("Could not determine optimization metric from problem statement")
-    stopping_condition: StoppingCondition = select_stopping_condition(problem_statement, dataset, metric_to_optimise)
+    stopping_condition: StoppingCondition = select_stopping_condition(
+        problem_statement, metric_to_optimise, config.model_search.max_nodes
+    )
+    logger.info(f"Optimising {json.dumps(metric_to_optimise)} with stopping condition {json.dumps(stopping_condition)}")
 
     # Create the solution graph with initial nodes
     graph: Graph = Graph()
     search_policy: SearchPolicy = search_policy or RandomSearchPolicy(graph)
+    logger.debug(f"Using search policy: {search_policy}")
 
     # Create classes used in code generation and review
     validators: List[Validator] = [SyntaxValidator(), SecurityValidator()]
+    logger.debug(f"Using validators: {validators}")
 
-    for i in tqdm(range(config.model_search.initial_nodes), desc="Initialising solution graph"):
+    for _ in tqdm(range(config.model_search.initial_nodes), desc="Initialising solution graph"):
         graph.add_node(Node(solution_plan=generate_solution_plan(problem_statement)), None)
 
     # Explore the solution space until the stopping condition is met

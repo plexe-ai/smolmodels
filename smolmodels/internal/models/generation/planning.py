@@ -44,20 +44,24 @@ def select_metric_to_optimise(problem_statement: str, dataset: pd.DataFrame) -> 
             )
         )
     )
-    return Metric(
-        name=response.name,
-        value=float("inf") if response.comparison_method == ComparisonMethod.LOWER_IS_BETTER else -float("inf"),
-        comparator=MetricComparator(response.comparison_method, response.comparison_target),
-    )
+
+    try:
+        return Metric(
+            name=response.name,
+            value=float("inf") if response.comparison_method == ComparisonMethod.LOWER_IS_BETTER else -float("inf"),
+            comparator=MetricComparator(response.comparison_method, response.comparison_target),
+        )
+    except Exception as e:
+        raise ValueError(f"Could not determine optimization metric from problem statement: {response}") from e
 
 
-def select_stopping_condition(problem_statement: str, dataset: pd.DataFrame, metric: Metric) -> StoppingCondition:
+def select_stopping_condition(problem_statement: str, metric: Metric, max_iterations: int) -> StoppingCondition:
     """
     Selects the stopping condition for the given problem statement and dataset.
 
     :param problem_statement: definition of the problem
-    :param dataset: data used for training and evaluation
     :param metric: the metric to optimise
+    :param max_iterations: the maximum number of iterations
     :return: the stopping condition
     """
 
@@ -70,17 +74,23 @@ def select_stopping_condition(problem_statement: str, dataset: pd.DataFrame, met
         **json.loads(
             client.query(
                 system_message=config.code_generation.prompt_planning_select_stop_condition.safe_substitute(),
-                user_message=f"Problem:\n{problem_statement}\n\nDataset:\n{dataset}\n\nMetric:\n{metric}",
+                user_message=config.code_generation.prompt_planning_select_stop_condition.safe_substitute(
+                    problem_statement=problem_statement,
+                    metric=metric.name,
+                ),
                 response_format=StoppingConditionResponse,
             )
         )
     )
 
-    return StoppingCondition(
-        max_generations=response.max_generations,
-        max_time=response.max_time,
-        metric=Metric(metric.name, response.metric_threshold, metric.comparator),
-    )
+    try:
+        return StoppingCondition(
+            max_generations=min(response.max_generations, max_iterations),
+            max_time=response.max_time,
+            metric=Metric(metric.name, response.metric_threshold, metric.comparator),
+        )
+    except Exception as e:
+        raise ValueError(f"Could not determine stopping condition from problem statement: {response}") from e
 
 
 def generate_solution_plan(problem_statement: str, context: str = None) -> str:
