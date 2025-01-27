@@ -51,7 +51,7 @@ from smolmodels.internal.models.search.policy import SearchPolicy
 from smolmodels.internal.models.search.random_policy import RandomSearchPolicy
 from smolmodels.internal.models.validation.security import SecurityValidator
 from smolmodels.internal.models.validation.syntax import SyntaxValidator
-from smolmodels.internal.models.validation.validator import Validator
+from smolmodels.internal.models.validation.validator import Validator, ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -137,24 +137,39 @@ def generate(
 
         # Generate the code for the node
         node.training_code = generate_training_code(problem_statement, node.solution_plan)
+        node.visited = True
         # node.training_tests = generate_training_tests(problem_statement, node.solution_plan, node.training_code)
 
         # Review the generated training code
         for _ in tqdm(range(config.model_search.max_fixing_attempts), desc=f"Node {i}, reviewing training code"):
+            result: ValidationResult | None = None
+
             for validator in validators:
                 result = validator.validate(node.training_code)
                 if not result.passed:
                     logger.warning(f"Node {i}, attempts {_}: code failed validation: {result}")
-                    review = review_training_code(
-                        node.training_code, problem_statement, node.solution_plan, str(result)
-                    )
-                    node.training_code = fix_training_code(node.training_code, node.solution_plan, review, str(result))
-                    continue
+                    break
 
-        # TODO: Training can happen in parallel to further exploration
-        print(f"Executing node {i}...")
-        sm_utils.execute_node(node, ProcessExecutor(node.training_code, "./workdir", 60))
-        print(f"Node {i} executed.")
+            if not result.passed:
+                review = review_training_code(node.training_code, problem_statement, node.solution_plan, str(result))
+                node.training_code = fix_training_code(node.training_code, node.solution_plan, review, str(result))
+                continue
+
+            # If the code passes all static validations, execute the code
+            # TODO: Training can happen in parallel to further exploration
+            sm_utils.execute_node(node, ProcessExecutor(node.training_code, "./workdir", 60))
+
+            # If the code raised an exception, attempt to fix again
+            if node.exception_was_raised:
+                review = review_training_code(
+                    node.training_code, problem_statement, node.solution_plan, str(node.exception)
+                )
+                node.training_code = fix_training_code(
+                    node.training_code, node.solution_plan, review, str(node.exception)
+                )
+                continue
+            else:
+                break
 
         # If this node achieved a better metric, update the best metric
         i += 1
