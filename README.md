@@ -96,18 +96,16 @@ pip install smolmodels
 
 ## API Keys
 
-Required API keys should be set as environment variables:
+Set required API keys as environment variables:
 
 ```bash
 # Required for model generation
-export OPENAI_API_KEY=sk-...
-export ANTHROPIC_API_KEY=sk-...
+export OPENAI_API_KEY=<your-API-key>
+export ANTHROPIC_API_KEY=<your-API-key>
 
 # Required for data generation
-export GOOGLE_API_KEY=...
+export GOOGLE_API_KEY=<your-API-key>
 ```
-
-Keys can be set in a .env file or directly in your environment. For development, using a .env file is recommended.
 
 ## Quick Start
 
@@ -149,8 +147,6 @@ print(result["sentiment"])  # "positive"
 Performance evaluated on 20 OpenML benchmark datasets and 12 Kaggle competitions. Higher performance observed on 12/20 OpenML datasets, with remaining datasets showing performance within 0.005 of baseline. Experiments conducted on standard infrastructure (8 vCPUs, 30GB RAM) with 1-hour runtime limit per dataset.
 
 Complete code and results are available at [plexe-ai/plexe-results](https://github.com/plexe-ai/plexe-results).
-
-```
 
 ## Documentation
 
