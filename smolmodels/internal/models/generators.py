@@ -98,7 +98,7 @@ def generate(
     stopping_condition: StoppingCondition = select_stopping_condition(
         problem_statement, metric_to_optimise, config.model_search.max_nodes
     )
-    logger.info(f"Optimising {json.dumps(metric_to_optimise)} with stopping condition {json.dumps(stopping_condition)}")
+    logger.info(f"Optimising {metric_to_optimise} with stopping condition {stopping_condition}")
 
     # Create the solution graph with initial nodes
     graph: Graph = Graph()
