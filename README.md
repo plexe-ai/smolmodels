@@ -88,15 +88,30 @@ model = Model(
 )
 ```
 
-## Installation
+## Installation & Setup
 
 ```bash
 pip install smolmodels
 ```
 
+## API Keys
+
+Required API keys should be set as environment variables:
+
+```bash
+# Required for model generation
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-...
+
+# Required for data generation
+export GOOGLE_API_KEY=...
+```
+
+Keys can be set in a .env file or directly in your environment. For development, using a .env file is recommended.
+
 ## Quick Start
 
-1. **Define your model**:
+1. **Define model**:
 ```python
 from smolmodels import Model
 
@@ -107,19 +122,31 @@ model = Model(
 )
 ```
 
-2. **Build it**:
+2. **Build and save**:
 ```python
-# With existing data
+# Build with existing data
 model.build(dataset="feedback.csv")
 
-# Or generate synthetic data
-model.build(generate_samples=1000)
+# Save model for later use
+model.save("sentiment_model")
 ```
 
-3. **Use it**:
+3. **Load and use**:
 ```python
-result = model.predict({"text": "Great service, highly recommend!"})
+# Load existing model
+loaded_model = Model.load("sentiment_model")
+
+# Make predictions
+result = loaded_model.predict({"text": "Great service, highly recommend!"})
 print(result["sentiment"])  # "positive"
+```
+
+## Benchmarks
+
+Performance evaluated on 20 OpenML benchmark datasets and multiple Kaggle competitions. Higher performance observed on 12/20 OpenML datasets, with remaining datasets showing performance within 0.005 of baseline. Experiments conducted on standard cloud infrastructure (8 vCPUs, 30GB RAM) with 1-hour runtime limit per dataset.
+
+Complete code and results are available at [plexe-ai/plexe-results](https://github.com/plexe-ai/plexe-results).
+
 ```
 
 ## Documentation
