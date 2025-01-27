@@ -50,11 +50,11 @@ class RandomSearchPolicy(SearchPolicy):
         :return: A list containing one randomly selected node.
         :raises NotImplementedError: If n is not 1.
         """
-        if n > len(self.graph.nodes):
-            raise ValueError("Requested more nodes than available in the graph.")
-        if n < 1:
-            raise ValueError("Requested less than one node to enter.")
-        return random.sample(self.graph.good_nodes, n)  # todo: this should actually be entering unexplored nodes
+        if not self.graph.good_nodes:
+            return [self.graph.nodes[0]] if self.graph.nodes else []
+        return random.sample(
+            self.graph.good_nodes, min(n, len(self.graph.good_nodes))
+        )  # todo: this should actually be entering unexplored nodes
 
     def select_node_expand(self, n: int = 1) -> List[Node]:
         """

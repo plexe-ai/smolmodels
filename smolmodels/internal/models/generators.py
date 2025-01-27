@@ -93,6 +93,8 @@ def generate(
 
     # Decide what metric to optimise based on the definition of the problem
     metric_to_optimise: Metric = select_metric_to_optimise(problem_statement, dataset)
+    if metric_to_optimise is None:
+        raise ValueError("Could not determine optimization metric from problem statement")
     stopping_condition: StoppingCondition = select_stopping_condition(problem_statement, dataset, metric_to_optimise)
 
     # Create the solution graph with initial nodes
@@ -155,10 +157,16 @@ def generate(
 
         # If this node achieved a better metric, update the best metric
         i += 1
-        best_metric = max(best_metric, node.performance)
+        if node.performance is not None:
+            if best_metric is None or node.performance > best_metric:
+                best_metric = node.performance
+
+    valid_nodes = [n for n in graph.nodes if n.performance is not None and not n.exception_was_raised]
+    if not valid_nodes:
+        raise RuntimeError("No valid solutions found during search")
 
     # Generate the inference code for the best node
-    best_node: Node = sorted(graph.nodes, key=lambda n: n.metric)[-1]
+    best_node: Node = max(valid_nodes, key=lambda n: n.performance)
     best_node.inference_code = generate_inference_code(
         problem_statement, best_node.solution_plan, best_node.training_code
     )
