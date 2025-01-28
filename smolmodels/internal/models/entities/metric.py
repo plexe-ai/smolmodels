@@ -63,6 +63,8 @@ class MetricComparator:
 
         if self.comparison_method == ComparisonMethod.TARGET_IS_BETTER and self.target is None:
             raise ValueError("'TARGET_IS_BETTER' comparison requires a target value.")
+if self.comparison_method == ComparisonMethod.TARGET_IS_BETTER and not isinstance(self.target, (float, int)):
+    raise ValueError("'TARGET_IS_BETTER' requires a numeric target value.")
 
     def compare(self, value1: float, value2: float) -> int:
         """
