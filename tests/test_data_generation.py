@@ -3,9 +3,10 @@
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from smolmodels import Model
 from smolmodels.internal.data_generation.core.generation.utils.oversampling import oversample_with_smote
+from smolmodels.internal.data_generation.generator import DataGenerationRequest
 
 
 @pytest.fixture
@@ -15,41 +16,61 @@ def sample_schema():
 
 
 @pytest.fixture
-def mock_successful_generation():
-    """Mock successful data generation response - now returns larger batches"""
-
-    def generate(*args, **kwargs):
-        batch_size = kwargs.get("batch_size", 50)
-        return pd.DataFrame(
-            {
-                "square_feet": np.random.uniform(1000, 3000, batch_size),
-                "bedrooms": np.random.randint(2, 6, batch_size),
-                "location": np.random.choice(["suburban", "urban", "rural"], batch_size),
-                "price": np.random.uniform(200000, 600000, batch_size),
-            }
-        )
-
-    return generate
+def mock_generated_data():
+    """Mock data generation output"""
+    return pd.DataFrame(
+        {
+            "square_feet": np.random.uniform(1000, 3000, 50),
+            "bedrooms": np.random.randint(2, 6, 50),
+            "location": np.random.choice(["suburban", "urban", "rural"], 50),
+            "price": np.random.uniform(200000, 600000, 50),
+        }
+    )
 
 
 class TestDataGeneration:
-    """Test suite for data generation with mocked responses"""
+    """Test suite for data generation with comprehensive mocking"""
 
-    def test_basic_generation(self, sample_schema, mock_successful_generation):
+    @pytest.fixture(autouse=True)
+    def setup_mocks(self):
+        """Setup all required mocks for the test class"""
+        # Mock the data generation function
+        self.mock_generate_data = patch("smolmodels.models.generate_data", return_value=pd.DataFrame()).start()
+
+        # Mock the model generation function
+        self.mock_generate = patch(
+            "smolmodels.models.generate", return_value=(MagicMock(), MagicMock(), [], {})
+        ).start()
+
+        yield
+
+        # Stop all mocks after the test
+        patch.stopall()
+
+    def test_basic_generation(self, sample_schema, mock_generated_data):
         """Test basic data generation"""
-        with patch(
-            "smolmodels.internal.data_generation.core.generation.combined.CombinedDataGenerator._generate_batch",
-            side_effect=mock_successful_generation,
-        ):
-            model = Model(intent="Predict house prices based on features", **sample_schema)
-            model.build(generate_samples=50)
+        self.mock_generate_data.return_value = mock_generated_data
 
-            assert model.training_data is not None
-            assert len(model.training_data) >= 45  # Allow for small variations
-            assert all(col in model.training_data.columns for col in ["square_feet", "bedrooms", "location", "price"])
+        model = Model(intent="Predict house prices based on features", **sample_schema)
+        model.build(generate_samples=50)
 
-    def test_data_augmentation(self, sample_schema, mock_successful_generation):
+        # Verify generate_data was called with correct parameters
+        self.mock_generate_data.assert_called_once()
+        call_args = self.mock_generate_data.call_args[0][0]
+        assert isinstance(call_args, DataGenerationRequest)
+        assert call_args.n_samples == 50
+        assert not call_args.augment_existing
+        assert call_args.existing_data is None
+
+        # Verify model was built with the generated data
+        assert model.training_data is not None
+        assert len(model.training_data) == 50
+        assert model.state.value == "ready"
+
+    def test_data_augmentation(self, sample_schema, mock_generated_data):
         """Test data augmentation with existing dataset"""
+        self.mock_generate_data.return_value = mock_generated_data
+
         existing_data = pd.DataFrame(
             {
                 "square_feet": [1000, 1500, 2000],
@@ -59,42 +80,78 @@ class TestDataGeneration:
             }
         )
 
-        with patch(
-            "smolmodels.internal.data_generation.core.generation.combined.CombinedDataGenerator._generate_batch",
-            side_effect=mock_successful_generation,
-        ):
-            model = Model(intent="Predict house prices based on features", **sample_schema)
-            model.build(dataset=existing_data.copy(), generate_samples={"n_samples": 7, "augment_existing": True})
-            assert len(model.training_data) >= 8  # 3 original + at least 5 new
-            assert len(model.synthetic_data) >= 5
-            # Verify original data is preserved
-            original_subset = existing_data.sort_values("square_feet").reset_index(drop=True)
-            generated_subset = (
-                model.training_data[model.training_data["square_feet"].isin(existing_data["square_feet"])]
-                .sort_values("square_feet")
-                .reset_index(drop=True)
+        model = Model(intent="Predict house prices based on features", **sample_schema)
+        model.build(dataset=existing_data.copy(), generate_samples={"n_samples": 7, "augment_existing": True})
+
+        # Verify generate_data was called with correct parameters
+        self.mock_generate_data.assert_called_once()
+        call_args = self.mock_generate_data.call_args[0][0]
+        assert isinstance(call_args, DataGenerationRequest)
+        assert call_args.n_samples == 7
+        assert call_args.augment_existing
+        pd.testing.assert_frame_equal(call_args.existing_data, existing_data)
+
+        # Verify final dataset includes both original and synthetic data
+        assert len(model.training_data) > len(existing_data)
+        assert model.state.value == "ready"
+
+    def test_handles_no_data(self, sample_schema):
+        """Test handling when no data is provided"""
+        model = Model(intent="Predict house prices based on features", **sample_schema)
+
+        with pytest.raises(ValueError, match="No training data available"):
+            model.build()  # No dataset or generate_samples provided
+            assert model.state.value == "error"
+
+    def test_handles_generation_error(self, sample_schema):
+        """Test handling of generation errors"""
+        self.mock_generate_data.side_effect = Exception("Generation failed")
+
+        model = Model(intent="Predict house prices based on features", **sample_schema)
+        with pytest.raises(Exception, match="Generation failed"):
+            model.build(generate_samples=5)
+
+        assert model.state.value == "error"
+
+    def test_dataset_only(self, sample_schema):
+        """Test building model with only a dataset (no generation)"""
+        existing_data = pd.DataFrame(
+            {
+                "square_feet": [1000, 1500, 2000],
+                "bedrooms": [2, 3, 4],
+                "location": ["A", "B", "C"],
+                "price": [200000, 300000, 400000],
+            }
+        )
+
+        model = Model(intent="Predict house prices based on features", **sample_schema)
+        model.build(dataset=existing_data.copy())
+
+        # Verify generate_data was not called
+        self.mock_generate_data.assert_not_called()
+
+        # Verify the model was built with the provided dataset
+        pd.testing.assert_frame_equal(model.training_data, existing_data)
+        assert model.state.value == "ready"
+
+    def test_load_dataset_from_csv(self, sample_schema):
+        """Test loading dataset from CSV file"""
+        with patch("pandas.read_csv") as mock_read_csv:
+            mock_read_csv.return_value = pd.DataFrame(
+                {
+                    "square_feet": [1000, 1500, 2000],
+                    "bedrooms": [2, 3, 4],
+                    "location": ["A", "B", "C"],
+                    "price": [200000, 300000, 400000],
+                }
             )
-            pd.testing.assert_frame_equal(original_subset, generated_subset, check_dtype=False)
 
-    def test_handles_empty_response(self, sample_schema):
-        """Test handling of empty response from generator"""
-        with patch(
-            "smolmodels.internal.data_generation.core.generation.combined.CombinedDataGenerator._generate_batch",
-            return_value=pd.DataFrame(),
-        ):
             model = Model(intent="Predict house prices based on features", **sample_schema)
-            with pytest.raises(RuntimeError, match="Failed to generate any valid data"):
-                model.build(generate_samples=500)
+            model.build(dataset="test.csv")
 
-    def test_handles_api_error(self, sample_schema):
-        """Test handling of API errors"""
-        with patch(
-            "smolmodels.internal.data_generation.core.generation.combined.CombinedDataGenerator._generate_batch",
-            side_effect=Exception("API Error"),
-        ):
-            model = Model(intent="Predict house prices based on features", **sample_schema)
-            with pytest.raises(RuntimeError):
-                model.build(generate_samples=5)
+            mock_read_csv.assert_called_once_with("test.csv")
+            assert model.training_data is not None
+            assert model.state.value == "ready"
 
 
 class TestSMOTEOversampling:
