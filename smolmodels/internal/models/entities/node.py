@@ -49,7 +49,6 @@ class Node:
         performance (List[Metric]): A list of metrics evaluating the solution's performance.
         execution_time (float): The time taken to execute the solution code.
         execution_stdout (list[str]): The standard output from the solution's execution.
-        execution_stderr (list[str]): The standard error from the solution's execution.
         exception_was_raised (bool): Indicates whether an exception occurred during execution.
         exception (Exception): The exception raised during execution, if any.
         model_artifacts (Dict[str, str]): A dictionary of generated model artifacts and their paths.
