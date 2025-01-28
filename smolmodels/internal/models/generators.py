@@ -215,6 +215,7 @@ def generate(
         i += 1
         # Unpack the solution's performance; if this is better than the best so far, update
         if node.performance and isinstance(node.performance.value, float):
+            print(f"🤔 Node {i} (depth {node.depth}) performance: {str(node.performance)}")
             if best_metric is None or node.performance > best_metric:
                 best_metric = node.performance
         else:
@@ -222,7 +223,7 @@ def generate(
                 f"❌ Node {i} (depth {node.depth}) did not return a valid performance metric: {str(node.performance)}"
             )
         print(
-            f"🤔 Explored {i}/{stopping_condition.max_generations} nodes, best performance so far: {str(best_metric)}"
+            f"📈 Explored {i}/{stopping_condition.max_generations} nodes, best performance so far: {str(best_metric)}"
         )
 
     valid_nodes = [n for n in graph.nodes if n.performance is not None and not n.exception_was_raised]
@@ -263,10 +264,13 @@ def generate(
             continue
 
     print(f"✅ Built predictor for model with performance: {best_node.performance}")
+    # Copy model artifacts to the working directory
+    for artifact in best_node.model_artifacts:
+        pathname = "./"
+        shutil.copy(artifact, pathname)
     # Write out the training and inference code and return the compiled functions
-    # TODO: Check this actually works
-    trainer: types.ModuleType = types.ModuleType("smolmodels-trainer")
-    predictor: types.ModuleType = types.ModuleType("smolmodels-predictor")
+    trainer: types.ModuleType = types.ModuleType("smoltrainer")
+    predictor: types.ModuleType = types.ModuleType("smolpredictor")
     exec(best_node.training_code, trainer.__dict__)
     exec(best_node.inference_code, predictor.__dict__)
 
