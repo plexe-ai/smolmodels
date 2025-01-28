@@ -115,7 +115,7 @@ def test_metric_repr_and_str():
     comparator = MetricComparator(ComparisonMethod.HIGHER_IS_BETTER)
     metric = Metric(name="accuracy", value=0.8, comparator=comparator)
     assert repr(metric) == "Metric(name='accuracy', value=0.8, comparison=HIGHER_IS_BETTER)"
-    assert str(metric) == "Metric accuracy ↑ 0.8000"
+    assert str(metric) == "Metric accuracy ↑ 0.8"
 
 
 def test_metric_transitivity():

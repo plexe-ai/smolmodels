@@ -115,6 +115,7 @@ def test_buggy_nodes():
         inference_code="code2",
         training_tests="code3",
         exception_was_raised=False,
+        visited=True,
     )
     node2 = Node(
         solution_plan="Plan B",
@@ -122,6 +123,7 @@ def test_buggy_nodes():
         inference_code="code5",
         training_tests="code6",
         exception_was_raised=True,
+        visited=True,
     )
 
     graph.add_node(node1)
@@ -140,6 +142,7 @@ def test_good_nodes():
         inference_code="code2",
         training_tests="code3",
         exception_was_raised=False,
+        visited=True,
     )
     node2 = Node(
         solution_plan="Plan B",
@@ -147,6 +150,7 @@ def test_good_nodes():
         inference_code="code5",
         training_tests="code6",
         exception_was_raised=True,
+        visited=True,
     )
 
     graph.add_node(node1)

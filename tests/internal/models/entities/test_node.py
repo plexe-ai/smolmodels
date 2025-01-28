@@ -23,7 +23,7 @@ def test_node_initialization():
         training_tests="print('tests code')",
         estimated_value=100.0,
         estimated_cost=10.0,
-        model_artifacts={"model.pkl": "/path/to/model.pkl"},
+        model_artifacts=["/path/to/model.pkl"],
     )
 
     assert node.id is not None
@@ -34,7 +34,7 @@ def test_node_initialization():
     assert node.training_tests == "print('tests code')"
     assert node.estimated_value == 100.0
     assert node.estimated_cost == 10.0
-    assert node.model_artifacts == {"model.pkl": "/path/to/model.pkl"}
+    assert node.model_artifacts == ["/path/to/model.pkl"]
     assert node.edges_in == []
     assert node.edges_out == []
 
@@ -121,9 +121,8 @@ def test_node_execution_fields():
         training_tests="print('tests code')",
     )
 
-    assert node.performance == []
+    assert node.performance is None
     assert node.execution_stdout == []
-    assert node.execution_stderr == []
     assert node.execution_time is None
     assert node.analysis is None
     assert node.exception_was_raised is False

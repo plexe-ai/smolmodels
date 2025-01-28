@@ -81,7 +81,6 @@ class Node:
     performance: Metric = field(default=None, kw_only=True)
     execution_time: float = field(default=None, kw_only=True)
     execution_stdout: list[str] = field(default_factory=list, kw_only=True)
-    execution_stderr: list[str] = field(default_factory=list, kw_only=True)
     exception_was_raised: bool = field(default=False, kw_only=True)
     exception: Exception = field(default=None, kw_only=True)
     model_artifacts: List[str] = field(default_factory=list, kw_only=True)
