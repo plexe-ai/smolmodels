@@ -31,16 +31,20 @@ Example Usage:
     print(prediction)
 
 """
+import types
 import pandas as pd
 import logging
+import pickle
 from enum import Enum
 from typing import Dict, Optional, Union, List, Literal, Any
 from dataclasses import dataclass
+from pathlib import Path
 
 from smolmodels.callbacks import Callback
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
-from .internal.data_generation.generator import generate_data, DataGenerationRequest
+from smolmodels.internal.data_generation.generator import generate_data, DataGenerationRequest
+from smolmodels.internal.models.generators import generate
 
 
 class ModelState(Enum):
@@ -136,14 +140,16 @@ class Model:
         self.synthetic_data = None
 
         # The model's mutable state is defined by these fields
-        # todo: this is WIP, trying to flesh out what the model's internal state might look like
         self.state = ModelState.DRAFT
-        self.trainer = None  # todo: this is the object that was used to train the model, but does it need to exist?
-        self.predictor = None  # todo: this is an object that loads the model and makes predictions
-        self.metrics = dict()  # todo: this is a dictionary of metrics that the model has achieved
-        self.metadata = dict()  # todo: this is a dictionary of metadata about the model
+        self.trainer: types.ModuleType | None = None
+        self.predictor: types.ModuleType | None = None
+        self.artifacts: List[Path | str] = []
+        self.metrics: Dict[str, str] = dict()
+        self.metadata: Dict[str, str] = dict()
+
         # todo: metrics should be chosen based on problem, model-type, etc.
         # todo: initialise metadata, etc
+        logger.debug(f"Model initialised with state: {vars(self)}")
 
     def build(
         self,
@@ -188,9 +194,21 @@ class Model:
             if self.training_data is None:
                 raise ValueError("No training data available. Provide dataset or generate_samples.")
 
-            # TODO: add solution generation logic here
+            # Generate the model
+            generated = generate(
+                self.intent,
+                self.input_schema,
+                self.output_schema,
+                self.training_data,
+                self.constraints,
+                directives,
+                callbacks,
+                isolation,
+            )
+            self.trainer, self.predictor, self.artifacts, self.metrics = generated
 
             self.state = ModelState.READY
+            print("✅ Model built successfully.")
         except Exception as e:
             self.state = ModelState.ERROR
             logger.error(f"Error during model building: {str(e)}")
@@ -250,3 +268,38 @@ class Model:
         :return: a review of the model
         """
         raise NotImplementedError("Review functionality is not yet implemented.")
+
+
+def save_model(model: Model, path: str) -> None:
+    """
+    Save a model to a file.
+    :param model: the model to save
+    :param path: the path to save the model to
+    """
+    # Ensure the path has extension
+    if not path.endswith(".pmb"):
+        path += ".pmb"
+
+    try:
+        with open(path, "wb") as file:
+            pickle.dump(model, file)
+        logger.info(f"Model successfully saved to {path}.")
+    except Exception as e:
+        logger.error(f"Error saving model: {str(e)}")
+        raise e
+
+
+def load_model(path: str) -> Model:
+    """
+    Load a model from a file.
+    :param path: the path to load the model from
+    :return: the loaded model
+    """
+    try:
+        with open(path, "rb") as file:
+            model = pickle.load(file)
+        logger.info(f"Model successfully loaded from {path}.")
+        return model
+    except Exception as e:
+        logger.error(f"Error loading model: {str(e)}")
+        raise e
