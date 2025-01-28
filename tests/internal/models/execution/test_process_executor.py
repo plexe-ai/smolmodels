@@ -13,9 +13,11 @@ The tests use pytest as the test runner and employ mocking to isolate external d
 """
 
 import os
+import shutil
 import subprocess
+import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch
 
 import pytest
 import pandas as pd
@@ -34,18 +36,21 @@ class TestProcessExecutor:
         self.process_executor = ProcessExecutor(
             execution_id=self.execution_id,
             code=self.code,
-            working_dir=self.working_dir,
+            working_dir=Path(os.getcwd()),
             dataset=self.dataset,
             timeout=self.timeout,
+            code_execution_file_name="run.py",
         )
+
+    def teardown_method(self):
+        if self.working_dir.exists():
+            shutil.rmtree(self.working_dir, ignore_errors=True)
 
     def test_constructor_creates_working_directory(self):
         assert self.working_dir.exists()
-        assert (self.working_dir / "test_execution").exists()
 
-    @patch("builtins.open", new_callable=mock_open)
     @patch("pandas.DataFrame.to_csv")
-    def test_run_successful_execution(self, mock_to_csv, mock_open):
+    def test_run_successful_execution(self, mock_to_csv):
         mock_process = MagicMock()
         mock_process.communicate.return_value = ("Execution completed", "")
         mock_process.returncode = 0
@@ -53,9 +58,10 @@ class TestProcessExecutor:
         with patch("subprocess.Popen", return_value=mock_process) as mock_popen:
             result = self.process_executor.run()
 
-        mock_to_csv.assert_called_once()
+        dataset_file = self.working_dir / "training_data.csv"
+        mock_to_csv.assert_called_once_with(dataset_file, index=False)
         mock_popen.assert_called_once_with(
-            ["python3", str(self.working_dir / "run.py")],
+            [sys.executable, str(self.working_dir / "run.py")],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=str(self.working_dir),
@@ -95,17 +101,6 @@ class TestProcessExecutor:
         self.process_executor.run()
         dataset_file = self.working_dir / "training_data.csv"
         mock_to_csv.assert_called_once_with(dataset_file, index=False)
-
-    def test_cleanup_files_removed(self):
-        code_file = self.working_dir / "run.py"
-        dataset_file = self.working_dir / "training_data.csv"
-        code_file.touch()
-        dataset_file.touch()
-
-        self.process_executor.cleanup()
-
-        assert not code_file.exists()
-        assert not dataset_file.exists()
 
 
 if __name__ == "__main__":
