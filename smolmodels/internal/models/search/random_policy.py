@@ -50,6 +50,9 @@ class RandomSearchPolicy(SearchPolicy):
         :return: A list containing one randomly selected node.
         :raises NotImplementedError: If n is not 1.
         """
+        # n must be a positive integer less than the number of unvisited nodes
+        if not 0 < n <= len(self.graph.unvisited_nodes):
+            raise ValueError(f"Cannot select {n} nodes for testing from {len(self.graph.unvisited_nodes)} available.")
         # if there are no unvisited nodes, return the first node
         if not self.graph.unvisited_nodes:
             return [self.graph.nodes[0]] if self.graph.nodes else []
@@ -64,6 +67,9 @@ class RandomSearchPolicy(SearchPolicy):
         :return: A list containing one randomly selected node.
         :raises NotImplementedError: If n is not 1.
         """
+        # n must be a positive integer less than the number of good nodes
+        if not 0 < n <= len(self.graph.good_nodes):
+            raise ValueError(f"Cannot select {n} nodes for expansion from {len(self.graph.good_nodes)} available.")
         # if there are no good nodes, return the first node
         if not self.graph.good_nodes:
             return [self.graph.nodes[0]] if self.graph.nodes else []

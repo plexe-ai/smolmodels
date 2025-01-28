@@ -34,14 +34,19 @@ def setup_graph():
     node1 = Node(solution_plan="Plan A", training_code="code1", inference_code="code2", training_tests="code3")
     node2 = Node(solution_plan="Plan B", training_code="code4", inference_code="code5", training_tests="code6")
     node3 = Node(solution_plan="Plan C", training_code="code7", inference_code="code8", training_tests="code9")
+    node4 = Node(solution_plan="Plan D", training_code="code10", inference_code="code11", training_tests="code12")
 
     # Add nodes to the graph
     graph.add_node(node1)
     graph.add_node(node2)
     graph.add_node(node3)
+    graph.add_node(node4)
 
     # Mark some nodes as buggy
+    node2.visited = True
     node2.exception_was_raised = True
+    # Mark some nodes as good
+    node4.visited = True
 
     return graph
 
@@ -60,7 +65,7 @@ def test_select_node_enter_single(random_search_policy, setup_graph):
     """
     selected_nodes = random_search_policy.select_node_enter(n=1)
     assert len(selected_nodes) == 1
-    assert selected_nodes[0] in setup_graph.good_nodes
+    assert selected_nodes[0] in setup_graph.unvisited_nodes
 
 
 def test_select_node_enter_multiple(random_search_policy, setup_graph):
@@ -70,7 +75,7 @@ def test_select_node_enter_multiple(random_search_policy, setup_graph):
     selected_nodes = random_search_policy.select_node_enter(n=2)
     assert len(selected_nodes) == 2
     for node in selected_nodes:
-        assert node in setup_graph.good_nodes
+        assert node in setup_graph.unvisited_nodes
 
 
 def test_select_node_enter_too_many(random_search_policy):
