@@ -39,6 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOOGLE_API_KEY: ${{ vars.GOOGLE_API_KEY }}
+      OPENAI_API_KEY: ${{ vars.OPENAI_API_KEY }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
