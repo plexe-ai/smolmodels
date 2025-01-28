@@ -67,11 +67,16 @@ class RandomSearchPolicy(SearchPolicy):
         :return: A list containing one randomly selected node.
         :raises NotImplementedError: If n is not 1.
         """
-        # n must be a positive integer less than the number of good nodes
-        if not 0 < n <= len(self.graph.good_nodes):
-            raise ValueError(f"Cannot select {n} nodes for expansion from {len(self.graph.good_nodes)} available.")
-        # if there are no good nodes, return the first node
-        if not self.graph.good_nodes:
-            return [self.graph.nodes[0]] if self.graph.nodes else []
-        # else return a random sample of good nodes
-        return random.sample(self.graph.good_nodes, min(n, len(self.graph.good_nodes)))
+        # n must be a positive integer less than the number of available nodes
+        if not 0 < n <= len(self.graph.nodes):
+            raise ValueError(f"Cannot select {n} nodes for expansion from {len(self.graph.nodes)} available.")
+        # Prefer to expand visited good nodes, then visited buggy nodes
+        nodes = []
+        if self.graph.good_nodes:
+            nodes.extend(random.sample(self.graph.good_nodes, min(n, len(self.graph.good_nodes))))
+        if len(nodes) < n and self.graph.buggy_nodes:
+            nodes.extend(random.sample(self.graph.buggy_nodes, min(n - len(nodes), len(self.graph.buggy_nodes))))
+        # If no nodes have been visited, return the first node
+        if len(nodes) == 0:
+            nodes.append(self.graph.nodes[0])
+        return nodes
