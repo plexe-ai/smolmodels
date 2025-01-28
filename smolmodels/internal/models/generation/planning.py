@@ -39,7 +39,9 @@ def select_metric_to_optimise(problem_statement: str, dataset: pd.DataFrame) -> 
         **json.loads(
             client.query(
                 system_message=config.code_generation.prompt_planning_select_metric.safe_substitute(),
-                user_message=f"Problem statement:\n{problem_statement}\n\nDataset Schema:\n{dataset}",
+                user_message=config.code_generation.prompt_planning_select_metric.safe_substitute(
+                    problem_statement=problem_statement,
+                ),
                 response_format=MetricResponse,
             )
         )
@@ -55,13 +57,16 @@ def select_metric_to_optimise(problem_statement: str, dataset: pd.DataFrame) -> 
         raise ValueError(f"Could not determine optimization metric from problem statement: {response}") from e
 
 
-def select_stopping_condition(problem_statement: str, metric: Metric, max_iterations: int) -> StoppingCondition:
+def select_stopping_condition(
+    problem_statement: str, metric: Metric, max_iterations: int, max_time: int
+) -> StoppingCondition:
     """
     Selects the stopping condition for the given problem statement and dataset.
 
     :param problem_statement: definition of the problem
     :param metric: the metric to optimise
     :param max_iterations: the maximum number of iterations
+    :param max_time: the maximum time allowed
     :return: the stopping condition
     """
 
@@ -86,18 +91,19 @@ def select_stopping_condition(problem_statement: str, metric: Metric, max_iterat
     try:
         return StoppingCondition(
             max_generations=min(response.max_generations, max_iterations),
-            max_time=response.max_time,
+            max_time=min(response.max_time, max_time),
             metric=Metric(metric.name, response.metric_threshold, metric.comparator),
         )
     except Exception as e:
         raise ValueError(f"Could not determine stopping condition from problem statement: {response}") from e
 
 
-def generate_solution_plan(problem_statement: str, context: str = None) -> str:
+def generate_solution_plan(problem_statement: str, metric_to_optimise: str, context: str = None) -> str:
     """
     Generates a solution plan for the given problem statement.
 
     :param problem_statement: definition of the problem
+    :param metric_to_optimise: the metric to optimise
     :param context: additional context or memory for the solution
     :return: the generated solution plan
     """
@@ -105,6 +111,7 @@ def generate_solution_plan(problem_statement: str, context: str = None) -> str:
         system_message=config.code_generation.prompt_planning_base.safe_substitute(),
         user_message=config.code_generation.prompt_planning_generate_plan.safe_substitute(
             problem_statement=problem_statement,
+            metric_to_optimise=metric_to_optimise,
             context=context,
         ),
     )

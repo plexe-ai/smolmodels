@@ -2,6 +2,7 @@ import json
 import logging
 import textwrap
 
+from smolmodels.internal.models.entities.metric import Metric
 from smolmodels.internal.models.entities.node import Node
 from smolmodels.internal.models.execution.executor import Executor
 
@@ -35,7 +36,7 @@ def join_problem_statement(intent: str, input_schema: dict, output_schema: dict,
     return problem_statement
 
 
-def execute_node(node: Node, executor: Executor) -> None:
+def execute_node(node: Node, executor: Executor, metric_to_optimise: Metric) -> None:
     """
     Execute the training code for the given node using the executor.
     """
@@ -44,10 +45,8 @@ def execute_node(node: Node, executor: Executor) -> None:
     logger.debug(f"Execution result: {result}")
     node.execution_time = result.exec_time
     node.execution_stdout = result.term_out
-    node.execution_stderr = result.exc_stack or None
-    node.exception_was_raised = result.exc_type is not None
-    node.exception = result.exc_stack or None
+    node.exception_was_raised = result.exception is not None
+    node.exception = result.exception or None
     node.model_artifacts = result.model_artifacts
-    node.analysis = result.analysis
-    node.performance = result.performance
+    node.performance = Metric(metric_to_optimise.name, result.performance, metric_to_optimise.comparator)
     logger.debug(f"Unpacked execution results into node: {node}")

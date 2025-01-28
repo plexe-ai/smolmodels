@@ -48,6 +48,7 @@ def generate_training_code(problem_statement: str, plan: str, history: str = Non
                 plan=plan,
                 history=history,
                 allowed_packages=config.code_generation.allowed_packages,
+                training_data_path=config.execution.training_data_path,
             ),
         )
     )
@@ -96,8 +97,10 @@ def fix_training_code(training_code: str, plan: str, review: str, problems: str 
                     training_code=training_code,
                     review=review,
                     problems=problems,
-                    history=history,
+                    training_data_path=config.execution.training_data_path,
+                    allowed_packages=config.code_generation.allowed_packages,
                 ),
+                response_format=FixResponse,
             )
         )
     )

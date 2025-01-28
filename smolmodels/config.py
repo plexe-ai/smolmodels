@@ -16,24 +16,37 @@ class _Config:
 
     @dataclass(frozen=True)
     class _ModelSearchConfig:
-        initial_nodes: int = field(default=1)
-        max_nodes: int = field(default=5)
-        max_fixing_attempts: int = field(default=2)
+        initial_nodes: int = field(default=3)
+        max_nodes: int = field(default=10)
+        max_fixing_attempts_train: int = field(default=3)
+        max_fixing_attempts_predict: int = field(default=10)
+        max_time_elapsed: int = field(default=600)
 
     @dataclass(frozen=True)
     class _ExecutionConfig:
-        timeout: int = field(default=3600)
+        timeout: int = field(default=300)
         runfile_name: str = field(default="execution_script.py")
+        training_data_path: str = field(default="training_data.csv")
 
     @dataclass(frozen=True)
     class _CodeGenerationConfig:
-        allowed_packages: List[str] = field(default_factory=lambda: ["pandas", "numpy", "sklearn"])
+        allowed_packages: List[str] = field(
+            default_factory=lambda: ["pandas", "numpy", "scikit-learn", "joblib" "mlxtend" "xgboost"]
+        )
         k_fold_validation: int = field(default=5)
         # prompts used in generating plans or making decisions
         prompt_planning_base: Template = field(
             default=Template("You are an experienced ML Engineer planning a solution to a Kaggle competition.")
         )
-        prompt_planning_select_metric: Template = field(default=Template("Select the metric to optimise for the TASK."))
+        prompt_planning_select_metric: Template = field(
+            default=Template(
+                "Select what machine learning model metric is most appropriate to optimise for this task.\n\n"
+                "The task is:\n${problem_statement}\n\n"
+                "Tell me the name of the metric, and whether higher or lower values are better. If the metric has a "
+                "specific target value, please provide that too. Select a simple metric that is appropriate for the "
+                "task, but also widely known of and used in the machine learning community."
+            )
+        )
         prompt_planning_select_stop_condition: Template = field(
             default=Template(
                 "Define the stopping condition for when we should stop searching for new solutions, "
@@ -46,13 +59,14 @@ class _Config:
         )
         prompt_planning_generate_plan: Template = field(
             default=Template(
-                "Write a solution plan for the machine learning problem outlined below.\n\n"
+                "Write a solution plan for the machine learning problem outlined below. The solution must produce "
+                "a model that achieves the best possible performance on ${metric}.\n\n"
                 "# TASK:\n${problem_statement}\n\n"
                 "# PREVIOUS ATTEMPTS, IF ANY:**\n${context}\n\n"
                 "The solution concept should be explained in 3-5 sentences. Do not include an implementation of the "
                 "solution, though you can include small code snippets if relevant to explain the plan. "
                 "Do not suggest doing EDA, ensembling, or hyperparameter tuning. "
-                "The solution should be feasible using only ${allowed_packages}, and no other non-standard libraries."
+                "The solution should be feasible using only ${allowed_packages}, and no other non-standard libraries. "
             )
         )
         # prompts used in generating, fixing or reviewing training code
@@ -70,10 +84,11 @@ class _Config:
                 "# PREVIOUS ATTEMPTS, IF ANY:\n${history}\n\n"
                 "Only return the code to train the model, no explanations outside the code. Any explanation should "
                 "be in the comments in the code itself, but your overall answer must only consist of the code script. "
+                "The script must assume that the dataset is in the current working directory as ${training_data_path}. "
                 "The script must train the model, compute and print the final evaluation metric to standard output, "
-                "and save the model as 'model.joblib' in the './working' directory. Use only ${allowed_packages}."
-                "Train the model, compute and print the evaluation metric, and save the model as 'model.joblib' in './working'. "
-                "Use ${allowed_packages}. Do not skip steps or combine preprocessors and models in the same joblib file."
+                "and save the model as 'model.joblib' in the current working directory. Use only ${allowed_packages}. "
+                "Do NOT use any packages that are not part of this list of the Python standard library."
+                "Do not skip steps or combine preprocessors and models in the same joblib file."
             )
         )
         prompt_training_fix: Template = field(
@@ -83,8 +98,10 @@ class _Config:
                 "# CODE:\n${training_code}\n"
                 "# ISSUES:\n${review}\n"
                 "# ERRORS:\n${problems}\n"
-                "# PREVIOUS ATTEMPTS, IF ANY:\n${history}\n\n"
-                "Correct the code, train the model, compute and print the evaluation metric, and save the model in './working'."
+                "Correct the code, train the model, compute and print the evaluation metric, and save the model in "
+                "the current working directory as 'model.joblib'. Use only ${allowed_packages}. Do NOT use any "
+                "packages that are not part of this list of the Python standard library. Assume the training "
+                "data is in the current working directory as ${training_data_path}."
             )
         )
         prompt_training_review: Template = field(
@@ -99,35 +116,50 @@ class _Config:
             )
         )
         # prompts used in generating, fixing or reviewing prediction code
-        prompt_inference_base: Template = field(default=Template("Experienced ML Engineer deploying a trained model."))
+        prompt_inference_base: Template = field(
+            default=Template("You are an experienced ML Engineer deploying a trained model.")
+        )
         prompt_inference_generate: Template = field(
             default=Template(
-                "Write an inference script.\n\n"
-                "# TASK: ${problem_statement}\n"
-                "# PLAN: ${plan}\n"
-                "# CODE: ${training_code}\n"
-                "# PREVIOUS ATTEMPTS, IF ANY: ${context}\n\n"
-                "Load 'model.joblib' from './working', preprocess inputs, and generate predictions. Save results as 'predictions.csv'. "
-                "Handle errors gracefully. Use ${allowed_packages}."
+                "Write a Python script that can be used to get predictions from a machine learning model. The"
+                "script must always contain a predict() function. The input signature of the predict() function must "
+                "be as per the input schema below, and the returned output of the predict function must be as per "
+                "the output schema below.\n"
+                "# INPUT SCHEMA:\n```python\n${input_schema}```\n\n"
+                "# OUTPUT SCHEMA:\n```python\n${output_schema}```\n\n"
+                "The predict() function takes in the model inputs and returns the model outputs. The model in "
+                "question has been trained using the following ML training script.\n\n"
+                "# TRAINING CODE:\n```python\n${training_code}```\n\n"
+                "The script must load any relevant model binaries from the current working directory. This must happen"
+                "outside the predict() function, so that it only happens once when the module is imported. "
+                "The script must handle errors gracefully. The script must not used any packages that were not used "
+                "in the training code. The script must also not use any packages that are not in ${allowed_packages}. "
+                "Do not return any explanations or commentary, only return the inference script."
             )
         )
         prompt_inference_fix: Template = field(
             default=Template(
-                "Fix the inference script to resolve issues.\n\n"
-                "# CODE: ${inference_code}\n"
-                "# ISSUES: ${review}\n"
-                "# ERRORS: ${problems}\n\n"
-                "Ensure compatibility with the training pipeline and handle errors gracefully."
+                "Fix the previous inference script based on the following information.\n\n"
+                "# INFERENCE CODE TO FIX:\n```python\n${inference_code}```\n"
+                "# ISSUES:\n${review}\n\n"
+                "# ERRORS:\n${problems}\n\n"
+                "You must not change the signature of the predict() function, unless this was specifically called out "
+                "as per of the problem in the issues above. You also must not change the locations from which files "
+                "are loaded, or any of the packages being imported, unless explicitly called out as part of the fix "
+                "in the issues above. Return an explanation of the fix, followed by the fixed inference script."
             )
         )
         prompt_inference_review: Template = field(
             default=Template(
-                "Review the inference script for improvements.\n\n"
-                "# TASK: ${problem_statement}\n"
-                "# PLAN: ${plan}\n"
-                "# CODE: ${inference_code}\n"
-                "# PREVIOUS ATTEMPTS, IF ANY: ${context}\n\n"
-                "Provide optimisation and error-handling suggestions."
+                "Review the inference code below to fix any issues. The inference must expose a predict() function "
+                "which complies with the given input and output schemas, with which the model will be called.\n\n"
+                "# INFERENCE CODE:\n```python\n${inference_code}```\n\n"
+                "# INPUT SCHEMA:\n```python\n${input_schema}```\n\n"
+                "# OUTPUT SCHEMA:\n```python\n${output_schema}```\n\n"
+                "The model itself was generated by the following training code:\n```python\n${training_code}```\n\n"
+                "When doing a static analysis of the code, the following issues were spotted:\n"
+                "${problems}\n\n"
+                "Suggest a single, actionable improvement for fixing the issues."
             )
         )
 

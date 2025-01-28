@@ -14,8 +14,12 @@ Constants:
 
 import json
 import logging
+import shutil
 import time
-from typing import List, Optional, Tuple, Callable
+import types
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional, Tuple
 
 import pandas as pd
 from tqdm import tqdm
@@ -33,7 +37,6 @@ from smolmodels.internal.models.execution.executor import Executor
 from smolmodels.internal.models.execution.process_executor import ProcessExecutor
 from smolmodels.internal.models.generation.inference import (
     generate_inference_code,
-    generate_inference_tests,
     fix_inference_code,
     review_inference_code,
 )
@@ -55,6 +58,12 @@ from smolmodels.internal.models.validation.validator import Validator, Validatio
 
 logger = logging.getLogger(__name__)
 
+# todo: where to move these?
+logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
+logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("openai._base_client").setLevel(logging.WARNING)
+
 
 def generate(
     intent: str,
@@ -67,7 +76,8 @@ def generate(
     isolation: str = "process",
     executor: Optional[Executor] = None,
     search_policy: Optional[SearchPolicy] = None,
-) -> Tuple[Callable, Callable]:
+    timeout: int = config.model_search.max_time_elapsed,
+) -> Tuple[types.ModuleType, types.ModuleType, List[Path | str], str]:
     """
     Generate training and inference code for a given problem statement and schemas.
 
@@ -82,10 +92,15 @@ def generate(
         isolation (str, optional): The isolation method for execution (e.g., "process"). Defaults to "process".
         executor (Optional[Executor], optional): Executor for running generated code. Defaults to None.
         search_policy (Optional[SearchPolicy], optional): Policy to guide exploration of the solution graph. Defaults to None.
+        timeout (int, optional): The maximum time allowed for model generation. Defaults to config.model_search.max_time_elapsed.
 
     Returns:
         Tuple[Callable, Callable]: A tuple containing the training function and the prediction function.
     """
+    # Set up the model generation process
+    start_time: float = time.time()
+    run_name = f"run-{datetime.now().isoformat()}".replace(":", "-").replace(".", "-")
+
     # Join the problem statement into a single string
     problem_statement: str = sm_utils.join_problem_statement(
         intent, input_schema, output_schema, constraints, directives
@@ -94,9 +109,12 @@ def generate(
     # Decide what metric to optimise based on the definition of the problem
     metric_to_optimise: Metric = select_metric_to_optimise(problem_statement, dataset)
     stopping_condition: StoppingCondition = select_stopping_condition(
-        problem_statement, metric_to_optimise, config.model_search.max_nodes
+        problem_statement=problem_statement,
+        metric=metric_to_optimise,
+        max_iterations=config.model_search.max_nodes,
+        max_time=config.model_search.max_time_elapsed,
     )
-    print(f"🔨 Optimising {metric_to_optimise} with stopping condition {stopping_condition}")
+    print(f"🔨 Optimising {metric_to_optimise.name}; {str(stopping_condition)}")
 
     # Create the solution graph with initial nodes
     graph: Graph = Graph()
@@ -105,14 +123,21 @@ def generate(
     # Create classes used in code generation and review
     validators: List[Validator] = [SyntaxValidator(), SecurityValidator()]
 
-    for _ in tqdm(range(config.model_search.initial_nodes), desc="Initialising solution graph"):
-        graph.add_node(Node(solution_plan=generate_solution_plan(problem_statement)), None)
+    for _ in tqdm(range(config.model_search.initial_nodes), desc="🔨 Initialising solution graph", colour="red"):
+        graph.add_node(
+            Node(
+                solution_plan=generate_solution_plan(
+                    problem_statement=problem_statement, metric_to_optimise=metric_to_optimise.name
+                )
+            ),
+            parent=None,
+        )
 
     # Explore the solution space until the stopping condition is met
     i: int = 0
     best_metric: Metric = metric_to_optimise
 
-    while not stopping_condition.is_met(i, time.time(), best_metric):
+    while not stopping_condition.is_met(i, start_time, best_metric):
         # Expand the graph by selecting a node to explore out from
         if i != 0:
             node_expand: Node = search_policy.select_node_expand()[0]
@@ -120,6 +145,7 @@ def generate(
                 Node(
                     solution_plan=generate_solution_plan(
                         problem_statement=problem_statement,
+                        metric_to_optimise=metric_to_optimise.name,
                         context=json.dumps(
                             {
                                 "previous_plan": node_expand.solution_plan,
@@ -141,13 +167,17 @@ def generate(
         # node.training_tests = generate_training_tests(problem_statement, node.solution_plan, node.training_code)
 
         # Review the generated training code
-        for _ in tqdm(range(config.model_search.max_fixing_attempts), desc=f"Node {i}, reviewing training code"):
+        for i_fix in tqdm(
+            range(config.model_search.max_fixing_attempts_train),
+            desc=f"🔨 Node {i} (depth {node.depth}) | Reviewing and training",
+            colour="red",
+        ):
             result: ValidationResult | None = None
 
             for validator in validators:
                 result = validator.validate(node.training_code)
                 if not result.passed:
-                    logger.warning(f"Node {i}, attempts {_}: code failed validation: {result}")
+                    logger.warning(f"Node {i}, attempt {i_fix}: Failed validation {result}")
                     break
 
             if not result.passed:
@@ -157,7 +187,18 @@ def generate(
 
             # If the code passes all static validations, execute the code
             # TODO: Training can happen in parallel to further exploration
-            sm_utils.execute_node(node, ProcessExecutor(node.training_code, "./workdir", 60))
+            sm_utils.execute_node(
+                node=node,
+                executor=ProcessExecutor(
+                    execution_id=f"{i}-{node.id}-{i_fix}",
+                    code=node.training_code,
+                    working_dir=f"./workdir/{run_name}/",
+                    dataset=dataset,
+                    timeout=config.execution.timeout,
+                    code_execution_file_name=config.execution.runfile_name,
+                ),
+                metric_to_optimise=metric_to_optimise,
+            )
 
             # If the code raised an exception, attempt to fix again
             if node.exception_was_raised:
@@ -171,39 +212,65 @@ def generate(
             else:
                 break
 
-        # If this node achieved a better metric, update the best metric
         i += 1
-        if node.performance is not None:
+        # Unpack the solution's performance; if this is better than the best so far, update
+        if node.performance and isinstance(node.performance.value, float):
             if best_metric is None or node.performance > best_metric:
                 best_metric = node.performance
+        else:
+            print(
+                f"❌ Node {i} (depth {node.depth}) did not return a valid performance metric: {str(node.performance)}"
+            )
+        print(
+            f"🤔 Explored {i}/{stopping_condition.max_generations} nodes, best performance so far: {str(best_metric)}"
+        )
 
     valid_nodes = [n for n in graph.nodes if n.performance is not None and not n.exception_was_raised]
     if not valid_nodes:
         raise RuntimeError("No valid solutions found during search")
 
     # Generate the inference code for the best node
+    print("🧠 Generating inference code for the best solution")
     best_node: Node = max(valid_nodes, key=lambda n: n.performance)
     best_node.inference_code = generate_inference_code(
-        problem_statement, best_node.solution_plan, best_node.training_code
+        input_schema=input_schema, output_schema=output_schema, training_code=best_node.training_code
     )
-    best_node.inference_tests = generate_inference_tests(
-        problem_statement, best_node.solution_plan, best_node.training_code, best_node.training_code
-    )
+    # best_node.inference_tests = generate_inference_tests(
+    #     problem_statement, best_node.solution_plan, best_node.training_code, best_node.training_code
+    # )
 
     # Review the generated inference code
-    for _ in tqdm(range(config.model_search.max_fixing_attempts), desc="Reviewing inference code"):
+    for _ in tqdm(
+        range(config.model_search.max_fixing_attempts_train), desc="🔨 Reviewing and predicting", colour="red"
+    ):
+        result: ValidationResult | None = None
+
         for validator in validators:
             result = validator.validate(best_node.inference_code)
             if not result.passed:
-                review = review_inference_code(
-                    best_node.inference_code, problem_statement, best_node.solution_plan, str(result)
-                )
-                best_node.inference_code = fix_inference_code(best_node.inference_code, review, str(result))
-                continue
+                logger.warning(f"Attempt {_} | code failed validation: {result}")
+                break
 
+        if not result.passed:
+            review = review_inference_code(
+                inference_code=best_node.inference_code,
+                input_schema=input_schema,
+                output_schema=output_schema,
+                training_code=best_node.training_code,
+                problems=str(result),
+            )
+            best_node.inference_code = fix_inference_code(best_node.inference_code, review, str(result))
+            continue
+
+    print(f"✅ Built predictor for model with performance: {best_node.performance}")
     # Write out the training and inference code and return the compiled functions
     # TODO: Check this actually works
-    trainer: Callable = eval(compile(best_node.training_code, best_node.model_artifacts.training_code, "eval"))
-    predictor: Callable = eval(compile(best_node.inference_code, best_node.model_artifacts.inference_code, "eval"))
+    trainer: types.ModuleType = types.ModuleType("smolmodels-trainer")
+    predictor: types.ModuleType = types.ModuleType("smolmodels-predictor")
+    exec(best_node.training_code, trainer.__dict__)
+    exec(best_node.inference_code, predictor.__dict__)
 
-    return trainer, predictor
+    # Delete the working directory before returning
+    shutil.rmtree("./workdir")
+
+    return trainer, predictor, best_node.model_artifacts, str(best_node.performance)

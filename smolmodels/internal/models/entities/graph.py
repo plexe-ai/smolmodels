@@ -77,6 +77,8 @@ class Graph:
                 self._edges.append(edge)
                 parent.edges_out.append(edge)
                 node.edges_in.append(edge)
+        if parent is not None:
+            node.depth = parent.depth + 1
 
     @property
     def buggy_nodes(self) -> list[Node]:

@@ -90,3 +90,13 @@ def format_code(code) -> str:
         return black.format_str(code, mode=black.FileMode())
     except black.parsing.InvalidInput:  # type: ignore
         return code
+
+
+def extract_performance(output: str) -> float:
+    """Extract the performance metric from the output."""
+    last_line = output.strip().split("\n")[-1]
+
+    try:
+        return float(last_line.split(":")[-1].strip())
+    except ValueError:
+        return 0.0

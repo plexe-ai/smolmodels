@@ -19,47 +19,17 @@ Exceptions:
 """
 
 import logging
-import queue
 import subprocess
 import sys
 import time
+import pandas as pd
 from pathlib import Path
 
+from smolmodels.internal.common.utils.response import extract_performance
 from smolmodels.internal.models.execution.executor import ExecutionResult, Executor
 from smolmodels.config import config
 
-logger = logging.getLogger("plexe")
-
-
-class RedirectQueue:
-    """
-    Redirect stdout and stderr to a multiprocessing Queue.
-
-    This class acts as a file-like object to capture messages sent to stdout and stderr
-    and redirect them to a multiprocessing queue for further processing.
-    """
-
-    def __init__(self):
-        """
-        Initialize the RedirectQueue.
-
-        Args:
-            queue (Queue): The queue to write messages to.
-        """
-        self.queue = queue
-
-    def write(self, msg: str):
-        """
-        Write a message to the queue.
-
-        Args:
-            msg (str): The message to write.
-        """
-        self.queue.put(msg)
-
-    def flush(self):
-        """No-op method to satisfy the file-like interface."""
-        pass
+logger = logging.getLogger(__name__)
 
 
 class ProcessExecutor(Executor):
@@ -72,11 +42,12 @@ class ProcessExecutor(Executor):
 
     def __init__(
         self,
+        execution_id: str,
         code: str,
         working_dir: Path | str,
-        timeout: int = 3600,
+        dataset: pd.DataFrame,
         code_execution_file_name: str = config.execution.runfile_name,
-        dataset_path: str = None,
+        timeout: int = config.execution.timeout,
     ):
         """
         Initialize the ProcessExecutor.
@@ -88,20 +59,26 @@ class ProcessExecutor(Executor):
             code_execution_file_name (str): The filename to use for the executed script.
         """
         super().__init__(code, timeout)
-        self.working_dir = Path(working_dir).resolve()
+        # Create a unique working directory for this execution
+        self.working_dir = Path(working_dir).resolve() / execution_id
         self.working_dir.mkdir(parents=True, exist_ok=True)
-        self.execution_file_name = code_execution_file_name
-        self.dataset_path = dataset_path
+        # Set the file names for the code and training data
+        self.code_file_name = code_execution_file_name
+        self.dataset = dataset
 
     def run(self) -> ExecutionResult:
         """Execute code in a subprocess and return results."""
-        logger.debug("REPL is executing code")
+        logger.debug(f"ProcessExecutor is executing code with working directory: {self.working_dir}")
         start_time = time.time()
 
         # Write code to file
-        code_file = self.working_dir / self.execution_file_name
+        code_file: Path = self.working_dir / self.code_file_name
         with open(code_file, "w") as f:
             f.write(self.code)
+
+        # Write dataset to file
+        dataset_file: Path = self.working_dir / config.execution.training_data_path
+        self.dataset.to_csv(dataset_file, index=False)
 
         try:
             # Execute the code in a subprocess
@@ -116,28 +93,27 @@ class ProcessExecutor(Executor):
             stdout, stderr = process.communicate(timeout=self.timeout)
             exec_time = time.time() - start_time
 
-            # Check for model artifacts in working directory
-            model_artifacts = {}
-            if (self.working_dir / "model.joblib").exists():
-                model_artifacts["model"] = str(self.working_dir / "model.joblib")
+            # Collect all model artefacts created by the execution
+            model_artifacts = []
+            for file in self.working_dir.iterdir():
+                if file != code_file:
+                    model_artifacts.append(str(file))
 
             if process.returncode != 0:
                 return ExecutionResult(
                     term_out=[stdout],
                     exec_time=exec_time,
-                    exc_type="RuntimeError",
-                    exc_info={"args": [stderr]},
-                    exc_stack=None,
+                    exception=RuntimeError(stderr),
                     model_artifacts=model_artifacts,
                 )
+
+            # Parse performance from last line of stdout
 
             return ExecutionResult(
                 term_out=[stdout],
                 exec_time=exec_time,
-                exc_type=None,
-                exc_info=None,
-                exc_stack=None,
                 model_artifacts=model_artifacts,
+                performance=extract_performance(stdout),
             )
 
         except subprocess.TimeoutExpired:
@@ -145,16 +121,8 @@ class ProcessExecutor(Executor):
             return ExecutionResult(
                 term_out=[],
                 exec_time=self.timeout,
-                exc_type="TimeoutError",
-                exc_info={"args": [f"Execution exceeded {self.timeout}s timeout"]},
-                exc_stack=None,
-                model_artifacts={},
+                exception=TimeoutError(f"Execution exceeded {self.timeout}s timeout"),
             )
-        finally:
-            try:
-                code_file.unlink()
-            except:
-                raise
 
     def cleanup(self):
         """Required by abstract base class."""

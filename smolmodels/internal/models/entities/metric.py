@@ -179,7 +179,7 @@ class Metric:
             ComparisonMethod.TARGET_IS_BETTER: "≈",
         }
         symbol = comparison_symbols.get(self.comparator.comparison_method, "?")
-        return f"Metric {self.name} {symbol} {self.value:.4f}"
+        return f"Metric {self.name} {symbol} {self.value}"
 
     @property
     def is_valid(self) -> bool:

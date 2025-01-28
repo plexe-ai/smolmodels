@@ -40,7 +40,7 @@ class StoppingCondition:
         :return: A string describing the Metric.
         """
         return (
-            f"StoppingCondition: stop after trying {self.max_generations} solutions, or "
+            f"stop after trying {self.max_generations} solutions, "
             f"expending {self.max_time} seconds, or "
-            f"reaching performance of at least{self.metric}"
+            f"reaching performance of at least {self.metric}"
         )

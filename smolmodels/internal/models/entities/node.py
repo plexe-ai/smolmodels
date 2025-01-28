@@ -10,7 +10,7 @@ execution details.
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import List, Dict
+from typing import List
 
 from smolmodels.internal.models.entities.metric import Metric
 
@@ -60,6 +60,7 @@ class Node:
     id: str = field(default_factory=lambda: uuid.uuid4().hex, kw_only=True)
     created_time: float = field(default_factory=lambda: time.time(), kw_only=True)
     visited: bool = field(default=False, kw_only=True)
+    depth: int = field(default=0, kw_only=True)
 
     # Directed edges to/from other nodes
     edges_in: List[Edge] = field(default_factory=list, hash=True, kw_only=True)
@@ -83,7 +84,7 @@ class Node:
     execution_stderr: list[str] = field(default_factory=list, kw_only=True)
     exception_was_raised: bool = field(default=False, kw_only=True)
     exception: Exception = field(default=None, kw_only=True)
-    model_artifacts: Dict[str, str] = field(default_factory=dict, kw_only=True)
+    model_artifacts: List[str] = field(default_factory=list, kw_only=True)
     analysis: str = field(default=None, kw_only=True)
 
     @property

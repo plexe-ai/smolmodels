@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Any, Optional
+from dataclasses import dataclass, field
+from typing import Any, Optional, List
+from pathlib import Path
 
 
 @dataclass
@@ -11,19 +12,13 @@ class ExecutionResult:
     Attributes:
         term_out (list[str]): The terminal output from the execution.
         exec_time (float): The time taken to execute the code.
-        exc_type (Optional[str]): The type of exception raised, if any.
-        exc_info (Optional[dict]): Additional information about the exception.
-        exc_stack (Optional[list[tuple]]): The stack trace of the exception.
     """
 
     term_out: list[str]
     exec_time: float
-    exc_type: Optional[str] = None
-    exc_info: Optional[dict] = None
-    exc_stack: Optional[list[tuple]] = None
-    model_artifacts: Optional[dict] = None
-    analysis: Optional[str] = None
-    performance: Optional[float] = None
+    model_artifacts: List[Path | str] = field(default_factory=list)
+    exception: Exception = field(default=None)
+    performance: Optional[float] = field(default=None)
 
 
 class Executor(ABC):
