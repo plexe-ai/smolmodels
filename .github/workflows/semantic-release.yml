@@ -48,7 +48,6 @@ jobs:
       - name: Show semantic-release version
         run: semantic-release --version
 
-      # Run semantic release
       - name: Python Semantic Release
         id: semantic_release
         env:
@@ -58,15 +57,33 @@ jobs:
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$DRY_RUN" = "true" ]; then
             echo "Running in dry-run mode"
-            VERSION=$(semantic-release version --print)
+            # Capture version with error handling
+            VERSION=$(semantic-release version --print | grep -oP '\d+\.\d+\.\d+' || echo "")
+            if [ -z "$VERSION" ]; then
+              echo "Error: Could not determine version"
+              exit 1
+            fi
+            echo "Determined version: $VERSION"
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           else
             echo "Running in release mode"
-            VERSION=$(semantic-release version)
+            # Capture version with error handling
+            VERSION=$(semantic-release version | grep -oP '\d+\.\d+\.\d+' || echo "")
+            if [ -z "$VERSION" ]; then
+              echo "Error: Could not determine version"
+              exit 1
+            fi
+            echo "Determined version: $VERSION"
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "Creating and pushing tag v$VERSION"
             git tag -a "v$VERSION" -m "Release v$VERSION"
             git push origin "v$VERSION"
           fi
+
+      # Debug step to verify version capture
+      - name: Debug Version
+        run: |
+          echo "Captured version: ${{ steps.semantic_release.outputs.version }}"
 
       # Build and publish steps
       - name: Configure Poetry
@@ -93,18 +110,3 @@ jobs:
           tag_name: v${{ steps.semantic_release.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.dry_run }}" == "true" ]]; then
-            semantic-release version --dry-run
-          else
-            semantic-release version
-          fi
-
-      # Only build and publish if this is a real release
-      - name: Build and publish
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
-        run: |
-          poetry build
-          # Add publish step here when ready
