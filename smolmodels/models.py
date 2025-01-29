@@ -53,6 +53,7 @@ from smolmodels.directives import Directive
 from smolmodels.internal.common.providers.provider import Provider
 from smolmodels.internal.common.providers.provider_factory import ProviderFactory
 from smolmodels.internal.data_generation.generator import generate_data, DataGenerationRequest
+from smolmodels.internal.models.generation.schema import generate_schemas_from_intent, infer_schema_from_data
 from smolmodels.internal.models.generators import generate
 
 
@@ -215,6 +216,18 @@ class Model:
                     self.training_data = pd.concat([self.training_data, self.synthetic_data], ignore_index=True)
                 else:
                     self.training_data = self.synthetic_data
+
+            # Infer or validate schemas
+            if self.training_data is not None:
+                if self.input_schema is None or self.output_schema is None:
+                    # Infer schemas from data
+                    inferred_input, inferred_output = infer_schema_from_data(self.training_data, self.intent)
+                    self.input_schema = self.input_schema or inferred_input
+                    self.output_schema = self.output_schema or inferred_output
+            else:
+                # No data available, use LLM to generate schemas
+                if self.input_schema is None or self.output_schema is None:
+                    self.input_schema, self.output_schema = generate_schemas_from_intent(self.intent)
 
             # Validate we have training data from some source
             if self.training_data is None:
