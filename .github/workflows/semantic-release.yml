@@ -39,13 +39,20 @@ jobs:
           pip install python-semantic-release
 
       # Run semantic release
+      - name: Show semantic-release version
+        run: semantic-release --version
+
       - name: Python Semantic Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.dry_run }}" == "true" ]]; then
-            semantic-release version --noop
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$DRY_RUN" = "true" ]; then
+            echo "Running in dry-run mode"
+            semantic-release version --print
           else
+            echo "Running in release mode"
             semantic-release version
           fi
 
