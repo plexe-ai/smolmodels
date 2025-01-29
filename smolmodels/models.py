@@ -350,7 +350,6 @@ def save_model(model: Model, path: str) -> None:
             tar.addfile(model_data_tarinfo, model_data_bytes)
 
     except Exception as e:
-        logger.error(f"Error saving model: {e}")
         logger.error(f"Error saving model, cleaning up tarfile: {e}")
         if Path(path).exists():
             Path(path).unlink()
@@ -436,7 +435,6 @@ def load_model(path: str) -> Model:
         return model
 
     except Exception as e:
-        logger.error(f"Error loading model: {e}")
         logger.error(f"Error loading model, cleaning up model files: {e}")
         if model is not None and model.files_path.exists():
             shutil.rmtree(model.files_path)
