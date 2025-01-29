@@ -48,6 +48,7 @@ jobs:
       - name: Show semantic-release version
         run: semantic-release --version
 
+      # Run semantic release
       - name: Python Semantic Release
         id: semantic_release
         env:
@@ -92,3 +93,18 @@ jobs:
           tag_name: v${{ steps.semantic_release.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.dry_run }}" == "true" ]]; then
+            semantic-release version --dry-run
+          else
+            semantic-release version
+          fi
+
+      # Only build and publish if this is a real release
+      - name: Build and publish
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
+        run: |
+          poetry build
+          # Add publish step here when ready
