@@ -8,25 +8,22 @@ import json
 import logging
 from typing import List, Dict
 
-import pandas as pd
 from pydantic import BaseModel
 
 from smolmodels.config import config
-from smolmodels.internal.common.providers.openai import OpenAIProvider
+from smolmodels.internal.common.providers.provider import Provider
 from smolmodels.internal.models.entities.metric import Metric, MetricComparator, ComparisonMethod
 from smolmodels.internal.models.entities.stopping_condition import StoppingCondition
 
 logger = logging.getLogger(__name__)
 
-client = OpenAIProvider()
 
-
-def select_metric_to_optimise(problem_statement: str, dataset: pd.DataFrame) -> Metric:
+def select_metric_to_optimise(problem_statement: str, client: Provider) -> Metric:
     """
     Selects the metric to optimise for the given problem statement and dataset.
 
     :param problem_statement: definition of the problem
-    :param dataset: data used for training and evaluation
+    :param client: the provider to use for querying
     :return: the metric to optimise
     """
 
@@ -58,7 +55,7 @@ def select_metric_to_optimise(problem_statement: str, dataset: pd.DataFrame) -> 
 
 
 def select_stopping_condition(
-    problem_statement: str, metric: Metric, max_iterations: int, max_time: int
+    problem_statement: str, metric: Metric, max_iterations: int, max_time: int, client: Provider
 ) -> StoppingCondition:
     """
     Selects the stopping condition for the given problem statement and dataset.
@@ -67,6 +64,7 @@ def select_stopping_condition(
     :param metric: the metric to optimise
     :param max_iterations: the maximum number of iterations
     :param max_time: the maximum time allowed
+    :param client: the provider to use for querying
     :return: the stopping condition
     """
 
@@ -98,12 +96,15 @@ def select_stopping_condition(
         raise ValueError(f"Could not determine stopping condition from problem statement: {response}") from e
 
 
-def generate_solution_plan(problem_statement: str, metric_to_optimise: str, context: str = None) -> str:
+def generate_solution_plan(
+    problem_statement: str, metric_to_optimise: str, client: Provider, context: str = None
+) -> str:
     """
     Generates a solution plan for the given problem statement.
 
     :param problem_statement: definition of the problem
     :param metric_to_optimise: the metric to optimise
+    :param client: the provider to use for querying
     :param context: additional context or memory for the solution
     :return: the generated solution plan
     """

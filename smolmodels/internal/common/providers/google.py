@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class GoogleProvider(Provider):
     def __init__(self, api_key: str = None, model: str = "gemini-1.5-flash"):
         self.key = api_key or os.environ.get("GOOGLE_API_KEY", default=None)
-        self.model = model
+        self.model = model or "gemini-1.5-flash"
         self.generation_config = genai.GenerationConfig(max_output_tokens=4096)
 
     def query(self, system_message: str, user_message: str, response_format=None) -> str:

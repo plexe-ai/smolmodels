@@ -9,9 +9,9 @@ logger = logging.getLogger(__name__)
 
 
 class AnthropicProvider(Provider):
-    def __init__(self, api_key: str = None, model: str = "claude-3-5-sonnet-20241022"):
+    def __init__(self, api_key: str = None, model: str = "claude-3-haiku-latest"):
         self.key = api_key or os.environ.get("ANTHROPIC_API_KEY", default=None)
-        self.model = model
+        self.model = model or "claude-3-haiku-latest"
         self.max_tokens = 4096
         self.client = anthropic.Anthropic(api_key=self.key)
 

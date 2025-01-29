@@ -20,21 +20,20 @@ from typing import List, Dict
 from pydantic import BaseModel
 
 from smolmodels.config import config
-from smolmodels.internal.common.providers.openai import OpenAIProvider
+from smolmodels.internal.common.providers.provider import Provider
 from smolmodels.internal.common.utils.response import extract_code
 
 logger = logging.getLogger(__name__)
 
-client = OpenAIProvider()
 
-
-def generate_training_code(problem_statement: str, plan: str, history: str = None) -> str:
+def generate_training_code(problem_statement: str, plan: str, client: Provider, history: str = None) -> str:
     """
     Generates machine learning model training code based on the given problem statement and solution plan.
 
     Args:
         problem_statement (str): The description of the problem to be solved.
         plan (str): The proposed solution plan.
+        client (Provider): The provider to use for querying.
         history (str, optional): The history of previous attempts or context. Defaults to None.
 
     Returns:
@@ -69,7 +68,9 @@ def generate_training_tests(problem_statement: str, plan: str, training_code: st
     raise NotImplementedError("Generation of the training tests is not yet implemented.")
 
 
-def fix_training_code(training_code: str, plan: str, review: str, problems: str = None, history: str = None) -> str:
+def fix_training_code(
+    training_code: str, plan: str, review: str, client: Provider, problems: str = None, history: str = None
+) -> str:
     """
     Fixes the machine learning model training code based on the review and identified problems.
 
@@ -77,6 +78,7 @@ def fix_training_code(training_code: str, plan: str, review: str, problems: str 
         training_code (str): The previously generated training code.
         plan (str): The proposed solution plan.
         review (str): The review of the previous solution.
+        client (Provider): The provider to use for querying.
         problems (str, optional): Specific errors or bugs identified. Defaults to None.
         history (str, optional): The history of previous attempts or context. Defaults to None.
 
@@ -124,7 +126,7 @@ def fix_training_tests(training_tests: str, training_code: str, review: str, pro
 
 
 def review_training_code(
-    training_code: str, problem_statement: str, plan: str, problems: str = None, history: str = None
+    training_code: str, problem_statement: str, plan: str, client: Provider, problems: str = None, history: str = None
 ) -> str:
     """
     Reviews the machine learning model training code to identify improvements and fix issues.
@@ -133,6 +135,7 @@ def review_training_code(
         training_code (str): The previously generated training code.
         problem_statement (str): The description of the problem to be solved.
         plan (str): The proposed solution plan.
+        client (Provider): The provider to use for querying.
         problems (str, optional): Specific errors or bugs identified. Defaults to None.
         history (str, optional): The history of previous attempts or context. Defaults to None.
 

@@ -50,6 +50,8 @@ from smolmodels.callbacks import Callback
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
+from smolmodels.internal.common.providers.provider import Provider
+from smolmodels.internal.common.providers.provider_factory import ProviderFactory
 from smolmodels.internal.data_generation.generator import generate_data, DataGenerationRequest
 from smolmodels.internal.models.generators import generate
 
@@ -168,6 +170,7 @@ class Model:
         generate_samples: Optional[Union[int, Dict[str, Any]]] = None,
         callbacks: List[Callback] = None,
         isolation: Literal["local", "subprocess", "docker"] = "local",
+        provider: str = "openai:gpt-4o-mini",
     ) -> None:
         """
         Build the model using the provided dataset, directives, and optional data generation configuration.
@@ -177,9 +180,12 @@ class Model:
         :param generate_samples: synthetic data generation configuration
         :param callbacks: functions that are called during the model building process
         :param isolation: level of isolation under which model build should be executed
+        :param provider: the provider to use for model building
         :return:
         """
         try:
+            # Attempt to select an LLM provider based on input
+            provider: Provider = ProviderFactory.create(provider)
             self.state = ModelState.BUILDING
 
             # Handle existing dataset
@@ -220,6 +226,7 @@ class Model:
                 input_schema=self.input_schema,
                 output_schema=self.output_schema,
                 dataset=self.training_data,
+                provider=provider,
                 filedir=self.files_path,
                 constraints=self.constraints,
                 directives=directives,

@@ -29,6 +29,7 @@ from smolmodels.callbacks import Callback
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
+from smolmodels.internal.common.providers.provider import Provider
 from smolmodels.internal.models.entities.graph import Graph
 from smolmodels.internal.models.entities.metric import Metric
 from smolmodels.internal.models.entities.node import Node
@@ -70,6 +71,7 @@ def generate(
     input_schema: dict,
     output_schema: dict,
     dataset: pd.DataFrame,
+    provider: Provider,
     filedir: Path,
     constraints: List[Constraint] = None,
     directives: List[Directive] = None,
@@ -87,6 +89,7 @@ def generate(
         input_schema (dict): A dictionary defining the schema of the input data.
         output_schema (dict): A dictionary defining the schema of the output data.
         dataset (str): The dataset to be used for training.
+        provider (Provider): The provider to use for model generation.
         filedir (str): The directory to save the model artifacts.
         constraints (List[Constraint], optional): Constraints to be applied to the model generation process. Defaults to None.
         directives (List[Directive], optional): Directives to guide the model generation process. Defaults to None.
@@ -110,12 +113,13 @@ def generate(
     )
 
     # Decide what metric to optimise based on the definition of the problem
-    metric_to_optimise: Metric = select_metric_to_optimise(problem_statement, dataset)
+    metric_to_optimise: Metric = select_metric_to_optimise(problem_statement, provider)
     stopping_condition: StoppingCondition = select_stopping_condition(
         problem_statement=problem_statement,
         metric=metric_to_optimise,
         max_iterations=config.model_search.max_nodes,
         max_time=timeout,
+        client=provider,
     )
     print(f"🔨 Optimising {metric_to_optimise.name}; {str(stopping_condition)}")
 
@@ -130,7 +134,7 @@ def generate(
         graph.add_node(
             Node(
                 solution_plan=generate_solution_plan(
-                    problem_statement=problem_statement, metric_to_optimise=metric_to_optimise.name
+                    problem_statement=problem_statement, metric_to_optimise=metric_to_optimise.name, client=provider
                 )
             ),
             parent=None,
@@ -149,6 +153,7 @@ def generate(
                     solution_plan=generate_solution_plan(
                         problem_statement=problem_statement,
                         metric_to_optimise=metric_to_optimise.name,
+                        client=provider,
                         context=json.dumps(
                             {
                                 "previous_plan": node_expand.solution_plan,
@@ -165,7 +170,7 @@ def generate(
         node: Node = search_policy.select_node_enter()[0]
 
         # Generate the code for the node
-        node.training_code = generate_training_code(problem_statement, node.solution_plan)
+        node.training_code = generate_training_code(problem_statement, node.solution_plan, provider)
         node.visited = True
         # node.training_tests = generate_training_tests(problem_statement, node.solution_plan, node.training_code)
 
@@ -184,8 +189,12 @@ def generate(
                     break
 
             if not result.passed:
-                review = review_training_code(node.training_code, problem_statement, node.solution_plan, str(result))
-                node.training_code = fix_training_code(node.training_code, node.solution_plan, review, str(result))
+                review = review_training_code(
+                    node.training_code, problem_statement, node.solution_plan, provider, str(result)
+                )
+                node.training_code = fix_training_code(
+                    node.training_code, node.solution_plan, review, provider, str(result)
+                )
                 continue
 
             # If the code passes all static validations, execute the code
@@ -206,10 +215,10 @@ def generate(
             # If the code raised an exception, attempt to fix again
             if node.exception_was_raised:
                 review = review_training_code(
-                    node.training_code, problem_statement, node.solution_plan, str(node.exception)
+                    node.training_code, problem_statement, node.solution_plan, provider, str(node.exception)
                 )
                 node.training_code = fix_training_code(
-                    node.training_code, node.solution_plan, review, str(node.exception)
+                    node.training_code, node.solution_plan, review, provider, str(node.exception)
                 )
                 continue
             else:
@@ -237,7 +246,7 @@ def generate(
     print("🧠 Generating inference code for the best solution")
     best_node: Node = max(valid_nodes, key=lambda n: n.performance)
     best_node.inference_code = generate_inference_code(
-        input_schema=input_schema, output_schema=output_schema, training_code=best_node.training_code
+        input_schema=input_schema, output_schema=output_schema, training_code=best_node.training_code, client=provider
     )
     # best_node.inference_tests = generate_inference_tests(
     #     problem_statement, best_node.solution_plan, best_node.training_code, best_node.training_code
@@ -261,9 +270,10 @@ def generate(
                 input_schema=input_schema,
                 output_schema=output_schema,
                 training_code=best_node.training_code,
+                client=provider,
                 problems=str(result),
             )
-            best_node.inference_code = fix_inference_code(best_node.inference_code, review, str(result))
+            best_node.inference_code = fix_inference_code(best_node.inference_code, review, str(result), provider)
             continue
 
     print(f"✅ Built predictor for model with performance: {best_node.performance}")

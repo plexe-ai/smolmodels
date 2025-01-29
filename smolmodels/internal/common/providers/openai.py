@@ -9,9 +9,9 @@ logger = logging.getLogger(__name__)
 
 
 class OpenAIProvider(Provider):
-    def __init__(self, api_key: str = None, model: str = "gpt-4o-2024-08-06"):
+    def __init__(self, api_key: str = None, model: str = "gpt-4o-mini"):
         self.key = api_key or os.environ.get("OPENAI_API_KEY", default=None)
-        self.model = model
+        self.model = model or "gpt-4o-mini"
         self.max_tokens = 16000
         self.client = openai.OpenAI(api_key=self.key)
 

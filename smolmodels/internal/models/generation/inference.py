@@ -3,19 +3,20 @@ from typing import List, Dict
 from pydantic import BaseModel
 
 from smolmodels.config import config
-from smolmodels.internal.common.providers.openai import OpenAIProvider
+from smolmodels.internal.common.providers.provider import Provider
 from smolmodels.internal.common.utils.response import extract_code
 
-client = OpenAIProvider()
 
-
-def generate_inference_code(input_schema: dict, output_schema: dict, training_code: str, context: str = None) -> str:
+def generate_inference_code(
+    input_schema: dict, output_schema: dict, training_code: str, client: Provider, context: str = None
+) -> str:
     """
     Generates inference code based on the problem statement, solution plan, and training code.
 
     :param [dict] input_schema: The schema of the input data.
     :param [dict] output_schema: The schema of the output data.
     :param [str] training_code: The training code that has already been generated.
+    :param [Provider] client: The provider to use for querying.
     :param [str] context: Additional context or history.
     :return: The generated inference code.
     """
@@ -49,7 +50,7 @@ def generate_inference_tests(problem_statement: str, plan: str, training_code: s
     raise NotImplementedError("Generation of the inference tests is not yet implemented.")
 
 
-def fix_inference_code(inference_code: str, review: str, problems: str) -> str:
+def fix_inference_code(inference_code: str, review: str, problems: str, client: Provider) -> str:
     """
     Fixes the inference code based on the review and identified problems.
 
@@ -57,6 +58,7 @@ def fix_inference_code(inference_code: str, review: str, problems: str) -> str:
         inference_code (str): The previously generated inference code.
         review (str): The review of the previous solution.
         problems (str): Specific errors or bugs identified.
+        client (Provider): The provider to use for querying.
 
     Returns:
         str: The fixed inference code.
@@ -103,6 +105,7 @@ def review_inference_code(
     input_schema: dict,
     output_schema: dict,
     training_code: str,
+    client: Provider,
     problems: str = None,
     context: str = None,
 ) -> str:
@@ -113,6 +116,7 @@ def review_inference_code(
     :param [dict] input_schema: The schema of the input data.
     :param [dict] output_schema: The schema of the output data.
     :param [str] training_code: The training code that has already been generated.
+    :param [Provider] client: The provider to use for querying.
     :param [str] problems: Specific errors or bugs identified.
     :param [str] context: Additional context or history.
     :return: The review of the inference code with suggestions for improvements.
@@ -121,6 +125,8 @@ def review_inference_code(
         system_message=config.code_generation.prompt_inference_base.safe_substitute(),
         user_message=config.code_generation.prompt_inference_review.safe_substitute(
             inference_code=inference_code,
+            input_schema=input_schema,
+            output_schema=output_schema,
             training_code=training_code,
             problems=problems,
             context=context,
