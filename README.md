@@ -137,9 +137,9 @@ export DEEPSEEK_API_KEY=<your-API-key>
 1. **Define model**:
 
 ```python
-from smolmodels import Model
+import smolmodels as sm
 
-model = Model(
+model = sm.Model(
     intent="Classify customer feedback as positive, negative, or neutral",
     input_schema={"text": str},
     output_schema={"sentiment": str}

@@ -351,6 +351,9 @@ def save_model(model: Model, path: str) -> None:
 
     except Exception as e:
         logger.error(f"Error saving model: {e}")
+        logger.error(f"Error saving model, cleaning up tarfile: {e}")
+        if Path(path).exists():
+            Path(path).unlink()
         raise e
     finally:
         # Cleanup model cache directory
@@ -434,6 +437,9 @@ def load_model(path: str) -> Model:
 
     except Exception as e:
         logger.error(f"Error loading model: {e}")
+        logger.error(f"Error loading model, cleaning up model files: {e}")
+        if model is not None and model.files_path.exists():
+            shutil.rmtree(model.files_path)
         raise e
 
     finally:
