@@ -3,7 +3,7 @@ name: Publish to PyPI
 on:
   release:
     types: [published]
-  workflow_dispatch:  # For manual testing
+  workflow_dispatch:
 
 jobs:
   publish:
