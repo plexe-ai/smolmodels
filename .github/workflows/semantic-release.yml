@@ -17,6 +17,7 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: write  # Needed for creating releases
     
@@ -56,9 +57,27 @@ jobs:
             semantic-release version
           fi
 
-      # Only build and publish if this is a real release
-      - name: Build and publish
+      # Build and publish steps
+      - name: Configure Poetry
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
-        run: |
-          poetry build
-          # Add publish step here when ready
+        run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+
+      - name: Build Package
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
+        run: poetry build
+
+      - name: List Build Output
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
+        run: ls -l dist/
+
+      - name: Publish to PyPI
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
+        run: poetry publish
+
+      - name: Upload Release Assets
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
