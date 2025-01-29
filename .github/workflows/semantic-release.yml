@@ -44,6 +44,7 @@ jobs:
         run: semantic-release --version
 
       - name: Python Semantic Release
+        id: semantic_release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EVENT_NAME: ${{ github.event_name }}
@@ -51,10 +52,14 @@ jobs:
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$DRY_RUN" = "true" ]; then
             echo "Running in dry-run mode"
-            semantic-release version --print
+            VERSION=$(semantic-release version --print)
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           else
             echo "Running in release mode"
-            semantic-release version
+            VERSION=$(semantic-release version)
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            git tag -a "v$VERSION" -m "Release v$VERSION"
+            git push origin "v$VERSION"
           fi
 
       # Build and publish steps
@@ -74,10 +79,11 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
         run: poetry publish
 
-      - name: Upload Release Assets
+      - name: Create GitHub Release
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
         uses: softprops/action-gh-release@v1
         with:
           files: dist/*
+          tag_name: v${{ steps.semantic_release.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
