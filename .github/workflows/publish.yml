@@ -4,12 +4,6 @@ on:
   release:
     types: [published]
   workflow_dispatch:  # Allow manual triggering
-    inputs:
-      dry_run:
-        description: 'Test build without publishing'
-        type: boolean
-        default: true
-        required: true
 
 jobs:
   publish:
@@ -35,17 +29,12 @@ jobs:
           pip install poetry
 
       - name: Configure Poetry with PyPI token
-        if: github.event_name == 'release' || inputs.dry_run == false
         run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
 
       - name: Build Package
         run: poetry build
 
-      - name: List Build Output
-        run: ls -l dist/
-
       - name: Publish to PyPI
-        if: github.event_name == 'release' || inputs.dry_run == false
         run: poetry publish
 
       - name: Upload Release Assets
