@@ -39,7 +39,7 @@ class TestDataGeneration:
 
         # Mock the model generation function
         self.mock_generate = patch(
-            "smolmodels.models.generate", return_value=(MagicMock(), MagicMock(), [], {})
+            "smolmodels.models.generate", return_value=(MagicMock(), "", MagicMock(), "", [], {})
         ).start()
 
         yield
