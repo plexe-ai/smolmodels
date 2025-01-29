@@ -70,6 +70,7 @@ def generate(
     input_schema: dict,
     output_schema: dict,
     dataset: pd.DataFrame,
+    filedir: Path,
     constraints: List[Constraint] = None,
     directives: List[Directive] = None,
     callbacks: List[Callback] = None,
@@ -77,7 +78,7 @@ def generate(
     executor: Optional[Executor] = None,
     search_policy: Optional[SearchPolicy] = None,
     timeout: int = config.model_search.max_time_elapsed,
-) -> Tuple[types.ModuleType, types.ModuleType, List[Path | str], str]:
+) -> Tuple[types.ModuleType, str, types.ModuleType, str, List[Path | str], str]:
     """
     Generate training and inference code for a given problem statement and schemas.
 
@@ -86,6 +87,7 @@ def generate(
         input_schema (dict): A dictionary defining the schema of the input data.
         output_schema (dict): A dictionary defining the schema of the output data.
         dataset (str): The dataset to be used for training.
+        filedir (str): The directory to save the model artifacts.
         constraints (List[Constraint], optional): Constraints to be applied to the model generation process. Defaults to None.
         directives (List[Directive], optional): Directives to guide the model generation process. Defaults to None.
         callbacks (List[Callback], optional): Callbacks to execute during model generation. Defaults to None.
@@ -100,6 +102,7 @@ def generate(
     # Set up the model generation process
     start_time: float = time.time()
     run_name = f"run-{datetime.now().isoformat()}".replace(":", "-").replace(".", "-")
+    print(f"🔨 Starting model generation with cache {filedir}")
 
     # Join the problem statement into a single string
     problem_statement: str = sm_utils.join_problem_statement(
@@ -112,7 +115,7 @@ def generate(
         problem_statement=problem_statement,
         metric=metric_to_optimise,
         max_iterations=config.model_search.max_nodes,
-        max_time=config.model_search.max_time_elapsed,
+        max_time=timeout,
     )
     print(f"🔨 Optimising {metric_to_optimise.name}; {str(stopping_condition)}")
 
@@ -264,10 +267,16 @@ def generate(
             continue
 
     print(f"✅ Built predictor for model with performance: {best_node.performance}")
-    # Copy model artifacts to the working directory
-    for artifact in best_node.model_artifacts:
-        pathname = "./"
-        shutil.copy(artifact, pathname)
+    # Copy model artifacts to the model cache directory, and update paths in code
+    filedir.mkdir(parents=True, exist_ok=True)
+    for i in range(len(best_node.model_artifacts)):
+        artifact: Path = Path(best_node.model_artifacts[i])
+        basename: str = Path(artifact).name
+        shutil.copy(artifact, filedir)
+        best_node.training_code = best_node.training_code.replace(basename, str((filedir / basename).as_posix()))
+        best_node.inference_code = best_node.inference_code.replace(basename, str((filedir / basename).as_posix()))
+        best_node.model_artifacts[i] = (filedir / basename).as_posix()
+
     # Write out the training and inference code and return the compiled functions
     trainer: types.ModuleType = types.ModuleType("smoltrainer")
     predictor: types.ModuleType = types.ModuleType("smolpredictor")
@@ -277,4 +286,11 @@ def generate(
     # Delete the working directory before returning
     shutil.rmtree("./workdir")
 
-    return trainer, predictor, best_node.model_artifacts, str(best_node.performance)
+    return (
+        trainer,
+        best_node.training_code,
+        predictor,
+        best_node.inference_code,
+        best_node.model_artifacts,
+        str(best_node.performance),
+    )

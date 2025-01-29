@@ -7,10 +7,10 @@ Build specialized ML models using natural language.
 smolmodels is a Python library that lets you create machine learning models by describing what you want them to do in plain English. Instead of wrestling with model architectures and hyperparameters, you simply describe your intent, define your inputs and outputs, and let smolmodels handle the rest.
 
 ```python
-from smolmodels import Model
+import smolmodels as sm
 
 # Create a house price predictor with just a description
-model = Model(
+model = sm.Model(
     intent="Predict house prices based on property features",
     input_schema={
         "square_feet": float,
@@ -33,6 +33,9 @@ price = model.predict({
     "location": "San Francisco",
     "year_built": 1985
 })
+
+# Save the model for later use
+sm.save_model(model, "house-price-predictor")
 ```
 
 ## How Does It Work?
@@ -111,9 +114,9 @@ export GOOGLE_API_KEY=<your-API-key>
 
 1. **Define model**:
 ```python
-from smolmodels import Model
+import smolmodels as sm
 
-model = Model(
+model = sm.Model(
     intent="Classify customer feedback as positive, negative, or neutral",
     input_schema={"text": str},
     output_schema={"sentiment": str}
@@ -129,13 +132,13 @@ model.build(dataset="feedback.csv")
 model.build(generate_samples=1000)
 
 # Save model for later use
-model.save("sentiment_model")
+sm.save_model(model, "sentiment_model")
 ```
 
 3. **Load and use**:
 ```python
 # Load existing model
-loaded_model = Model.load("sentiment_model")
+loaded_model = sm.load_model("sentiment_model")
 
 # Make predictions
 result = loaded_model.predict({"text": "Great service, highly recommend!"})

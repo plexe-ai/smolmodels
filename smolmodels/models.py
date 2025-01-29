@@ -31,16 +31,23 @@ Example Usage:
     print(prediction)
 
 """
-import types
-import pandas as pd
+import io
 import logging
 import pickle
-from enum import Enum
-from typing import Dict, Optional, Union, List, Literal, Any
+import shutil
+import tarfile
+import time
+import types
+import uuid
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
+from typing import Dict, Optional, Union, List, Literal, Any
+
+import pandas as pd
 
 from smolmodels.callbacks import Callback
+from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
 from smolmodels.internal.data_generation.generator import generate_data, DataGenerationRequest
@@ -143,13 +150,16 @@ class Model:
         self.state = ModelState.DRAFT
         self.trainer: types.ModuleType | None = None
         self.predictor: types.ModuleType | None = None
+        self.trainer_source: str | None = None
+        self.predictor_source: str | None = None
         self.artifacts: List[Path | str] = []
         self.metrics: Dict[str, str] = dict()
-        self.metadata: Dict[str, str] = dict()
+        self.metadata: Dict[str, str] = dict()  # todo: initialise metadata, etc
 
-        # todo: metrics should be chosen based on problem, model-type, etc.
-        # todo: initialise metadata, etc
-        logger.debug(f"Model initialised with state: {vars(self)}")
+        # Unique identifier for the model, used in directory paths etc
+        self.identifier: str = f"model-{abs(hash(self.intent))}-{str(uuid.uuid4())}"
+        # Directory for any required model files
+        self.files_path: Path = Path(config.file_storage.model_cache_dir) / self.identifier
 
     def build(
         self,
@@ -159,6 +169,16 @@ class Model:
         callbacks: List[Callback] = None,
         isolation: Literal["local", "subprocess", "docker"] = "local",
     ) -> None:
+        """
+        Build the model using the provided dataset, directives, and optional data generation configuration.
+
+        :param dataset: the dataset to use for training the model
+        :param directives: instructions related to the model building process - not the model itself
+        :param generate_samples: synthetic data generation configuration
+        :param callbacks: functions that are called during the model building process
+        :param isolation: level of isolation under which model build should be executed
+        :return:
+        """
         try:
             self.state = ModelState.BUILDING
 
@@ -170,22 +190,22 @@ class Model:
 
             # Handle data generation if requested
             if generate_samples is not None:
-                config = GenerationConfig.from_input(generate_samples)
+                datagen_config = GenerationConfig.from_input(generate_samples)
 
                 request = DataGenerationRequest(
                     intent=self.intent,
                     input_schema=self.input_schema,
                     output_schema=self.output_schema,
-                    n_samples=config.n_samples,
-                    augment_existing=config.augment_existing,
-                    quality_threshold=config.quality_threshold,
+                    n_samples=datagen_config.n_samples,
+                    augment_existing=datagen_config.augment_existing,
+                    quality_threshold=datagen_config.quality_threshold,
                     existing_data=self.training_data,
                 )
 
                 self.synthetic_data = generate_data(request)
 
                 # Handle augmentation
-                if self.training_data is not None and config.augment_existing:
+                if self.training_data is not None and datagen_config.augment_existing:
                     self.training_data = pd.concat([self.training_data, self.synthetic_data], ignore_index=True)
                 else:
                     self.training_data = self.synthetic_data
@@ -196,16 +216,19 @@ class Model:
 
             # Generate the model
             generated = generate(
-                self.intent,
-                self.input_schema,
-                self.output_schema,
-                self.training_data,
-                self.constraints,
-                directives,
-                callbacks,
-                isolation,
+                intent=self.intent,
+                input_schema=self.input_schema,
+                output_schema=self.output_schema,
+                dataset=self.training_data,
+                filedir=self.files_path,
+                constraints=self.constraints,
+                directives=directives,
+                callbacks=callbacks,
+                isolation=isolation,
             )
-            self.trainer, self.predictor, self.artifacts, self.metrics = generated
+            self.trainer, self.trainer_source, self.predictor, self.predictor_source, self.artifacts, self.metrics = (
+                generated
+            )
 
             self.state = ModelState.READY
             print("✅ Model built successfully.")
@@ -220,7 +243,6 @@ class Model:
         :param x: input to the model
         :return: output of the model
         """
-        # todo: this is a placeholder, implement the actual model prediction logic
         if self.state != ModelState.READY:
             raise RuntimeError("The model is not ready for predictions.")
         return self.predictor.predict(x)
@@ -272,34 +294,146 @@ class Model:
 
 def save_model(model: Model, path: str) -> None:
     """
-    Save a model to a file.
+    Save a model to a single archive file, including trainer, predictor, and artifacts.
+
     :param model: the model to save
     :param path: the path to save the model to
     """
-    # Ensure the path has extension
-    if not path.endswith(".pmb"):
-        path += ".pmb"
-
+    if not path.endswith(".tar.gz"):
+        path += ".tar.gz"
     try:
-        with open(path, "wb") as file:
-            pickle.dump(model, file)
-        logger.info(f"Model successfully saved to {path}.")
+        with tarfile.open(path, "w:gz") as tar:
+            # Save the trainer source code
+            if model.trainer:
+                trainer_info = io.BytesIO(model.trainer_source.encode("utf-8"))
+                trainer_tarinfo = tarfile.TarInfo(name="trainer.py")
+                trainer_tarinfo.size = len(model.trainer_source)
+                tar.addfile(trainer_tarinfo, trainer_info)
+
+            # Save the predictor source code
+            if model.predictor:
+                predictor_info = io.BytesIO(model.predictor_source.encode("utf-8"))
+                predictor_tarinfo = tarfile.TarInfo(name="predictor.py")
+                predictor_tarinfo.size = len(model.predictor_source)
+                tar.addfile(predictor_tarinfo, predictor_info)
+
+            # Collect and save all artifacts
+            for artifact in model.artifacts:
+                artifact_path = Path(artifact)
+                if artifact_path.exists():
+                    tar.add(artifact_path, arcname=artifact_path.name)
+                else:
+                    raise FileNotFoundError(f"Artifact not found: {artifact}")
+
+            # Save the model metadata
+            model_data = {
+                "intent": model.intent,
+                "output_schema": model.output_schema,
+                "input_schema": model.input_schema,
+                "constraints": model.constraints,
+                "metrics": model.metrics,
+                "metadata": model.metadata,
+                "state": model.state.value,
+                "identifier": model.identifier,
+            }
+
+            model_data_bytes = io.BytesIO(pickle.dumps(model_data))
+            model_data_tarinfo = tarfile.TarInfo(name="model_data.pkl")
+            model_data_tarinfo.size = model_data_bytes.getbuffer().nbytes
+            tar.addfile(model_data_tarinfo, model_data_bytes)
+
     except Exception as e:
-        logger.error(f"Error saving model: {str(e)}")
+        logger.error(f"Error saving model, cleaning up tarfile: {e}")
+        if Path(path).exists():
+            Path(path).unlink()
         raise e
+    finally:
+        # Cleanup model cache directory
+        if model.files_path.exists():
+            shutil.rmtree(model.files_path)
 
 
 def load_model(path: str) -> Model:
     """
-    Load a model from a file.
+    Load a model from the archive created by `save_model`.
     :param path: the path to load the model from
     :return: the loaded model
     """
+    import tarfile
+
     try:
-        with open(path, "rb") as file:
-            model = pickle.load(file)
+        # Ensure smolmodels cache directory exists
+        cache_dir: Path = Path(config.file_storage.model_cache_dir)
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create a temporary directory to extract the archive
+        temp_dir: Path = cache_dir / f"loading-{time.time()}"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+
+        # Extract the archive
+        with tarfile.open(path, "r:gz") as tar:
+            tar.extractall(temp_dir)
+
+        # Load model data
+        model_data_path = temp_dir / "model_data.pkl"
+        with open(model_data_path, "rb") as f:
+            model_data = pickle.load(f)
+
+        # Create the model instance
+        model = Model(
+            intent=model_data["intent"],
+            output_schema=model_data["output_schema"],
+            input_schema=model_data["input_schema"],
+            constraints=model_data["constraints"],
+        )
+
+        print(model.intent)
+        print(model.files_path)
+
+        model.identifier = model_data["identifier"]
+        model.files_path = model.files_path.parent / model.identifier
+
+        # Restore state, metrics, and metadata
+        model.state = ModelState(model_data["state"])
+        model.metrics = model_data["metrics"]
+        model.metadata = model_data["metadata"]
+
+        # Ensure model cache directory exists
+        model.files_path.mkdir(parents=True, exist_ok=True)
+
+        # Copy trainer and predictor source code to the model's cache directory
+        shutil.copy(temp_dir / "trainer.py", model.files_path / "trainer.py")
+        shutil.copy(temp_dir / "predictor.py", model.files_path / "predictor.py")
+
+        trainer_path = model.files_path / "trainer.py"
+        predictor_path = model.files_path / "predictor.py"
+
+        # Restore artifacts
+        if temp_dir.exists():
+            for artifact_path in temp_dir.iterdir():
+                shutil.copy(artifact_path, model.files_path / artifact_path.name)
+                model.artifacts.append(str(model.files_path / artifact_path.name))
+
+        with open(trainer_path, "r") as f:
+            model.trainer = types.ModuleType("trainer")
+            model.trainer_source = f.read()
+            exec(model.trainer_source, model.trainer.__dict__)
+
+        with open(predictor_path, "r") as f:
+            model.predictor = types.ModuleType("predictor")
+            model.predictor_source = f.read()
+            exec(model.predictor_source, model.predictor.__dict__)
+
         logger.info(f"Model successfully loaded from {path}.")
         return model
+
     except Exception as e:
-        logger.error(f"Error loading model: {str(e)}")
+        logger.error(f"Error loading model, cleaning up model files: {e}")
+        if model is not None and model.files_path.exists():
+            shutil.rmtree(model.files_path)
         raise e
+
+    finally:
+        # Cleanup temp directory
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
