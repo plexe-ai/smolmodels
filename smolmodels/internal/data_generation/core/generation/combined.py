@@ -5,22 +5,18 @@ This module provides a data generator implementation that combines multiple gene
 import abc
 import logging
 import math
-import os
-from concurrent.futures.thread import ThreadPoolExecutor
 from concurrent.futures import as_completed
+from concurrent.futures.thread import ThreadPoolExecutor
 from typing import Optional
+
+import pandas as pd
 from tqdm import tqdm
 
-import google.generativeai as genai
-import pandas as pd
-from google.generativeai import GenerationConfig
-
-from ...config import Config
+from smolmodels.internal.common.providers.provider import Provider
 from .base import BaseDataGenerator
-
+from ...config import Config
 
 # configure
-genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 logger = logging.getLogger(__name__)
 
 
@@ -31,24 +27,24 @@ class CombinedDataGenerator(BaseDataGenerator):
     in projects.
     """
 
-    def __init__(self, config: Config):
+    def __init__(self, provider: Provider, config: Config):
         self.tp_executor = ThreadPoolExecutor(max_workers=100)
         self.max_n_llm_samples = config.MAX_N_LLM_SAMPLES
         self.batch_size = config.BATCH_SIZE
+        self.provider = provider
 
-        self.generator = self.GeneratorModel(
-            "gemini-1.5-flash", 20000, config.BASE_INSTRUCTION + config.GENERATOR_INSTRUCTION
-        )
-        self.filter = self.FilterModel("gemini-1.5-flash", 20000, config.BASE_INSTRUCTION + config.FILTER_INSTRUCTION)
-        self.labeller = self.LabellerModel(
-            "gemini-1.5-flash", 20000, config.BASE_INSTRUCTION + config.LABELLER_INSTRUCTION
-        )
-        self.reviewer = self.ReviewerModel(
-            "gemini-1.5-flash", 20000, config.BASE_INSTRUCTION + config.REVIEWER_INSTRUCTION
-        )
+        self.generator = self.GeneratorModel(provider, 20000, config.BASE_INSTRUCTION + config.GENERATOR_INSTRUCTION)
+        self.filter = self.FilterModel(provider, 20000, config.BASE_INSTRUCTION + config.FILTER_INSTRUCTION)
+        self.labeller = self.LabellerModel(provider, 20000, config.BASE_INSTRUCTION + config.LABELLER_INSTRUCTION)
+        self.reviewer = self.ReviewerModel(provider, 20000, config.BASE_INSTRUCTION + config.REVIEWER_INSTRUCTION)
 
     def generate(
-        self, problem_description: str, n_records_to_generate: int, schema: dict, sample_data_path: str = None
+        self,
+        problem_description: str,
+        n_records_to_generate: int,
+        output_path: str = None,
+        schema: dict = None,
+        sample_data_path: str = None,
     ) -> str:
         """Generate synthetic data based on problem description and schema"""
         try:
@@ -125,16 +121,14 @@ class CombinedDataGenerator(BaseDataGenerator):
             return pd.DataFrame(columns=schema["column_names"])
 
     class Model(abc.ABC):
-        def __init__(self, model_name, max_tokens: int, instruction):
-            self.llm = genai.GenerativeModel(
-                model_name=model_name,
-                generation_config=GenerationConfig(max_output_tokens=max_tokens),
-                system_instruction=instruction,
-            )
+        def __init__(self, provider: Provider):
+            self.llm: Provider = provider
 
     class GeneratorModel(Model):
-        def __init__(self, model_name, max_tokens: int, instruction):
-            super().__init__(model_name, max_tokens, instruction)
+        def __init__(self, provider, max_tokens: int, instruction):
+            super().__init__(provider)
+            self.max_tokens = max_tokens
+            self.instruction = instruction
 
         def generate(self, n_to_generate, description, schema, reference_df=None) -> pd.DataFrame:
             # sample reference data, if available
@@ -152,14 +146,16 @@ class CombinedDataGenerator(BaseDataGenerator):
             )
             logger.debug(prompt)
             # generate the content
-            r = self.llm.generate_content(prompt)
+            r = self.llm.query(self.instruction, prompt)
             logger.debug(r)
             # return as dataframe
-            return json_to_df(r.text).dropna()
+            return json_to_df(r).dropna()
 
     class FilterModel(Model):
-        def __init__(self, model_name, max_tokens: int, instruction):
-            super().__init__(model_name, max_tokens, instruction)
+        def __init__(self, provider, max_tokens: int, instruction):
+            super().__init__(provider)
+            self.max_tokens = max_tokens
+            self.instruction = instruction
 
         def filter(self, description, schema, df: pd.DataFrame) -> pd.DataFrame:
             prompt = (
@@ -169,13 +165,15 @@ class CombinedDataGenerator(BaseDataGenerator):
                 "Return the dataset as raw JSON, without additional text."
             )
             logger.debug(prompt)
-            r = self.llm.generate_content(prompt)
+            r = self.llm.query(self.instruction, prompt)
             logger.debug(r)
-            return json_to_df(r.text)
+            return json_to_df(r)
 
     class LabellerModel(Model):
-        def __init__(self, model_name, max_tokens: int, instruction):
-            super().__init__(model_name, max_tokens, instruction)
+        def __init__(self, provider, max_tokens: int, instruction):
+            super().__init__(provider)
+            self.max_tokens = max_tokens
+            self.instruction = instruction
 
         def label(self, description, schema, df: pd.DataFrame) -> pd.DataFrame:
             prompt = (
@@ -185,13 +183,15 @@ class CombinedDataGenerator(BaseDataGenerator):
                 "Add a column matching the target variable's name with the labels. Return as raw JSON."
             )
             logger.debug(prompt)
-            r = self.llm.generate_content(prompt)
+            r = self.llm.query(self.instruction, prompt)
             logger.debug(r)
-            return json_to_df(r.text)
+            return json_to_df(r)
 
     class ReviewerModel(Model):
-        def __init__(self, model_name, max_tokens: int, instruction):
-            super().__init__(model_name, max_tokens, instruction)
+        def __init__(self, provider, max_tokens: int, instruction):
+            super().__init__(provider)
+            self.max_tokens = max_tokens
+            self.instruction = instruction
 
         def review(self, description, schema, df: pd.DataFrame) -> pd.DataFrame:
             prompt = (
@@ -201,10 +201,10 @@ class CombinedDataGenerator(BaseDataGenerator):
                 "Return the dataset as raw JSON with 'removal' and 'removal_reason' columns."
             )
             logger.debug(prompt)
-            r = self.llm.generate_content(prompt)
+            r = self.llm.query(self.instruction, prompt)
             logger.debug(r)
-            logger.debug(r.text)
-            batch = json_to_df(self.llm.generate_content(prompt).text)
+            logger.debug(r)
+            batch = json_to_df(self.llm.query(self.instruction, prompt))
             batch = batch[batch["removal"] == 0].drop(columns=["removal", "removal_reason"])
             logger.debug(batch)
             return batch

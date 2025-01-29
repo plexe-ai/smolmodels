@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from unittest.mock import patch, MagicMock
 from smolmodels import Model
+from smolmodels.internal.common.providers.provider import Provider
 from smolmodels.internal.data_generation.core.generation.utils.oversampling import oversample_with_smote
 from smolmodels.internal.data_generation.generator import DataGenerationRequest
 
@@ -39,7 +40,7 @@ class TestDataGeneration:
 
         # Mock the model generation function
         self.mock_generate = patch(
-            "smolmodels.models.generate", return_value=(MagicMock(), MagicMock(), [], {})
+            "smolmodels.models.generate", return_value=(MagicMock(), "", MagicMock(), "", [], {})
         ).start()
 
         yield
@@ -56,11 +57,12 @@ class TestDataGeneration:
 
         # Verify generate_data was called with correct parameters
         self.mock_generate_data.assert_called_once()
-        call_args = self.mock_generate_data.call_args[0][0]
-        assert isinstance(call_args, DataGenerationRequest)
-        assert call_args.n_samples == 50
-        assert not call_args.augment_existing
-        assert call_args.existing_data is None
+        call_args = self.mock_generate_data.call_args[0]
+        assert isinstance(call_args[0], Provider)
+        assert isinstance(call_args[1], DataGenerationRequest)
+        assert call_args[1].n_samples == 50
+        assert not call_args[1].augment_existing
+        assert call_args[1].existing_data is None
 
         # Verify model was built with the generated data
         assert model.training_data is not None
@@ -85,11 +87,12 @@ class TestDataGeneration:
 
         # Verify generate_data was called with correct parameters
         self.mock_generate_data.assert_called_once()
-        call_args = self.mock_generate_data.call_args[0][0]
-        assert isinstance(call_args, DataGenerationRequest)
-        assert call_args.n_samples == 7
-        assert call_args.augment_existing
-        pd.testing.assert_frame_equal(call_args.existing_data, existing_data)
+        call_args = self.mock_generate_data.call_args[0]
+        assert isinstance(call_args[0], Provider)
+        assert isinstance(call_args[1], DataGenerationRequest)
+        assert call_args[1].n_samples == 7
+        assert call_args[1].augment_existing
+        pd.testing.assert_frame_equal(call_args[1].existing_data, existing_data)
 
         # Verify final dataset includes both original and synthetic data
         assert len(model.training_data) > len(existing_data)

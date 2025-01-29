@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from typing import Optional
 import pandas as pd
 
+from smolmodels.internal.common.providers.provider import Provider
+
 
 @dataclass
 class DataGenerationRequest:
@@ -17,12 +19,12 @@ class DataGenerationRequest:
     existing_data: Optional[pd.DataFrame] = None
 
 
-def generate_data(request: DataGenerationRequest) -> pd.DataFrame:
+def generate_data(provider: Provider, request: DataGenerationRequest) -> pd.DataFrame:
     """Generate synthetic data based on request parameters"""
     from .core.generation.combined import CombinedDataGenerator
     from .config import Config
 
-    generator = CombinedDataGenerator(Config())
+    generator = CombinedDataGenerator(provider, Config())
 
     # Convert schemas to generator format
     schema = {

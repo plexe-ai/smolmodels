@@ -2,13 +2,10 @@ import os
 import asyncio
 import math
 
-import google.generativeai as genai
 import pandas as pd
-from google.generativeai import GenerationConfig
 
 from .base import BaseDataGenerator
-
-genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
+from smolmodels.internal.common.providers.provider import Provider
 
 
 class SimpleLLMDataGenerator(BaseDataGenerator):
@@ -17,15 +14,12 @@ class SimpleLLMDataGenerator(BaseDataGenerator):
     synthetic data. The generator relies on a single inference call to a pre-trained LLM model to generate samples.
     """
 
-    def __init__(self):
-        self.llm = genai.GenerativeModel(
-            "gemini-1.5-flash",
-            generation_config=GenerationConfig(max_output_tokens=20000),
-            system_instruction=(
-                "You are an expert in data science, data engineering, and any problem domain you encounter. "
-                "You are speaking to someone who is, likewise, an expert in all these areas. "
-                "Expectations for your performance are extremely high. Mediocrity is not acceptable. "
-            ),
+    def __init__(self, provider: Provider = None):
+        self.llm = provider
+        self.system_instruction = (
+            "You are an expert in data science, data engineering, and any problem domain you encounter. "
+            "You are speaking to someone who is, likewise, an expert in all these areas. "
+            "Expectations for your performance are extremely high. Mediocrity is not acceptable. "
         )
 
     def generate(
@@ -84,7 +78,7 @@ class SimpleLLMDataGenerator(BaseDataGenerator):
         async def generate_data(prompt):
             loop = asyncio.get_running_loop()
             try:
-                return await loop.run_in_executor(None, self.llm.generate_content, prompt)
+                return await loop.run_in_executor(None, self.llm.query, self.system_instruction, prompt)
             except Exception as err:
                 print(f"Error during generation: {err}")
                 return None  # Indicate failure

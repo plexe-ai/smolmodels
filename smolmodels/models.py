@@ -208,7 +208,7 @@ class Model:
                     existing_data=self.training_data,
                 )
 
-                self.synthetic_data = generate_data(request)
+                self.synthetic_data = generate_data(provider, request)
 
                 # Handle augmentation
                 if self.training_data is not None and datagen_config.augment_existing:

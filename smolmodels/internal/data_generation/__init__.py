@@ -10,9 +10,6 @@ import logging
 import warnings
 
 from .config import config
-from .core.generation.combined import CombinedDataGenerator
-from .core.generation.simple_llm import SimpleLLMDataGenerator
-from .core.validation.eda import EdaDataValidator
 
 
 # configure warnings
@@ -38,9 +35,3 @@ file_handler.setFormatter(formatter)
 # Add handlers to the root logger
 logger.addHandler(stream_handler)
 logger.addHandler(file_handler)
-
-
-# initialise the generator depending on the config, then pass the config to it
-generator = {"simple": SimpleLLMDataGenerator, "combined": CombinedDataGenerator}[config.GENERATOR](config)
-# initialise the validator depending on the config
-validator = {"eda": EdaDataValidator()}[config.VALIDATOR]
