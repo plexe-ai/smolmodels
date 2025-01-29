@@ -1,112 +1,41 @@
-name: Semantic Release
+name: Publish to PyPI
 
 on:
-  # Production release trigger
-  push:
-    branches:
-      - main
-  # Manual trigger for testing
-  workflow_dispatch:
-    inputs:
-      dry_run:
-        description: 'Run in dry-run mode (no actual release)'
-        type: boolean
-        default: true
-        required: true
+  release:
+    types: [published]
+  workflow_dispatch:  # For manual testing
 
 jobs:
-  release:
+  publish:
     runs-on: ubuntu-latest
     environment: release
     permissions:
-      contents: write  # Needed for creating releases
+      contents: read
     
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
 
-      - name: Configure Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Install dependencies
+      - name: Install Poetry
         run: |
           python -m pip install --upgrade pip
           pip install poetry
-          pip install python-semantic-release
-
-      # Run semantic release
-      - name: Show semantic-release version
-        run: semantic-release --version
-
-      - name: Python Semantic Release
-        id: semantic_release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EVENT_NAME: ${{ github.event_name }}
-          DRY_RUN: ${{ inputs.dry_run }}
-        run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$DRY_RUN" = "true" ]; then
-            echo "Running in dry-run mode"
-            # Capture version with error handling
-            VERSION=$(semantic-release version --print | grep -oP '\d+\.\d+\.\d+' || echo "")
-            if [ -z "$VERSION" ]; then
-              echo "Error: Could not determine version"
-              exit 1
-            fi
-            echo "Determined version: $VERSION"
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          else
-            echo "Running in release mode"
-            # Capture version with error handling
-            VERSION=$(semantic-release version | grep -oP '\d+\.\d+\.\d+' || echo "")
-            if [ -z "$VERSION" ]; then
-              echo "Error: Could not determine version"
-              exit 1
-            fi
-            echo "Determined version: $VERSION"
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-            echo "Creating and pushing tag v$VERSION"
-            git tag -a "v$VERSION" -m "Release v$VERSION"
-            git push origin "v$VERSION"
-          fi
-
-      # Debug step to verify version capture
-      - name: Debug Version
-        run: |
-          echo "Captured version: ${{ steps.semantic_release.outputs.version }}"
-
-      # Build and publish steps
-      - name: Configure Poetry
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
-        run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
 
       - name: Build Package
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
         run: poetry build
 
-      - name: List Build Output
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
-        run: ls -l dist/
+      - name: Configure PyPI Token
+        run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
 
       - name: Publish to PyPI
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
+        if: github.event_name == 'release'
         run: poetry publish
 
-      - name: Create GitHub Release
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
-        uses: softprops/action-gh-release@v1
-        with:
-          files: dist/*
-          tag_name: v${{ steps.semantic_release.outputs.version }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: List Build Output (for testing)
+        if: github.event_name == 'workflow_dispatch'
+        run: ls -l dist/
