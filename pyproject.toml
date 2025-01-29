@@ -79,3 +79,4 @@ ignore = [
     "E501",  # Line length
     "E402",  # Imports not at top of file
 ]
+prerelease_branches = ["fix/*", "feature/*"]
