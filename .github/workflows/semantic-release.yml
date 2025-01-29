@@ -1,9 +1,18 @@
 name: Semantic Release
 
 on:
+  # Production release trigger
   push:
     branches:
       - main
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (no actual release)'
+        type: boolean
+        default: true
+        required: true
 
 jobs:
   release:
@@ -17,17 +26,32 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install poetry
+          pip install python-semantic-release
 
+      # Run semantic release
       - name: Python Semantic Release
-        uses: python-semantic-release/python-semantic-release@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.dry_run }}" == "true" ]]; then
+            semantic-release version --dry-run
+          else
+            semantic-release version
+          fi
+
+      # Only build and publish if this is a real release
+      - name: Build and publish
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
+        run: |
+          poetry build
+          # Add publish step here when ready
