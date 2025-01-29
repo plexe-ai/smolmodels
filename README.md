@@ -4,7 +4,9 @@ Build specialized ML models using natural language.
 
 ## What is smolmodels?
 
-smolmodels is a Python library that lets you create machine learning models by describing what you want them to do in plain English. Instead of wrestling with model architectures and hyperparameters, you simply describe your intent, define your inputs and outputs, and let smolmodels handle the rest.
+smolmodels is a Python library that lets you create machine learning models by describing what you want them to do in
+plain English. Instead of wrestling with model architectures and hyperparameters, you simply describe your intent,
+define your inputs and outputs, and let smolmodels handle the rest.
 
 ```python
 import smolmodels as sm
@@ -23,8 +25,8 @@ model = sm.Model(
     }
 )
 
-# Build the model - optionally generate synthetic training data
-model.build("house-prices.csv", generate_samples=1000)
+# Build the model, using the backend of your choice - optionally generate synthetic training data
+model.build("house-prices.csv", generate_samples=1000, provider="openai:gpt-4o-mini")
 
 # Make predictions
 price = model.predict({
@@ -42,28 +44,36 @@ sm.save_model(model, "house-price-predictor")
 
 smolmodels uses a multi-step process for model creation:
 
-1. **Intent Analysis**: Problem description is analyzed to understand the type of model needed, key requirements, and success criteria.
+1. **Intent Analysis**: Problem description is analyzed to understand the type of model needed, key requirements, and
+   success criteria.
 
-2. **Data Generation**:  Smolmodels can generate synthetic data to enable model build when there is no training data available.
+2. **Data Generation**:  Smolmodels can generate synthetic data to enable model build when there is no training data
+   available.
 
 3. **Model Building**: The library:
-   - Selects appropriate model architectures
-   - Handles feature engineering
-   - Manages training and validation
-   - Ensures outputs meets the specified constraints
+    - Selects appropriate model architectures
+    - Handles feature engineering
+    - Manages training and validation
+    - Ensures outputs meets the specified constraints
 
-4. **Validation & Refinement**: The model is tested against constraints and refined using directives (like "optimize for speed" or "prioritize explainability").
+4. **Validation & Refinement**: The model is tested against constraints and refined using directives (like "optimize for
+   speed" or "prioritize explainability").
 
 ## Key Features
 
 ### Natural Language Intent 📝
-Models are defined through natural language descriptions and schema specifications, abstracting away architecture decisions.
+
+Models are defined through natural language descriptions and schema specifications, abstracting away architecture
+decisions.
 
 ### Data Generation 🎲
+
 Built-in synthetic data generation for training and validation.
 
 ### Directives for fine-grained Control 🎯
+
 Guide the model building process with high-level directives:
+
 ```python
 from smolmodels import Directive
 
@@ -74,7 +84,9 @@ model.build(directives=[
 ```
 
 ### Optional Constraints ✅
+
 Optional declarative constraints for model validation:
+
 ```python
 from smolmodels import Constraint
 
@@ -91,6 +103,18 @@ model = Model(
 )
 ```
 
+### Multi-Provider Support 🌐
+
+You can use multiple LLM providers as a backend for model generation by specifying the provider name, and optionally
+the model too, when calling `build()`:
+
+```python
+model.build("house-prices.csv", provider="openai:gpt-4o-mini")
+```
+
+Currently supported providers are `openai`, `anthropic`, `google` and `deepseek`. You need to configure the
+appropriate API keys for each provider as environment variables (see installation instructions).
+
 ## Installation & Setup
 
 ```bash
@@ -99,20 +123,19 @@ pip install smolmodels
 
 ## API Keys
 
-Set required API keys as environment variables:
+Set required API keys as environment variables. Which API keys are required depends on which provider you are using.
 
 ```bash
-# Required for model generation
 export OPENAI_API_KEY=<your-API-key>
 export ANTHROPIC_API_KEY=<your-API-key>
-
-# Required for data generation
 export GOOGLE_API_KEY=<your-API-key>
+export DEEPSEEK_API_KEY=<your-API-key>
 ```
 
 ## Quick Start
 
 1. **Define model**:
+
 ```python
 from smolmodels import Model
 
@@ -124,6 +147,7 @@ model = Model(
 ```
 
 2. **Build and save**:
+
 ```python
 # Build with existing data
 model.build(dataset="feedback.csv")
@@ -136,6 +160,7 @@ sm.save_model(model, "sentiment_model")
 ```
 
 3. **Load and use**:
+
 ```python
 # Load existing model
 loaded_model = sm.load_model("sentiment_model")
@@ -147,7 +172,9 @@ print(result["sentiment"])  # "positive"
 
 ## Benchmarks
 
-Performance evaluated on 20 OpenML benchmark datasets and 12 Kaggle competitions. Higher performance observed on 12/20 OpenML datasets, with remaining datasets showing performance within 0.005 of baseline. Experiments conducted on standard infrastructure (8 vCPUs, 30GB RAM) with 1-hour runtime limit per dataset.
+Performance evaluated on 20 OpenML benchmark datasets and 12 Kaggle competitions. Higher performance observed on 12/20
+OpenML datasets, with remaining datasets showing performance within 0.005 of baseline. Experiments conducted on standard
+infrastructure (8 vCPUs, 30GB RAM) with 1-hour runtime limit per dataset.
 
 Complete code and results are available at [plexe-ai/plexe-results](https://github.com/plexe-ai/plexe-results).
 
