@@ -3,12 +3,16 @@ Configuration for the smolmodels library.
 """
 
 from dataclasses import dataclass, field
-from typing import List
 from string import Template
+from typing import List
 
 
 @dataclass(frozen=True)
 class _Config:
+    @dataclass(frozen=True)
+    class _FileStorageConfig:
+        model_cache_dir: str = field(default=".smolcache/")
+
     @dataclass(frozen=True)
     class _LoggingConfig:
         level: str = field(default="INFO")
@@ -168,6 +172,7 @@ class _Config:
         pass  # todo: implement
 
     # configuration objects
+    file_storage: _FileStorageConfig = field(default_factory=_FileStorageConfig)
     logging: _LoggingConfig = field(default_factory=_LoggingConfig)
     model_search: _ModelSearchConfig = field(default_factory=_ModelSearchConfig)
     code_generation: _CodeGenerationConfig = field(default_factory=_CodeGenerationConfig)
