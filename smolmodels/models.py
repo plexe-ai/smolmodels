@@ -14,23 +14,23 @@ Key Features:
 - Mutable State: Tracks the model's lifecycle, training metrics, and metadata.
 - Build Process: Integrates solution generation with directives and callbacks.
 
-Example Usage:
-    model = Model(
-        intent="Given a dataset of house features, predict the house price.",
-        output_schema={"price": float},
-        input_schema={
-            "bedrooms": int,
-            "bathrooms": int,
-            "square_footage": float
-        }
-    )
-
-    model.build(dataset="houses.csv", directives=[Directive("Optimize for memory usage")])
-
-    prediction = model.predict({"bedrooms": 3, "bathrooms": 2, "square_footage": 1500.0})
-    print(prediction)
-
+Example:
+>>>    model = Model(
+>>>        intent="Given a dataset of house features, predict the house price.",
+>>>        output_schema={"price": float},
+>>>        input_schema={
+>>>            "bedrooms": int,
+>>>            "bathrooms": int,
+>>>            "square_footage": float
+>>>        }
+>>>    )
+>>>
+>>>    model.build(dataset=pd.read_csv("houses.csv"), provider="openai:gpt-4o-mini")
+>>>
+>>>    prediction = model.predict({"bedrooms": 3, "bathrooms": 2, "square_footage": 1500.0})
+>>>    print(prediction)
 """
+
 import io
 import logging
 import pickle
