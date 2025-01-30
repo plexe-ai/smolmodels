@@ -50,6 +50,8 @@ class BestFirstSearchPolicy(SearchPolicy):
         :return: A list containing the top N nodes.
         """
 
+        # todo: could this recursive graph traversal become a performance issue?
+        # the graph size is not expected to be large, so it should be fine
         def get_closest_ancestor_performance(node: Node) -> Metric | None:
             if node.performance is not None:
                 return node.performance
