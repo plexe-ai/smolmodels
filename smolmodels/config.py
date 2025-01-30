@@ -30,12 +30,12 @@ class _Config:
     class _ExecutionConfig:
         timeout: int = field(default=300)
         runfile_name: str = field(default="execution_script.py")
-        training_data_path: str = field(default="training_data.csv")
+        training_data_path: str = field(default="training_data.parquet")
 
     @dataclass(frozen=True)
     class _CodeGenerationConfig:
         allowed_packages: List[str] = field(
-            default_factory=lambda: ["pandas", "numpy", "scikit-learn", "joblib" "mlxtend" "xgboost"]
+            default_factory=lambda: ["pandas", "numpy", "scikit-learn", "joblib", "mlxtend", "xgboost", "pyarrow"]
         )
         k_fold_validation: int = field(default=5)
         # prompts used in generating plans or making decisions
@@ -88,7 +88,8 @@ class _Config:
                 "# PREVIOUS ATTEMPTS, IF ANY:\n${history}\n\n"
                 "Only return the code to train the model, no explanations outside the code. Any explanation should "
                 "be in the comments in the code itself, but your overall answer must only consist of the code script. "
-                "The script must assume that the dataset is in the current working directory as ${training_data_path}. "
+                "The script must assume that the dataset is in the current working directory as a parquet file "
+                "called ${training_data_path}. "
                 "The script must train the model, compute and print the final evaluation metric to standard output, "
                 "and save the model as 'model.joblib' in the current working directory. Use only ${allowed_packages}. "
                 "Do NOT use any packages that are not part of this list of the Python standard library."
@@ -105,7 +106,7 @@ class _Config:
                 "Correct the code, train the model, compute and print the evaluation metric, and save the model in "
                 "the current working directory as 'model.joblib'. Use only ${allowed_packages}. Do NOT use any "
                 "packages that are not part of this list of the Python standard library. Assume the training "
-                "data is in the current working directory as ${training_data_path}."
+                "data is in the current working directory as a parquet file called ${training_data_path}."
             )
         )
         prompt_training_review: Template = field(

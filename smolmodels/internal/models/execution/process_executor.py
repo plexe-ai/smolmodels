@@ -23,6 +23,8 @@ import subprocess
 import sys
 import time
 import pandas as pd
+import pyarrow.parquet as pq
+import pyarrow as pa
 from pathlib import Path
 
 from smolmodels.internal.common.utils.response import extract_performance
@@ -78,7 +80,7 @@ class ProcessExecutor(Executor):
 
         # Write dataset to file
         dataset_file: Path = self.working_dir / config.execution.training_data_path
-        self.dataset.to_csv(dataset_file, index=False)
+        pq.write_table(pa.Table.from_pandas(df=self.dataset), dataset_file)
 
         try:
             # Execute the code in a subprocess
