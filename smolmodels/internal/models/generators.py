@@ -38,8 +38,8 @@ from smolmodels.internal.models.execution.process_executor import ProcessExecuto
 from smolmodels.internal.models.generation.inference import InferenceCodeGenerator
 from smolmodels.internal.models.generation.planning import SolutionPlanGenerator
 from smolmodels.internal.models.generation.training import TrainingCodeGenerator
+from smolmodels.internal.models.search.best_first_policy import BestFirstSearchPolicy
 from smolmodels.internal.models.search.policy import SearchPolicy
-from smolmodels.internal.models.search.random_policy import RandomSearchPolicy
 from smolmodels.internal.models.validation.security import SecurityValidator
 from smolmodels.internal.models.validation.syntax import SyntaxValidator
 from smolmodels.internal.models.validation.validator import Validator, ValidationResult
@@ -113,7 +113,7 @@ def generate(
 
     # Create the solution graph with initial nodes
     graph: Graph = Graph()
-    search_policy: SearchPolicy = search_policy or RandomSearchPolicy(graph)
+    search_policy: SearchPolicy = search_policy or BestFirstSearchPolicy(graph)
 
     # Create classes used in code generation and review
     validators: List[Validator] = [SyntaxValidator(), SecurityValidator()]

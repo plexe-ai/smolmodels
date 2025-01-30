@@ -92,6 +92,7 @@ class MetricComparator:
             raise ValueError("Invalid comparison method.")
 
 
+# todo: this class is a mess as it mixes concerns of a metric and a metric value; needs refactoring
 @total_ordering
 class Metric:
     """
@@ -103,17 +104,19 @@ class Metric:
         comparator (MetricComparator): The comparison logic for the metric.
     """
 
-    def __init__(self, name: str, value: float, comparator: MetricComparator):
+    def __init__(self, name: str, value: float = None, comparator: MetricComparator = None, is_worst: bool = False):
         """
         Initializes a Metric object.
 
         :param name: The name of the metric.
         :param value: The numeric value of the metric.
         :param comparator: An instance of MetricComparator for comparison logic.
+        :param is_worst: Indicates if the metric value is the worst possible value.
         """
         self.name = name
         self.value = value
         self.comparator = comparator
+        self.is_worst = is_worst
 
     def __gt__(self, other) -> bool:
         """
@@ -125,6 +128,12 @@ class Metric:
         """
         if not isinstance(other, Metric):
             return NotImplemented
+
+        if self.is_worst or (self.is_worst and other.is_worst):
+            return False
+
+        if other.is_worst:
+            return True
 
         if self.name != other.name:
             raise ValueError("Cannot compare metrics with different names.")
@@ -149,6 +158,12 @@ class Metric:
         """
         if not isinstance(other, Metric):
             return NotImplemented
+
+        if self.is_worst and other.is_worst:
+            return True
+
+        if self.is_worst or other.is_worst:
+            return False
 
         return (
             self.name == other.name
