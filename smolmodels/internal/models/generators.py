@@ -12,7 +12,6 @@ Constants:
 
 """
 
-import json
 import logging
 import shutil
 import time
@@ -36,21 +35,9 @@ from smolmodels.internal.models.entities.node import Node
 from smolmodels.internal.models.entities.stopping_condition import StoppingCondition
 from smolmodels.internal.models.execution.executor import Executor
 from smolmodels.internal.models.execution.process_executor import ProcessExecutor
-from smolmodels.internal.models.generation.inference import (
-    generate_inference_code,
-    fix_inference_code,
-    review_inference_code,
-)
-from smolmodels.internal.models.generation.planning import (
-    generate_solution_plan,
-    select_metric_to_optimise,
-    select_stopping_condition,
-)
-from smolmodels.internal.models.generation.training import (
-    generate_training_code,
-    fix_training_code,
-    review_training_code,
-)
+from smolmodels.internal.models.generation.inference import InferenceCodeGenerator
+from smolmodels.internal.models.generation.planning import SolutionPlanGenerator
+from smolmodels.internal.models.generation.training import TrainingCodeGenerator
 from smolmodels.internal.models.search.policy import SearchPolicy
 from smolmodels.internal.models.search.random_policy import RandomSearchPolicy
 from smolmodels.internal.models.validation.security import SecurityValidator
@@ -84,28 +71,30 @@ def generate(
     """
     Generate training and inference code for a given problem statement and schemas.
 
-    Args:
-        intent (str): The description or intent of the problem.
-        input_schema (dict): A dictionary defining the schema of the input data.
-        output_schema (dict): A dictionary defining the schema of the output data.
-        dataset (str): The dataset to be used for training.
-        provider (Provider): The provider to use for model generation.
-        filedir (str): The directory to save the model artifacts.
-        constraints (List[Constraint], optional): Constraints to be applied to the model generation process. Defaults to None.
-        directives (List[Directive], optional): Directives to guide the model generation process. Defaults to None.
-        callbacks (List[Callback], optional): Callbacks to execute during model generation. Defaults to None.
-        isolation (str, optional): The isolation method for execution (e.g., "process"). Defaults to "process".
-        executor (Optional[Executor], optional): Executor for running generated code. Defaults to None.
-        search_policy (Optional[SearchPolicy], optional): Policy to guide exploration of the solution graph. Defaults to None.
-        timeout (int, optional): The maximum time allowed for model generation. Defaults to config.model_search.max_time_elapsed.
-
-    Returns:
-        Tuple[Callable, Callable]: A tuple containing the training function and the prediction function.
+    :param intent: The description or intent of the problem.
+    :param input_schema: A dictionary defining the schema of the input data.
+    :param output_schema: A dictionary defining the schema of the output data.
+    :param dataset: The dataset to be used for training.
+    :param provider: The provider to use for model generation.
+    :param filedir: The directory to save the model artifacts.
+    :param constraints: Constraints to be applied to the model generation process. Defaults to None.
+    :param directives: Directives to guide the model generation process. Defaults to None.
+    :param callbacks: Callbacks to execute during model generation. Defaults to None.
+    :param isolation: The isolation method for execution (e.g., "process"). Defaults to "process".
+    :param executor: Executor for running generated code. Defaults to None.
+    :param search_policy: Policy to guide exploration of the solution graph. Defaults to None.
+    :param timeout: The maximum time allowed for model generation. Defaults to config.model_search.max_time_elapsed.
+    :return: A tuple containing the training function and the prediction function.
     """
     # Set up the model generation process
     start_time: float = time.time()
     run_name = f"run-{datetime.now().isoformat()}".replace(":", "-").replace(".", "-")
     print(f"🔨 Starting model generation with cache {filedir}")
+
+    # Create code generators used to produce plans, training code, and inference code
+    plan_generator = SolutionPlanGenerator(provider)
+    train_generator = TrainingCodeGenerator(provider)
+    infer_generator = InferenceCodeGenerator(provider)
 
     # Join the problem statement into a single string
     problem_statement: str = sm_utils.join_problem_statement(
@@ -113,13 +102,12 @@ def generate(
     )
 
     # Decide what metric to optimise based on the definition of the problem
-    metric_to_optimise: Metric = select_metric_to_optimise(problem_statement, provider)
-    stopping_condition: StoppingCondition = select_stopping_condition(
+    metric_to_optimise: Metric = plan_generator.select_metric_to_optimise(problem_statement)
+    stopping_condition: StoppingCondition = plan_generator.select_stopping_condition(
         problem_statement=problem_statement,
         metric=metric_to_optimise,
         max_iterations=config.model_search.max_nodes,
         max_time=timeout,
-        client=provider,
     )
     print(f"🔨 Optimising {metric_to_optimise.name}; {str(stopping_condition)}")
 
@@ -133,8 +121,8 @@ def generate(
     for _ in tqdm(range(config.model_search.initial_nodes), desc="🔨 Initialising solution graph", colour="red"):
         graph.add_node(
             Node(
-                solution_plan=generate_solution_plan(
-                    problem_statement=problem_statement, metric_to_optimise=metric_to_optimise.name, client=provider
+                solution_plan=plan_generator.generate_solution_plan(
+                    problem_statement=problem_statement, metric_to_optimise=metric_to_optimise.name
                 )
             ),
             parent=None,
@@ -150,17 +138,9 @@ def generate(
             node_expand: Node = search_policy.select_node_expand()[0]
             graph.add_node(
                 Node(
-                    solution_plan=generate_solution_plan(
+                    solution_plan=plan_generator.generate_solution_plan(
                         problem_statement=problem_statement,
                         metric_to_optimise=metric_to_optimise.name,
-                        client=provider,
-                        context=json.dumps(
-                            {
-                                "previous_plan": node_expand.solution_plan,
-                                "previous_code": node_expand.training_code,
-                                "previous_performance": str(node_expand.performance),
-                            }
-                        ),
                     )
                 ),
                 parent=node_expand,
@@ -170,7 +150,7 @@ def generate(
         node: Node = search_policy.select_node_enter()[0]
 
         # Generate the code for the node
-        node.training_code = generate_training_code(problem_statement, node.solution_plan, provider)
+        node.training_code = train_generator.generate_training_code(problem_statement, node.solution_plan)
         node.visited = True
         # node.training_tests = generate_training_tests(problem_statement, node.solution_plan, node.training_code)
 
@@ -189,11 +169,11 @@ def generate(
                     break
 
             if not result.passed:
-                review = review_training_code(
-                    node.training_code, problem_statement, node.solution_plan, provider, str(result)
+                review = train_generator.review_training_code(
+                    node.training_code, problem_statement, node.solution_plan, str(result)
                 )
-                node.training_code = fix_training_code(
-                    node.training_code, node.solution_plan, review, provider, str(result)
+                node.training_code = train_generator.fix_training_code(
+                    node.training_code, node.solution_plan, review, str(result)
                 )
                 continue
 
@@ -214,11 +194,11 @@ def generate(
 
             # If the code raised an exception, attempt to fix again
             if node.exception_was_raised:
-                review = review_training_code(
-                    node.training_code, problem_statement, node.solution_plan, provider, str(node.exception)
+                review = train_generator.review_training_code(
+                    node.training_code, problem_statement, node.solution_plan, str(node.exception)
                 )
-                node.training_code = fix_training_code(
-                    node.training_code, node.solution_plan, review, provider, str(node.exception)
+                node.training_code = train_generator.fix_training_code(
+                    node.training_code, node.solution_plan, review, str(node.exception)
                 )
                 continue
             else:
@@ -245,8 +225,10 @@ def generate(
     # Generate the inference code for the best node
     print("🧠 Generating inference code for the best solution")
     best_node: Node = max(valid_nodes, key=lambda n: n.performance)
-    best_node.inference_code = generate_inference_code(
-        input_schema=input_schema, output_schema=output_schema, training_code=best_node.training_code, client=provider
+    best_node.inference_code = infer_generator.generate_inference_code(
+        input_schema=input_schema,
+        output_schema=output_schema,
+        training_code=best_node.training_code,
     )
     # best_node.inference_tests = generate_inference_tests(
     #     problem_statement, best_node.solution_plan, best_node.training_code, best_node.training_code
@@ -265,15 +247,14 @@ def generate(
                 break
 
         if not result.passed:
-            review = review_inference_code(
+            review = infer_generator.review_inference_code(
                 inference_code=best_node.inference_code,
                 input_schema=input_schema,
                 output_schema=output_schema,
                 training_code=best_node.training_code,
-                client=provider,
                 problems=str(result),
             )
-            best_node.inference_code = fix_inference_code(best_node.inference_code, review, str(result), provider)
+            best_node.inference_code = infer_generator.fix_inference_code(best_node.inference_code, review, str(result))
             continue
 
     print(f"✅ Built predictor for model with performance: {best_node.performance}")
