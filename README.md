@@ -1,6 +1,6 @@
 <div align="center">
 
-# smolmodels 🤖✨
+# smolmodels ✨
 
 [![PyPI version](https://img.shields.io/pypi/v/smolmodels.svg)](https://pypi.org/project/smolmodels/)
 [![Discord](https://img.shields.io/discord/1300920499886358529?logo=discord&logoColor=white)](https://discord.gg/3czW7BMj)
@@ -9,16 +9,14 @@ Build specialized ML models using natural language.
 
 </div>
 
-## What is smolmodels?
-
-smolmodels is a Python library that lets you create machine learning models by describing what you want them to do in
+`smolmodels` is a Python library that lets you create machine learning models by describing what you want them to do in
 plain English. Instead of wrestling with model architectures and hyperparameters, you simply describe your intent,
-define your inputs and outputs, and let smolmodels handle the rest.
+define your inputs and outputs, and let `smolmodels` handle the rest.
 
 ```python
 import smolmodels as sm
 
-# Create a house price predictor with just a description
+# Define a house price predictor in terms of inputs, outputs, and expected behaviour
 model = sm.Model(
     intent="Predict house prices based on property features",
     input_schema={
@@ -32,7 +30,7 @@ model = sm.Model(
     }
 )
 
-# Build the model, using the backend of your choice - optionally generate synthetic training data
+# Build the model, using the backend of your choice; optionally generate synthetic training data
 model.build("house-prices.csv", generate_samples=1000, provider="openai:gpt-4o-mini")
 
 # Make predictions
@@ -49,35 +47,35 @@ sm.save_model(model, "house-price-predictor")
 
 ## How Does It Work?
 
-smolmodels uses a multi-step process for model creation:
+`smolmodels` combines graph search with LLMs to generate candidate models that meet the specified intent, and then
+selects the best model based on performance and constraints. The process consists of four main phases:
 
-1. **Intent Analysis**: Problem description is analyzed to understand the type of model needed, key requirements, and
-   success criteria.
+1. **Intent Analysis**: problem description is analyzed to understand the type of model needed and what metric to
+   optimise for.
 
-2. **Data Generation**:  Smolmodels can generate synthetic data to enable model build when there is no training data
-   available.
+2. **Data Generation**: synthetic data can be generated to enable model build when there is no training data
+   available, or when the existing data has insufficient coverage of the feature space.
 
-3. **Model Building**: The library:
-    - Selects appropriate model architectures
-    - Handles feature engineering
-    - Manages training and validation
-    - Ensures outputs meets the specified constraints
+3. **Model Building**:
+   1. Selects appropriate model architectures
+   2. Handles feature engineering
+   3. Manages training and validation
 
-4. **Validation & Refinement**: The model is tested against constraints and refined using directives (like "optimize for
-   speed" or "prioritize explainability").
+4. **Validation & Refinement**: the model is tested against constraints and refined using directives (like "optimize 
+   for speed" or "prioritize model types with better explainability").
 
 ## Key Features
 
-### Natural Language Intent 📝
+### 📝 Natural Language Intent
 
-Models are defined through natural language descriptions and schema specifications, abstracting away architecture
-decisions.
+Models are defined using natural language descriptions and schema specifications, abstracting away machine learning
+specifics.
 
-### Data Generation 🎲
+### 🎲 Data Generation
 
 Built-in synthetic data generation for training and validation.
 
-### Directives for fine-grained Control 🎯
+### 🎯 Directives for fine-grained Control (Not Yet Implemented - Coming Soon)
 
 Guide the model building process with high-level directives:
 
@@ -90,7 +88,7 @@ model.build(directives=[
 ])
 ```
 
-### Optional Constraints ✅
+### ✅ Optional Constraints (Not Yet Implemented - Coming Soon)
 
 Optional declarative constraints for model validation:
 
@@ -110,10 +108,10 @@ model = Model(
 )
 ```
 
-### Multi-Provider Support 🌐
+### 🌐 Multi-Provider Support
 
-You can use multiple LLM providers as a backend for model generation by specifying the provider name, and optionally
-the model too, when calling `build()`:
+You can use multiple LLM providers as a backend for model generation. You can specify the provider and model in the
+format `provider:[model]` when calling `build()`:
 
 ```python
 model.build("house-prices.csv", provider="openai:gpt-4o-mini")
@@ -157,7 +155,7 @@ model = sm.Model(
 
 ```python
 # Build with existing data
-model.build(dataset="feedback.csv")
+model.build(dataset="feedback.csv", provider="openai:gpt-4o-mini")
 
 # Or generate synthetic data
 model.build(generate_samples=1000)
