@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import pandas as pd
+import pyarrow
 
 from smolmodels.internal.models.execution.executor import ExecutionResult
 from smolmodels.internal.models.execution.process_executor import ProcessExecutor
@@ -49,8 +50,8 @@ class TestProcessExecutor:
     def test_constructor_creates_working_directory(self):
         assert self.working_dir.exists()
 
-    @patch("pandas.DataFrame.to_csv")
-    def test_run_successful_execution(self, mock_to_csv):
+    @patch("pyarrow.parquet.write_table")
+    def test_run_successful_execution(self, mock_write_table):
         mock_process = MagicMock()
         mock_process.communicate.return_value = ("Execution completed", "")
         mock_process.returncode = 0
@@ -58,8 +59,8 @@ class TestProcessExecutor:
         with patch("subprocess.Popen", return_value=mock_process) as mock_popen:
             result = self.process_executor.run()
 
-        dataset_file = self.working_dir / "training_data.csv"
-        mock_to_csv.assert_called_once_with(dataset_file, index=False)
+        dataset_file = self.working_dir / "training_data.parquet"
+        mock_write_table.assert_called_once_with(pyarrow.Table.from_pandas(self.dataset), dataset_file)
         mock_popen.assert_called_once_with(
             [sys.executable, str(self.working_dir / "run.py")],
             stdout=subprocess.PIPE,
@@ -96,11 +97,11 @@ class TestProcessExecutor:
         assert isinstance(result.exception, RuntimeError)
         assert "Something went wrong" in str(result.exception)
 
-    @patch("pandas.DataFrame.to_csv")
-    def test_dataset_written_to_file(self, mock_to_csv):
+    @patch("pyarrow.parquet.write_table")
+    def test_dataset_written_to_file(self, mock_write_table):
         self.process_executor.run()
-        dataset_file = self.working_dir / "training_data.csv"
-        mock_to_csv.assert_called_once_with(dataset_file, index=False)
+        dataset_file = self.working_dir / "training_data.parquet"
+        mock_write_table.assert_called_once_with(pyarrow.Table.from_pandas(self.dataset), dataset_file)
 
 
 if __name__ == "__main__":

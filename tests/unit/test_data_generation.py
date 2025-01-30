@@ -137,25 +137,6 @@ class TestDataGeneration:
         pd.testing.assert_frame_equal(model.training_data, existing_data)
         assert model.state.value == "ready"
 
-    def test_load_dataset_from_csv(self, sample_schema):
-        """Test loading dataset from CSV file"""
-        with patch("pandas.read_csv") as mock_read_csv:
-            mock_read_csv.return_value = pd.DataFrame(
-                {
-                    "square_feet": [1000, 1500, 2000],
-                    "bedrooms": [2, 3, 4],
-                    "location": ["A", "B", "C"],
-                    "price": [200000, 300000, 400000],
-                }
-            )
-
-            model = Model(intent="Predict house prices based on features", **sample_schema)
-            model.build(dataset="test.csv")
-
-            mock_read_csv.assert_called_once_with("test.csv")
-            assert model.training_data is not None
-            assert model.state.value == "ready"
-
 
 class TestSMOTEOversampling:
     def test_smote_maintains_class_proportions(self):
