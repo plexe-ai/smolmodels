@@ -14,6 +14,7 @@ plain English. Instead of wrestling with model architectures and hyperparameters
 define your inputs and outputs, and let `smolmodels` handle the rest.
 
 ```python
+import pandas as pd
 import smolmodels as sm
 
 # Define a house price predictor in terms of inputs, outputs, and expected behaviour
@@ -31,7 +32,11 @@ model = sm.Model(
 )
 
 # Build the model, using the backend of your choice; optionally generate synthetic training data
-model.build("house-prices.csv", generate_samples=1000, provider="openai:gpt-4o-mini")
+model.build(
+   dataset=pd.read_csv("house-prices.csv"),
+   generate_samples=1000,
+   provider="openai:gpt-4o-mini"
+)
 
 # Make predictions
 price = model.predict({
@@ -114,7 +119,7 @@ You can use multiple LLM providers as a backend for model generation. You can sp
 format `provider:[model]` when calling `build()`:
 
 ```python
-model.build("house-prices.csv", provider="openai:gpt-4o-mini")
+model.build(pd.read_csv("house-prices.csv"), provider="openai:gpt-4o-mini")
 ```
 
 Currently supported providers are `openai`, `anthropic`, `google` and `deepseek`. You need to configure the
@@ -155,7 +160,7 @@ model = sm.Model(
 
 ```python
 # Build with existing data
-model.build(dataset="feedback.csv", provider="openai:gpt-4o-mini")
+model.build(dataset=pd.read_csv("feedback.csv"), provider="openai:gpt-4o-mini")
 
 # Or generate synthetic data
 model.build(generate_samples=1000)
