@@ -10,10 +10,10 @@ Classes:
 
 import logging
 import os
+from typing import Type
 
 import openai
 from pydantic import BaseModel
-from typing import Type
 
 from smolmodels.internal.common.providers.provider import Provider
 
@@ -31,7 +31,7 @@ class OpenAIProvider(Provider):
         self.max_tokens = 16000
         self.client = openai.OpenAI(api_key=self.key)
 
-    def query(self, system_message: str, user_message: str, response_format: Type[BaseModel] = None) -> str:
+    def _query_impl(self, system_message: str, user_message: str, response_format: Type[BaseModel] = None) -> str:
         """
         Queries the OpenAI API with the given messages and returns the response.
 
@@ -40,8 +40,6 @@ class OpenAIProvider(Provider):
         :param response_format: The format for the response. Defaults to None.
         :return: The content of the response from the OpenAI API.
         """
-        self._log_request(system_message, user_message, self.model, logger)
-
         if response_format is not None:
             response = self.client.beta.chat.completions.parse(
                 model=self.model,
@@ -63,7 +61,4 @@ class OpenAIProvider(Provider):
                 max_tokens=self.max_tokens,
             )
             content = response.choices[0].message.content
-
-        self._log_response(content, self.model, logger)
-
         return content

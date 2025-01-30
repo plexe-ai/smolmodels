@@ -32,7 +32,7 @@ class AnthropicProvider(Provider):
         self.max_tokens = 4096
         self.client = instructor.from_anthropic(anthropic.Anthropic(api_key=self.key))
 
-    def query(self, system_message: str, user_message: str, response_format: Type[BaseModel] = None) -> str:
+    def _query_impl(self, system_message: str, user_message: str, response_format: Type[BaseModel] = None) -> str:
         """
         Queries the Anthropic API with the given messages and returns the response.
 
@@ -41,8 +41,6 @@ class AnthropicProvider(Provider):
         :param response_format: The format for the response. Defaults to None.
         :return: The content of the response from the OpenAI API.
         """
-        self._log_request(system_message, user_message, self.model, logger)
-
         response = self.client.messages.create(
             model=self.model,
             max_tokens=self.max_tokens,
@@ -56,7 +54,4 @@ class AnthropicProvider(Provider):
             content = str(response.content)
         else:
             content = str(response.model_dump_json(indent=4))
-
-        self._log_response(content, self.model, logger)
-
         return str(content)
