@@ -14,23 +14,23 @@ Key Features:
 - Mutable State: Tracks the model's lifecycle, training metrics, and metadata.
 - Build Process: Integrates solution generation with directives and callbacks.
 
-Example Usage:
-    model = Model(
-        intent="Given a dataset of house features, predict the house price.",
-        output_schema={"price": float},
-        input_schema={
-            "bedrooms": int,
-            "bathrooms": int,
-            "square_footage": float
-        }
-    )
-
-    model.build(dataset="houses.csv", directives=[Directive("Optimize for memory usage")])
-
-    prediction = model.predict({"bedrooms": 3, "bathrooms": 2, "square_footage": 1500.0})
-    print(prediction)
-
+Example:
+>>>    model = Model(
+>>>        intent="Given a dataset of house features, predict the house price.",
+>>>        output_schema={"price": float},
+>>>        input_schema={
+>>>            "bedrooms": int,
+>>>            "bathrooms": int,
+>>>            "square_footage": float
+>>>        }
+>>>    )
+>>>
+>>>    model.build(dataset=pd.read_csv("houses.csv"), provider="openai:gpt-4o-mini")
+>>>
+>>>    prediction = model.predict({"bedrooms": 3, "bathrooms": 2, "square_footage": 1500.0})
+>>>    print(prediction)
 """
+
 import io
 import json
 import logging
@@ -43,8 +43,9 @@ import uuid
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Optional, Union, List, Literal, Any
+from typing import Dict, Union, List, Literal, Any
 
+import numpy as np
 import pandas as pd
 
 from smolmodels.callbacks import Callback
@@ -52,6 +53,7 @@ from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
 from smolmodels.internal.common.providers.provider import Provider
+from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.providers.provider_factory import ProviderFactory
 from smolmodels.internal.data_generation.generator import generate_data, DataGenerationRequest
 from smolmodels.internal.models.generation.schema import generate_schema
@@ -149,8 +151,7 @@ class Model:
         self.output_schema = output_schema
         self.input_schema = input_schema
         self.constraints = constraints or []
-        self.training_data = None
-        self.synthetic_data = None
+        self.training_data: pd.DataFrame | None = None
 
         # The model's mutable state is defined by these fields
         self.state = ModelState.DRAFT
@@ -169,9 +170,9 @@ class Model:
 
     def build(
         self,
-        dataset: Optional[Union[str, pd.DataFrame]] = None,
+        dataset: pd.DataFrame | np.ndarray = None,
         directives: List[Directive] = None,
-        generate_samples: Optional[Union[int, Dict[str, Any]]] = None,
+        generate_samples: Union[int, Dict[str, Any]] = None,
         callbacks: List[Callback] = None,
         isolation: Literal["local", "subprocess", "docker"] = "local",
         provider: str = "openai:gpt-4o-mini",
@@ -192,11 +193,8 @@ class Model:
             provider: Provider = ProviderFactory.create(provider)
             self.state = ModelState.BUILDING
 
-            # Handle existing dataset
-            if isinstance(dataset, str):
-                self.training_data = pd.read_csv(dataset)
-            elif isinstance(dataset, pd.DataFrame):
-                self.training_data = dataset.copy()
+            # Convert dataset to internal format
+            self.training_data = DatasetAdapter.convert(dataset) if dataset is not None else None
 
             # Handle data generation if requested
             if generate_samples is not None:
@@ -212,13 +210,13 @@ class Model:
                     existing_data=self.training_data,
                 )
 
-                self.synthetic_data = generate_data(provider, request)
+                synthetic_data = generate_data(provider, request)
 
                 # Handle augmentation
                 if self.training_data is not None and datagen_config.augment_existing:
-                    self.training_data = pd.concat([self.training_data, self.synthetic_data], ignore_index=True)
+                    self.training_data = pd.concat([self.training_data, synthetic_data], ignore_index=True)
                 else:
-                    self.training_data = self.synthetic_data
+                    self.training_data = synthetic_data
 
             # Infer or validate schemas
             if self.training_data is not None:

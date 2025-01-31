@@ -31,7 +31,7 @@ class GoogleProvider(Provider):
         self.model = model or "gemini-1.5-flash"
         self.max_tokens = 4096
 
-    def query(self, system_message: str, user_message: str, response_format: Type[BaseModel] = None) -> str:
+    def _query_impl(self, system_message: str, user_message: str, response_format: Type[BaseModel] = None) -> str:
         """
         Queries the Google Generative AI API with the given messages and returns the response.
 
@@ -40,9 +40,6 @@ class GoogleProvider(Provider):
         :param response_format: The format for the response. Defaults to None.
         :return: The content of the response from the OpenAI API.
         """
-
-        self._log_request(system_message, user_message, self.model, logger)
-
         if response_format is not None:
             generation_config = genai.GenerationConfig(
                 max_output_tokens=self.max_tokens,
@@ -60,7 +57,4 @@ class GoogleProvider(Provider):
             system_instruction=system_message,
         )
         response = llm.generate_content(user_message)
-
-        self._log_response(response.text, self.model, logger)
-
         return response.text
