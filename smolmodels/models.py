@@ -32,6 +32,7 @@ Example Usage:
 
 """
 import io
+import json
 import logging
 import pickle
 import shutil
@@ -53,7 +54,7 @@ from smolmodels.directives import Directive
 from smolmodels.internal.common.providers.provider import Provider
 from smolmodels.internal.common.providers.provider_factory import ProviderFactory
 from smolmodels.internal.data_generation.generator import generate_data, DataGenerationRequest
-from smolmodels.internal.models.generation.schema import generate_schemas_from_intent, infer_schema_from_data
+from smolmodels.internal.models.generation.schema import generate_schema
 from smolmodels.internal.models.generators import generate
 
 
@@ -128,7 +129,9 @@ class Model:
         )
     """
 
-    def __init__(self, intent: str, output_schema: dict, input_schema: dict, constraints: List[Constraint] = None):
+    def __init__(
+        self, intent: str, output_schema: dict = None, input_schema: dict = None, constraints: List[Constraint] = None
+    ):
         """
         Initialise a model with a natural language description of its intent, as well as
         structured definitions of its input schema, output schema, and any constraints.
@@ -220,14 +223,13 @@ class Model:
             # Infer or validate schemas
             if self.training_data is not None:
                 if self.input_schema is None or self.output_schema is None:
-                    # Infer schemas from data
-                    inferred_input, inferred_output = infer_schema_from_data(self.training_data, self.intent)
-                    self.input_schema = self.input_schema or inferred_input
-                    self.output_schema = self.output_schema or inferred_output
-            else:
-                # No data available, use LLM to generate schemas
-                if self.input_schema is None or self.output_schema is None:
-                    self.input_schema, self.output_schema = generate_schemas_from_intent(self.intent)
+                    self.input_schema, self.output_schema = generate_schema(
+                        provider=provider,
+                        intent=self.intent,
+                        dataset=self.training_data,
+                        input_schema=self.input_schema,
+                        output_schema=self.output_schema,
+                    )
 
             # Validate we have training data from some source
             if self.training_data is None:
@@ -287,6 +289,52 @@ class Model:
         :return: metrics about the model
         """
         return self.metrics
+
+    def get_schema_info(self, format: Literal["text", "dict", "json"] = "text") -> Union[str, Dict, str]:
+        """
+        Get the model's schema information in the requested format.
+
+        Args:
+            format: Output format
+                - "text": Human-readable text format
+                - "dict": Python dictionary
+                - "json": JSON string
+
+        Returns:
+            Schema information in requested format
+
+        Example:
+            >>> model.get_schema_info(format="dict")
+            {
+                "input_schema": {"age": "int", "gender": "str", ...},
+                "output_schema": {"heart_attack": "bool"}
+            }
+        """
+        if self.state == ModelState.DRAFT:
+            raise ValueError("Model not built yet. Call build() first.")
+        elif self.state == ModelState.ERROR:
+            raise ValueError("Model in error state. Check logs for details.")
+
+        try:
+            if format == "dict":
+                return {"input_schema": self.input_schema, "output_schema": self.output_schema}
+
+            elif format == "json":
+                return json.dumps({"input_schema": self.input_schema, "output_schema": self.output_schema}, indent=2)
+
+            else:  # text format
+                schema_lines = ["Input features:"]
+                for name, type_ in sorted(self.input_schema.items()):
+                    schema_lines.append(f"- {name}: {type_}")
+
+                schema_lines.extend(["", "Output features:"])
+                for name, type_ in sorted(self.output_schema.items()):
+                    schema_lines.append(f"- {name}: {type_}")
+
+                return "\n".join(schema_lines)
+
+        except Exception as e:
+            raise ValueError(f"Error retrieving schema info: {str(e)}")
 
     def describe(self) -> dict:
         """
