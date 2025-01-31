@@ -5,6 +5,7 @@ import pandas as pd
 from unittest.mock import Mock
 
 from smolmodels.internal.models.generation.schema import generate_schema
+from smolmodels.models import Model
 
 
 @pytest.fixture
@@ -46,39 +47,6 @@ def test_basic_schema_generation(mock_provider, sample_df):
     mock_provider.query.assert_called_once()
 
 
-def test_respects_existing_schemas(mock_provider, sample_df):
-    """Test that existing schemas are respected."""
-    input_schema = {"feature1": "float"}  # Override inferred type
-    output_schema = {"target": "float"}  # Override inferred type
-
-    final_input, final_output = generate_schema(
-        provider=mock_provider,
-        intent="predict target",
-        dataset=sample_df,
-        input_schema=input_schema,
-        output_schema=output_schema,
-    )
-
-    # Check that provided schemas are preserved
-    assert final_input == input_schema
-    assert final_output == output_schema
-
-
-def test_schema_validation_error():
-    """Test schema validation with invalid types."""
-    input_schema = {"feature1": "invalid_type"}
-    output_schema = {"target": "int"}
-
-    with pytest.raises(ValueError, match="Invalid type invalid_type"):
-        generate_schema(
-            provider=Mock(),
-            intent="predict target",
-            dataset=pd.DataFrame({"feature1": [1], "target": [0]}),
-            input_schema=input_schema,
-            output_schema=output_schema,
-        )
-
-
 def test_target_column_fallback(mock_provider, sample_df):
     """Test fallback to last column when LLM suggests invalid column."""
     # Make LLM suggest a non-existent column
@@ -89,3 +57,15 @@ def test_target_column_fallback(mock_provider, sample_df):
     # Should fall back to last column (target)
     assert "target" in output_schema
     assert len(output_schema) == 1
+
+
+def test_schema_in_describe():
+    """Test that describe() correctly includes schemas."""
+    model = Model(intent="predict target", input_schema={"age": int, "height": float}, output_schema={"result": bool})
+
+    description = model.describe()
+
+    assert "input_schema" in description
+    assert description["input_schema"] == {"age": int, "height": float}
+    assert "output_schema" in description
+    assert description["output_schema"] == {"result": bool}

@@ -1,6 +1,6 @@
 # internal/data_generation/generator.py
 from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, Optional
 import pandas as pd
 
 from smolmodels.internal.common.providers.provider import Provider
@@ -11,12 +11,12 @@ class DataGenerationRequest:
     """Data needed for generation"""
 
     intent: str
-    input_schema: dict
-    output_schema: dict
     n_samples: int
     augment_existing: bool = False
     quality_threshold: float = 0.8
     existing_data: Optional[pd.DataFrame] = None
+    input_schema: Optional[Dict[str, str]] = None
+    output_schema: Optional[Dict[str, str]] = None
 
 
 def generate_data(provider: Provider, request: DataGenerationRequest) -> pd.DataFrame:

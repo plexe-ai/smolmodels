@@ -3,7 +3,7 @@ Module for schema generation and handling.
 """
 
 import logging
-from typing import Dict, Optional, Tuple
+from typing import Dict, Tuple
 import pandas as pd
 
 from smolmodels.config import config
@@ -15,12 +15,10 @@ logger = logging.getLogger(__name__)
 def generate_schema(
     provider: Provider,
     intent: str,
-    dataset: pd.DataFrame,  # No longer optional since we always have data
-    input_schema: Optional[Dict[str, str]] = None,
-    output_schema: Optional[Dict[str, str]] = None,
+    dataset: pd.DataFrame,
 ) -> Tuple[Dict[str, str], Dict[str, str]]:
     """
-    Generate input and output schemas using dataset and intent.
+    Generate input and output schemas from dataset and intent.
     Uses dataset column names and types, with LLM only identifying the target column.
     """
     try:
@@ -52,41 +50,11 @@ def generate_schema(
                 types[column] = "str"
 
         # Split into input and output schemas
-        input_schema_inferred = {col: types[col] for col in dataset.columns if col != output_col}
-        output_schema_inferred = {output_col: types[output_col]}
+        input_schema = {col: types[col] for col in dataset.columns if col != output_col}
+        output_schema = {output_col: types[output_col]}
 
-        # Use provided schemas if available, otherwise use inferred
-        final_input = input_schema or input_schema_inferred
-        final_output = output_schema or output_schema_inferred
-
-        return _validate_schemas(final_input, final_output)
+        return input_schema, output_schema
 
     except Exception as e:
         logger.error(f"Error inferring schema from data: {e}")
         raise
-
-
-def _validate_schemas(
-    input_schema: Dict[str, str], output_schema: Dict[str, str]
-) -> Tuple[Dict[str, str], Dict[str, str]]:
-    """Validate input and output schemas."""
-    # Validate types
-    valid_types = {"int", "float", "str", "bool"}
-    for schema in [input_schema, output_schema]:
-        for name, type_str in schema.items():
-            if type_str not in valid_types:
-                raise ValueError(f"Invalid type {type_str} for {name}. Must be one of {valid_types}")
-
-    # Check for overlaps
-    input_fields = set(input_schema.keys())
-    output_fields = set(output_schema.keys())
-    if overlap := (input_fields & output_fields):
-        raise ValueError(f"Fields cannot be both input and output: {overlap}")
-
-    # Ensure we have at least one field in each
-    if not input_fields:
-        raise ValueError("Must have at least one input field")
-    if not output_fields:
-        raise ValueError("Must have at least one output field")
-
-    return input_schema, output_schema

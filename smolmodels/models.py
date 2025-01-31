@@ -32,7 +32,6 @@ Example:
 """
 
 import io
-import json
 import logging
 import pickle
 import shutil
@@ -52,7 +51,6 @@ from smolmodels.callbacks import Callback
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
-from smolmodels.internal.common.providers.provider import Provider
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.providers.provider_factory import ProviderFactory
 from smolmodels.internal.data_generation.generator import generate_data, DataGenerationRequest
@@ -189,58 +187,49 @@ class Model:
         :return:
         """
         try:
-            # Attempt to select an LLM provider based on input
-            provider: Provider = ProviderFactory.create(provider)
+            provider = ProviderFactory.create(provider)
             self.state = ModelState.BUILDING
 
-            # Convert dataset to internal format
-            self.training_data = DatasetAdapter.convert(dataset) if dataset is not None else None
+            # Step 1: Get Data (either provided or generated)
+            if dataset is not None:
+                self.training_data = DatasetAdapter.convert(dataset)
 
-            # Step 1: Handle data generation
-            if generate_samples is not None:
+                # Handle optional data augmentation
+                if generate_samples is not None:
+                    datagen_config = GenerationConfig.from_input(generate_samples)
+                    if datagen_config.augment_existing:
+                        request = DataGenerationRequest(
+                            intent=self.intent,
+                            n_samples=datagen_config.n_samples,
+                            augment_existing=True,
+                            quality_threshold=datagen_config.quality_threshold,
+                            existing_data=self.training_data,
+                        )
+                        synthetic_data = generate_data(provider, request)
+                        self.training_data = pd.concat([self.training_data, synthetic_data], ignore_index=True)
+
+            elif generate_samples is not None:
+                # Generate synthetic data
                 datagen_config = GenerationConfig.from_input(generate_samples)
-
-                # If we have no data but need to generate, generate with empty schemas first
-                if self.training_data is None:
-                    request = DataGenerationRequest(
-                        intent=self.intent,
-                        input_schema=None,
-                        output_schema=None,
-                        n_samples=datagen_config.n_samples,
-                        augment_existing=False,
-                        quality_threshold=datagen_config.quality_threshold,
-                        existing_data=None,
-                    )
-                    self.synthetic_data = generate_data(provider, request)
-                    self.training_data = self.synthetic_data
-
-                # If we have existing data and want to augment
-                elif datagen_config.augment_existing:
-                    request = DataGenerationRequest(
-                        intent=self.intent,
-                        input_schema=self.input_schema,
-                        output_schema=self.output_schema,
-                        n_samples=datagen_config.n_samples,
-                        augment_existing=True,
-                        quality_threshold=datagen_config.quality_threshold,
-                        existing_data=self.training_data,
-                    )
-                    self.synthetic_data = generate_data(provider, request)
-                    self.training_data = pd.concat([self.training_data, self.synthetic_data], ignore_index=True)
-
-            # Step 2: Now we should have data one way or another - infer schemas
-            if self.training_data is not None:
-                self.input_schema, self.output_schema = generate_schema(
-                    provider=provider,
+                request = DataGenerationRequest(
                     intent=self.intent,
-                    dataset=self.training_data,
-                    input_schema=self.input_schema,
-                    output_schema=self.output_schema,
+                    n_samples=datagen_config.n_samples,
+                    augment_existing=False,
+                    quality_threshold=datagen_config.quality_threshold,
+                    existing_data=None,
                 )
-            else:
-                raise ValueError("No training data available. Provide dataset or generate_samples.")
+                self.training_data = generate_data(provider, request)
 
-            # Generate the model
+            else:
+                raise ValueError("No data available. Provide dataset or generate_samples.")
+
+            # Step 2: Get Schema (provided or inferred)
+            if self.input_schema is None or self.output_schema is None:
+                self.input_schema, self.output_schema = generate_schema(
+                    provider=provider, intent=self.intent, dataset=self.training_data
+                )
+
+            # Step 3: Generate the model
             generated = generate(
                 intent=self.intent,
                 input_schema=self.input_schema,
@@ -294,52 +283,6 @@ class Model:
         :return: metrics about the model
         """
         return self.metrics
-
-    def get_schema_info(self, format: Literal["text", "dict", "json"] = "text") -> Union[str, Dict, str]:
-        """
-        Get the model's schema information in the requested format.
-
-        Args:
-            format: Output format
-                - "text": Human-readable text format
-                - "dict": Python dictionary
-                - "json": JSON string
-
-        Returns:
-            Schema information in requested format
-
-        Example:
-            >>> model.get_schema_info(format="dict")
-            {
-                "input_schema": {"age": "int", "gender": "str", ...},
-                "output_schema": {"heart_attack": "bool"}
-            }
-        """
-        if self.state == ModelState.DRAFT:
-            raise ValueError("Model not built yet. Call build() first.")
-        elif self.state == ModelState.ERROR:
-            raise ValueError("Model in error state. Check logs for details.")
-
-        try:
-            if format == "dict":
-                return {"input_schema": self.input_schema, "output_schema": self.output_schema}
-
-            elif format == "json":
-                return json.dumps({"input_schema": self.input_schema, "output_schema": self.output_schema}, indent=2)
-
-            else:  # text format
-                schema_lines = ["Input features:"]
-                for name, type_ in sorted(self.input_schema.items()):
-                    schema_lines.append(f"- {name}: {type_}")
-
-                schema_lines.extend(["", "Output features:"])
-                for name, type_ in sorted(self.output_schema.items()):
-                    schema_lines.append(f"- {name}: {type_}")
-
-                return "\n".join(schema_lines)
-
-        except Exception as e:
-            raise ValueError(f"Error retrieving schema info: {str(e)}")
 
     def describe(self) -> dict:
         """

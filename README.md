@@ -39,9 +39,6 @@ model.build(
    provider="openai:gpt-4o-mini"
 )
 
-# Get the inferred schemas - when no input/output schema were provided
-print(model.get_schema_info())
-
 # Make predictions
 price = model.predict({
     "square_feet": 2500,
