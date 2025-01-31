@@ -13,7 +13,10 @@ from smolmodels.internal.data_generation.generator import DataGenerationRequest
 @pytest.fixture
 def sample_schema():
     """Test schema for house price prediction"""
-    return {"input_schema": {"square_feet": float, "bedrooms": int, "location": str}, "output_schema": {"price": float}}
+    return {
+        "input_schema": {"square_feet": "float", "bedrooms": "int", "location": "str"},
+        "output_schema": {"price": "float"},
+    }
 
 
 @pytest.fixture

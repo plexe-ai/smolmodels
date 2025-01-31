@@ -41,13 +41,13 @@ def generate_schema(
         # Determine types for all columns
         types = {}
         for column in dataset.columns:
-            if pd.api.types.is_numeric_dtype(dataset[column]):
+            if pd.api.types.is_bool_dtype(dataset[column]):
+                types[column] = "bool"
+            elif pd.api.types.is_numeric_dtype(dataset[column]):
                 if pd.api.types.is_integer_dtype(dataset[column]):
                     types[column] = "int"
                 else:
                     types[column] = "float"
-            elif pd.api.types.is_bool_dtype(dataset[column]):
-                types[column] = "bool"
             else:
                 types[column] = "str"
 
