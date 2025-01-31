@@ -4,7 +4,7 @@ import pytest
 import pandas as pd
 from unittest.mock import Mock
 
-from smolmodels.internal.models.generation.schema import generate_schema
+from smolmodels.internal.models.generation.schema import generate_schema_from_dataset
 from smolmodels.models import Model
 
 
@@ -32,7 +32,9 @@ def sample_df():
 
 def test_basic_schema_generation(mock_provider, sample_df):
     """Test basic schema generation from DataFrame."""
-    input_schema, output_schema = generate_schema(provider=mock_provider, intent="predict target", dataset=sample_df)
+    input_schema, output_schema = generate_schema_from_dataset(
+        provider=mock_provider, intent="predict target", dataset=sample_df
+    )
 
     # Check input schema types are correctly inferred
     assert input_schema["feature1"] == "int"
@@ -52,7 +54,9 @@ def test_target_column_fallback(mock_provider, sample_df):
     # Make LLM suggest a non-existent column
     mock_provider.query.return_value = "non_existent_column"
 
-    input_schema, output_schema = generate_schema(provider=mock_provider, intent="predict target", dataset=sample_df)
+    input_schema, output_schema = generate_schema_from_dataset(
+        provider=mock_provider, intent="predict target", dataset=sample_df
+    )
 
     # Should fall back to last column (target)
     assert "target" in output_schema

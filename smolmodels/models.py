@@ -54,7 +54,7 @@ from smolmodels.directives import Directive
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.providers.provider_factory import ProviderFactory
 from smolmodels.internal.data_generation.generator import generate_data, DataGenerationRequest
-from smolmodels.internal.models.generation.schema import generate_schema
+from smolmodels.internal.models.generation.schema import generate_schema_from_dataset, generate_schema_from_intent
 from smolmodels.internal.models.generators import generate
 
 
@@ -190,29 +190,46 @@ class Model:
             provider = ProviderFactory.create(provider)
             self.state = ModelState.BUILDING
 
-            # Step 1: Get Data (either provided or generated)
-            if dataset is not None:
-                self.training_data = DatasetAdapter.convert(dataset)
+            # Step 1: Resolve Schema
+            if self.input_schema is None or self.output_schema is None:
+                if dataset is not None:
+                    self.training_data = DatasetAdapter.convert(dataset)
+                    self.input_schema, self.output_schema = generate_schema_from_dataset(
+                        provider=provider, intent=self.intent, dataset=self.training_data
+                    )
+                else:
+                    self.input_schema, self.output_schema = generate_schema_from_intent(
+                        provider=provider, intent=self.intent
+                    )
 
-                # Handle optional data augmentation
+            # Step 2: Handle Data (now we have schemas)
+            if dataset is not None:
+                # Ensure training data is loaded
+                if self.training_data is None:
+                    self.training_data = DatasetAdapter.convert(dataset)
+
+                # Handle optional augmentation
                 if generate_samples is not None:
                     datagen_config = GenerationConfig.from_input(generate_samples)
-                    if datagen_config.augment_existing:
-                        request = DataGenerationRequest(
-                            intent=self.intent,
-                            n_samples=datagen_config.n_samples,
-                            augment_existing=True,
-                            quality_threshold=datagen_config.quality_threshold,
-                            existing_data=self.training_data,
-                        )
-                        synthetic_data = generate_data(provider, request)
-                        self.training_data = pd.concat([self.training_data, synthetic_data], ignore_index=True)
+                    request = DataGenerationRequest(
+                        intent=self.intent,
+                        input_schema=self.input_schema,
+                        output_schema=self.output_schema,
+                        n_samples=datagen_config.n_samples,
+                        augment_existing=True,
+                        quality_threshold=datagen_config.quality_threshold,
+                        existing_data=self.training_data,
+                    )
+                    synthetic_data = generate_data(provider, request)
+                    self.training_data = pd.concat([self.training_data, synthetic_data], ignore_index=True)
 
             elif generate_samples is not None:
-                # Generate synthetic data
+                # Generate new data
                 datagen_config = GenerationConfig.from_input(generate_samples)
                 request = DataGenerationRequest(
                     intent=self.intent,
+                    input_schema=self.input_schema,
+                    output_schema=self.output_schema,
                     n_samples=datagen_config.n_samples,
                     augment_existing=False,
                     quality_threshold=datagen_config.quality_threshold,
@@ -223,13 +240,7 @@ class Model:
             else:
                 raise ValueError("No data available. Provide dataset or generate_samples.")
 
-            # Step 2: Get Schema (provided or inferred)
-            if self.input_schema is None or self.output_schema is None:
-                self.input_schema, self.output_schema = generate_schema(
-                    provider=provider, intent=self.intent, dataset=self.training_data
-                )
-
-            # Step 3: Generate the model
+            # Step 3: Generate Model
             generated = generate(
                 intent=self.intent,
                 input_schema=self.input_schema,
