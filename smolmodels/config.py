@@ -73,6 +73,18 @@ class _Config:
                 "The solution should be feasible using only ${allowed_packages}, and no other non-standard libraries. "
             )
         )
+        prompt_schema_base: Template = field(
+            default=Template("You are an expert ML engineer identifying target variables.")
+        )
+
+        prompt_schema_identify_target: Template = field(
+            default=Template(
+                "Given these columns from a dataset:\n"
+                "${columns}\n\n"
+                "For this ML task: ${intent}\n\n"
+                "Which column is the target/output variable? Return ONLY the exact column name, nothing else."
+            )
+        )
         # prompts used in generating, fixing or reviewing training code
         prompt_training_base: Template = field(
             default=Template(

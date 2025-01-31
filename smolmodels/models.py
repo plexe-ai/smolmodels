@@ -196,41 +196,48 @@ class Model:
             # Convert dataset to internal format
             self.training_data = DatasetAdapter.convert(dataset) if dataset is not None else None
 
-            # Handle data generation if requested
+            # Step 1: Handle data generation
             if generate_samples is not None:
                 datagen_config = GenerationConfig.from_input(generate_samples)
 
-                request = DataGenerationRequest(
-                    intent=self.intent,
-                    input_schema=self.input_schema,
-                    output_schema=self.output_schema,
-                    n_samples=datagen_config.n_samples,
-                    augment_existing=datagen_config.augment_existing,
-                    quality_threshold=datagen_config.quality_threshold,
-                    existing_data=self.training_data,
-                )
-
-                synthetic_data = generate_data(provider, request)
-
-                # Handle augmentation
-                if self.training_data is not None and datagen_config.augment_existing:
-                    self.training_data = pd.concat([self.training_data, synthetic_data], ignore_index=True)
-                else:
-                    self.training_data = synthetic_data
-
-            # Infer or validate schemas
-            if self.training_data is not None:
-                if self.input_schema is None or self.output_schema is None:
-                    self.input_schema, self.output_schema = generate_schema(
-                        provider=provider,
+                # If we have no data but need to generate, generate with empty schemas first
+                if self.training_data is None:
+                    request = DataGenerationRequest(
                         intent=self.intent,
-                        dataset=self.training_data,
+                        input_schema=None,
+                        output_schema=None,
+                        n_samples=datagen_config.n_samples,
+                        augment_existing=False,
+                        quality_threshold=datagen_config.quality_threshold,
+                        existing_data=None,
+                    )
+                    self.synthetic_data = generate_data(provider, request)
+                    self.training_data = self.synthetic_data
+
+                # If we have existing data and want to augment
+                elif datagen_config.augment_existing:
+                    request = DataGenerationRequest(
+                        intent=self.intent,
                         input_schema=self.input_schema,
                         output_schema=self.output_schema,
+                        n_samples=datagen_config.n_samples,
+                        augment_existing=True,
+                        quality_threshold=datagen_config.quality_threshold,
+                        existing_data=self.training_data,
                     )
+                    self.synthetic_data = generate_data(provider, request)
+                    self.training_data = pd.concat([self.training_data, self.synthetic_data], ignore_index=True)
 
-            # Validate we have training data from some source
-            if self.training_data is None:
+            # Step 2: Now we should have data one way or another - infer schemas
+            if self.training_data is not None:
+                self.input_schema, self.output_schema = generate_schema(
+                    provider=provider,
+                    intent=self.intent,
+                    dataset=self.training_data,
+                    input_schema=self.input_schema,
+                    output_schema=self.output_schema,
+                )
+            else:
                 raise ValueError("No training data available. Provide dataset or generate_samples.")
 
             # Generate the model

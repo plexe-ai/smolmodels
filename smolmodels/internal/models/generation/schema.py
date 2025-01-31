@@ -3,11 +3,10 @@ Module for schema generation and handling.
 """
 
 import logging
-import json
-from typing import Dict, Optional, Any, Tuple
+from typing import Dict, Optional, Tuple
 import pandas as pd
-import numpy as np
 
+from smolmodels.config import config
 from smolmodels.internal.common.providers.provider import Provider
 
 logger = logging.getLogger(__name__)
@@ -16,127 +15,55 @@ logger = logging.getLogger(__name__)
 def generate_schema(
     provider: Provider,
     intent: str,
-    dataset: Optional[Any] = None,
+    dataset: pd.DataFrame,  # No longer optional since we always have data
     input_schema: Optional[Dict[str, str]] = None,
     output_schema: Optional[Dict[str, str]] = None,
 ) -> Tuple[Dict[str, str], Dict[str, str]]:
     """
-    Generate input and output schemas using intent and available data.
-    When dataset is provided, use its column names instead of generating new ones.
+    Generate input and output schemas using dataset and intent.
+    Uses dataset column names and types, with LLM only identifying the target column.
     """
-    # If dataset is available, use its column names
-    if dataset is not None and isinstance(dataset, pd.DataFrame):
-        # Let LLM identify which column should be output
-        data_preview = "\n".join(f"- {col}" for col in dataset.columns)
-        prompt = f"""
-        Given these columns from the dataset:
-        {data_preview}
-        
-        For this ML task: {intent}
-        
-        Which column is the target/output variable? Return ONLY the exact column name, nothing else.
-        The column name must be exactly as shown above.
-        """
-
-        try:
-            output_col = provider.query(
-                system_message="You are an expert ML engineer identifying target variables.", user_message=prompt
-            ).strip()
-
-            # Verify output column exists
-            if output_col not in dataset.columns:
-                logger.warning(f"LLM suggested non-existent column {output_col}, defaulting to last column")
-                output_col = dataset.columns[-1]
-
-            # Determine types for all columns
-            types = {}
-            for column in dataset.columns:
-                if pd.api.types.is_numeric_dtype(dataset[column]):
-                    if pd.api.types.is_integer_dtype(dataset[column]):
-                        types[column] = "int"
-                    else:
-                        types[column] = "float"
-                elif pd.api.types.is_bool_dtype(dataset[column]):
-                    types[column] = "bool"
-                else:
-                    types[column] = "str"
-
-            # Split into input and output schemas
-            input_schema_inferred = {col: types[col] for col in dataset.columns if col != output_col}
-            output_schema_inferred = {output_col: types[output_col]}
-
-            # Use provided schemas if available, otherwise use inferred
-            final_input = input_schema or input_schema_inferred
-            final_output = output_schema or output_schema_inferred
-
-            return _validate_schemas(final_input, final_output)
-
-        except Exception as e:
-            logger.error(f"Error inferring schema from data: {e}")
-            raise
-
-    if dataset is not None:
-        try:
-            if isinstance(dataset, pd.DataFrame):
-                columns_str = "\n".join(f"- {col}: {dataset[col].dtype}" for col in dataset.columns)
-                data_context = f"\nAvailable columns in the dataset:\n{columns_str}"
-            elif isinstance(dataset, np.ndarray):
-                data_context = f"\nNumpy array with shape {dataset.shape} and dtype {dataset.dtype}"
-        except Exception as e:
-            logger.warning(f"Failed to generate data context: {e}")
-
-    # Generate schemas using LLM
-    system_message = """You are an expert ML engineer designing data schemas.
-You MUST return your response as a valid JSON object with exactly these fields:
-{
-    "input_schema": {"field_name": "type", ...},
-    "output_schema": {"field_name": "type", ...}
-}
-Types MUST be one of: "int", "float", "str", "bool"
-Do not include any explanation or additional text."""
-
-    prompt = f"""Based on this machine learning task, generate appropriate input and output schemas.
-The schemas should define the semantic meaning of each field.
-
-Task description: {intent}
-{data_context}
-
-Output schema should contain what needs to be predicted.
-Input schema should contain features used for prediction.
-
-Respond ONLY with a JSON object in this exact format:
-{{
-    "input_schema": {{"field_name": "type", ...}},
-    "output_schema": {{"field_name": "type", ...}}
-}}"""
-
     try:
-        response_text = provider.query(system_message=system_message, user_message=prompt).strip()
+        # Let LLM identify which column should be output
+        columns_str = "\n".join(f"- {col}" for col in dataset.columns)
+        output_col = provider.query(
+            system_message=config.code_generation.prompt_schema_base.safe_substitute(),
+            user_message=config.code_generation.prompt_schema_identify_target.safe_substitute(
+                columns=columns_str, intent=intent
+            ),
+        ).strip()
 
-        try:
-            response = json.loads(response_text)
-        except json.JSONDecodeError:
-            logger.error(f"Invalid JSON response from LLM: {response_text}")
-            raise ValueError("Failed to parse schema generation response")
+        # Verify output column exists
+        if output_col not in dataset.columns:
+            logger.warning(f"LLM suggested non-existent column {output_col}, defaulting to last column")
+            output_col = dataset.columns[-1]
 
-        if not isinstance(response, dict) or "input_schema" not in response or "output_schema" not in response:
-            raise ValueError("Schema generation response missing required fields")
+        # Determine types for all columns
+        types = {}
+        for column in dataset.columns:
+            if pd.api.types.is_numeric_dtype(dataset[column]):
+                if pd.api.types.is_integer_dtype(dataset[column]):
+                    types[column] = "int"
+                else:
+                    types[column] = "float"
+            elif pd.api.types.is_bool_dtype(dataset[column]):
+                types[column] = "bool"
+            else:
+                types[column] = "str"
 
-        generated_input = response["input_schema"]
-        generated_output = response["output_schema"]
+        # Split into input and output schemas
+        input_schema_inferred = {col: types[col] for col in dataset.columns if col != output_col}
+        output_schema_inferred = {output_col: types[output_col]}
 
-        if not isinstance(generated_input, dict) or not isinstance(generated_output, dict):
-            raise ValueError("Generated schemas must be dictionaries")
-
-        # Use provided schemas if available, otherwise use generated
-        final_input = input_schema or generated_input
-        final_output = output_schema or generated_output
+        # Use provided schemas if available, otherwise use inferred
+        final_input = input_schema or input_schema_inferred
+        final_output = output_schema or output_schema_inferred
 
         return _validate_schemas(final_input, final_output)
 
     except Exception as e:
-        logger.error(f"Schema generation failed: {str(e)}")
-        raise ValueError(f"Failed to generate schema: {str(e)}")
+        logger.error(f"Error inferring schema from data: {e}")
+        raise
 
 
 def _validate_schemas(
