@@ -1,5 +1,12 @@
+# smolmodels/internal/models/generation/inference.py
+
+"""
+This module provides functionality for generating inference code for machine learning models.
+"""
+
 import json
 from typing import List, Dict
+
 from pydantic import BaseModel
 
 from smolmodels.config import config
