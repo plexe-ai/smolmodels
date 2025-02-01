@@ -191,13 +191,23 @@ class Model:
             self.state = ModelState.BUILDING
 
             # Step 1: Resolve Schema
-            if self.input_schema is None or self.output_schema is None:
-                if dataset is not None:
-                    self.training_data = DatasetAdapter.convert(dataset)
+            if dataset is not None:
+                self.training_data = DatasetAdapter.convert(dataset)
+
+                if self.input_schema is None and self.output_schema is None:
                     self.input_schema, self.output_schema = generate_schema_from_dataset(
                         provider=provider, intent=self.intent, dataset=self.training_data
                     )
-                else:
+                elif self.output_schema is None:
+                    _, self.output_schema = generate_schema_from_dataset(
+                        provider=provider, intent=self.intent, dataset=self.training_data
+                    )
+                elif self.input_schema is None:
+                    self.input_schema, _ = generate_schema_from_dataset(
+                        provider=provider, intent=self.intent, dataset=self.training_data
+                    )
+            else:
+                if self.input_schema is None or self.output_schema is None:
                     self.input_schema, self.output_schema = generate_schema_from_intent(
                         provider=provider, intent=self.intent
                     )
