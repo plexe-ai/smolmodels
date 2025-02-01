@@ -73,6 +73,28 @@ class _Config:
                 "The solution should be feasible using only ${allowed_packages}, and no other non-standard libraries. "
             )
         )
+        prompt_schema_base: Template = field(
+            default=Template("You are an expert ML engineer identifying target variables.")
+        )
+
+        prompt_schema_identify_target: Template = field(
+            default=Template(
+                "Given these columns from a dataset:\n"
+                "${columns}\n\n"
+                "For this ML task: ${intent}\n\n"
+                "Which column is the target/output variable? Return ONLY the exact column name, nothing else."
+            )
+        )
+        prompt_schema_generate_from_intent: Template = field(
+            default=Template(
+                "Generate appropriate input and output schemas for this machine learning task.\n\n"
+                "Task description: ${intent}\n\n"
+                "The ${input_schema} should contain features needed for prediction.\n"
+                "The ${output_schema} should contain what needs to be predicted.\n"
+                "Return your response as a valid JSON object.\n"
+                'Use only these types: "int", "float", "str", "bool".'
+            )
+        )
         # prompts used in generating, fixing or reviewing training code
         prompt_training_base: Template = field(
             default=Template(

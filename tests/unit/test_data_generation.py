@@ -13,7 +13,10 @@ from smolmodels.internal.data_generation.generator import DataGenerationRequest
 @pytest.fixture
 def sample_schema():
     """Test schema for house price prediction"""
-    return {"input_schema": {"square_feet": float, "bedrooms": int, "location": str}, "output_schema": {"price": float}}
+    return {
+        "input_schema": {"square_feet": "float", "bedrooms": "int", "location": "str"},
+        "output_schema": {"price": "float"},
+    }
 
 
 @pytest.fixture
@@ -52,7 +55,11 @@ class TestDataGeneration:
         """Test basic data generation"""
         self.mock_generate_data.return_value = mock_generated_data
 
-        model = Model(intent="Predict house prices based on features", **sample_schema)
+        model = Model(
+            intent="Predict house prices based on features",
+            input_schema={"square_feet": int, "bedrooms": int},
+            output_schema={"price": float},
+        )
         model.build(generate_samples=50)
 
         # Verify generate_data was called with correct parameters
@@ -102,7 +109,7 @@ class TestDataGeneration:
         """Test handling when no data is provided"""
         model = Model(intent="Predict house prices based on features", **sample_schema)
 
-        with pytest.raises(ValueError, match="No training data available"):
+        with pytest.raises(ValueError, match="No data available. Provide dataset or generate_samples."):
             model.build()  # No dataset or generate_samples provided
             assert model.state.value == "error"
 

@@ -51,10 +51,10 @@ from smolmodels.callbacks import Callback
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
-from smolmodels.internal.common.providers.provider import Provider
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.providers.provider_factory import ProviderFactory
 from smolmodels.internal.data_generation.generator import generate_data, DataGenerationRequest
+from smolmodels.internal.models.generation.schema import generate_schema_from_dataset, generate_schema_from_intent
 from smolmodels.internal.models.generators import generate
 
 
@@ -129,7 +129,9 @@ class Model:
         )
     """
 
-    def __init__(self, intent: str, output_schema: dict, input_schema: dict, constraints: List[Constraint] = None):
+    def __init__(
+        self, intent: str, output_schema: dict = None, input_schema: dict = None, constraints: List[Constraint] = None
+    ):
         """
         Initialise a model with a natural language description of its intent, as well as
         structured definitions of its input schema, output schema, and any constraints.
@@ -185,40 +187,70 @@ class Model:
         :return:
         """
         try:
-            # Attempt to select an LLM provider based on input
-            provider: Provider = ProviderFactory.create(provider)
+            provider = ProviderFactory.create(provider)
             self.state = ModelState.BUILDING
 
-            # Convert dataset to internal format
-            self.training_data = DatasetAdapter.convert(dataset) if dataset is not None else None
+            # Step 1: Resolve Schema
+            if dataset is not None:
+                self.training_data = DatasetAdapter.convert(dataset)
 
-            # Handle data generation if requested
-            if generate_samples is not None:
+                if self.input_schema is None and self.output_schema is None:
+                    self.input_schema, self.output_schema = generate_schema_from_dataset(
+                        provider=provider, intent=self.intent, dataset=self.training_data
+                    )
+                elif self.output_schema is None:
+                    _, self.output_schema = generate_schema_from_dataset(
+                        provider=provider, intent=self.intent, dataset=self.training_data
+                    )
+                elif self.input_schema is None:
+                    self.input_schema, _ = generate_schema_from_dataset(
+                        provider=provider, intent=self.intent, dataset=self.training_data
+                    )
+            else:
+                if self.input_schema is None or self.output_schema is None:
+                    self.input_schema, self.output_schema = generate_schema_from_intent(
+                        provider=provider, intent=self.intent
+                    )
+
+            # Step 2: Handle Data (now we have schemas)
+            if dataset is not None:
+                # Ensure training data is loaded
+                if self.training_data is None:
+                    self.training_data = DatasetAdapter.convert(dataset)
+
+                # Handle optional augmentation
+                if generate_samples is not None:
+                    datagen_config = GenerationConfig.from_input(generate_samples)
+                    request = DataGenerationRequest(
+                        intent=self.intent,
+                        input_schema=self.input_schema,
+                        output_schema=self.output_schema,
+                        n_samples=datagen_config.n_samples,
+                        augment_existing=True,
+                        quality_threshold=datagen_config.quality_threshold,
+                        existing_data=self.training_data,
+                    )
+                    synthetic_data = generate_data(provider, request)
+                    self.training_data = pd.concat([self.training_data, synthetic_data], ignore_index=True)
+
+            elif generate_samples is not None:
+                # Generate new data
                 datagen_config = GenerationConfig.from_input(generate_samples)
-
                 request = DataGenerationRequest(
                     intent=self.intent,
                     input_schema=self.input_schema,
                     output_schema=self.output_schema,
                     n_samples=datagen_config.n_samples,
-                    augment_existing=datagen_config.augment_existing,
+                    augment_existing=False,
                     quality_threshold=datagen_config.quality_threshold,
-                    existing_data=self.training_data,
+                    existing_data=None,
                 )
+                self.training_data = generate_data(provider, request)
 
-                synthetic_data = generate_data(provider, request)
+            else:
+                raise ValueError("No data available. Provide dataset or generate_samples.")
 
-                # Handle augmentation
-                if self.training_data is not None and datagen_config.augment_existing:
-                    self.training_data = pd.concat([self.training_data, synthetic_data], ignore_index=True)
-                else:
-                    self.training_data = synthetic_data
-
-            # Validate we have training data from some source
-            if self.training_data is None:
-                raise ValueError("No training data available. Provide dataset or generate_samples.")
-
-            # Generate the model
+            # Step 3: Generate Model
             generated = generate(
                 intent=self.intent,
                 input_schema=self.input_schema,
