@@ -118,7 +118,7 @@ def generate(
     # Create classes used in code generation and review
     validators: List[Validator] = [SyntaxValidator(), SecurityValidator()]
 
-    for _ in tqdm(range(config.model_search.initial_nodes), desc="🔨 Initialising solution graph", colour="red"):
+    for i in tqdm(range(config.model_search.initial_nodes), desc="🔨 Initialising solution graph", colour="red"):
         graph.add_node(
             Node(
                 solution_plan=plan_generator.generate_solution_plan(
@@ -234,16 +234,17 @@ def generate(
     #     problem_statement, best_node.solution_plan, best_node.training_code, best_node.training_code
     # )
 
+    # todo: this entire approach needs to be refactored; we should have a separate set of validators for inference
     # Review the generated inference code
-    for _ in tqdm(
-        range(config.model_search.max_fixing_attempts_train), desc="🔨 Reviewing and predicting", colour="red"
+    for i in tqdm(
+        range(config.model_search.max_fixing_attempts_predict), desc="🔨 Reviewing and predicting", colour="red"
     ):
         result: ValidationResult | None = None
 
         for validator in validators:
             result = validator.validate(best_node.inference_code)
             if not result.passed:
-                logger.warning(f"Attempt {_} | code failed validation: {result}")
+                logger.warning(f"Attempt {i} | code failed validation: {result}")
                 break
 
         if not result.passed:
