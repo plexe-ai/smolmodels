@@ -17,9 +17,10 @@ define your inputs and outputs, and let `smolmodels` handle the rest.
 import pandas as pd
 import smolmodels as sm
 
-# Define a house price predictor in terms of inputs, outputs, and expected behaviour
+# Define a house price predictor in terms of intent
 model = sm.Model(
     intent="Predict house prices based on property features",
+    # input_schema and output_schema are optional
     input_schema={
         "square_feet": float,
         "bedrooms": int,
