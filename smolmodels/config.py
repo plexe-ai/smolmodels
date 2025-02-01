@@ -35,7 +35,16 @@ class _Config:
     @dataclass(frozen=True)
     class _CodeGenerationConfig:
         allowed_packages: List[str] = field(
-            default_factory=lambda: ["pandas", "numpy", "scikit-learn", "joblib", "mlxtend", "xgboost", "pyarrow"]
+            default_factory=lambda: [
+                "pandas",
+                "numpy",
+                "scikit-learn",
+                "joblib",
+                "mlxtend",
+                "xgboost",
+                "pyarrow",
+                "torch",
+            ]
         )
         k_fold_validation: int = field(default=5)
         # prompts used in generating plans or making decisions
