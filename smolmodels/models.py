@@ -242,7 +242,7 @@ class Model:
             logger.error(f"Error during model building: {str(e)}")
             raise e
 
-    def predict(self, x: Any) -> Any:
+    def predict(self, x: dict) -> dict:
         """
         Call the model with input x and return the output.
         :param x: input to the model
@@ -250,7 +250,10 @@ class Model:
         """
         if self.state != ModelState.READY:
             raise RuntimeError("The model is not ready for predictions.")
-        return self.predictor.predict(x)
+        try:
+            return self.predictor.predict(x)
+        except Exception as e:
+            raise RuntimeError(f"Error during prediction: {str(e)}") from e
 
     def get_state(self) -> ModelState:
         """
