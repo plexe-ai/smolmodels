@@ -21,7 +21,7 @@ logger.setLevel(logging.DEBUG)  # Set the root logger's level
 
 # Configure handlers
 stream_handler = logging.StreamHandler()
-stream_handler.setLevel(logging.WARNING)
+stream_handler.setLevel(logging.INFO)
 stream_handler.stream.reconfigure(encoding="utf-8")  # Set UTF-8 encoding
 
 file_handler = logging.FileHandler("smolmodels.log", encoding="utf-8")
@@ -29,7 +29,6 @@ file_handler.setLevel(logging.DEBUG)
 
 # Define a common formatter
 formatter = logging.Formatter(config.FORMAT)
-stream_handler.setFormatter(formatter)
 file_handler.setFormatter(formatter)
 
 # Add handlers to the root logger
