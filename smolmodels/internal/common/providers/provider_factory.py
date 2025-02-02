@@ -38,7 +38,7 @@ class LiteLLMProvider(Provider):
         """
         messages = [{"role": "system", "content": system_message}, {"role": "user", "content": user_message}]
 
-        response = completion(model=self.model, messages=messages)
+        response = completion(model=self.model, messages=messages, response_format=response_format)
         return response.choices[0].message.content
 
 
