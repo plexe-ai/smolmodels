@@ -23,6 +23,7 @@ class LiteLLMProvider(Provider):
     """
     Provider implementation that uses LiteLLM to interact with various LLM providers.
     """
+
     def __init__(self, model: str = None):
         self.model = model or "openai/gpt-4o-mini"
 
@@ -35,15 +36,9 @@ class LiteLLMProvider(Provider):
         :param response_format: Optional response format (not used in LiteLLM)
         :return: The response from the LLM
         """
-        messages = [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": user_message}
-        ]
-        
-        response = completion(
-            model=self.model,
-            messages=messages
-        )
+        messages = [{"role": "system", "content": system_message}, {"role": "user", "content": user_message}]
+
+        response = completion(model=self.model, messages=messages)
         return response.choices[0].message.content
 
 
@@ -71,7 +66,7 @@ class ProviderFactory:
         # Handle None case
         if provider_name is None:
             return LiteLLMProvider()
-            
+
         # Type checking
         if not isinstance(provider_name, str):
             raise TypeError("Provider name must be a string or None")
@@ -79,11 +74,11 @@ class ProviderFactory:
         # Handle empty string
         if not provider_name.strip():
             return LiteLLMProvider()
-            
+
         # Check for whitespace
         if provider_name != provider_name.strip():
             raise ValueError(f"Provider name '{provider_name}' contains leading or trailing whitespace")
-            
+
         # Handle provider:model format
         if ":" in provider_name:
             parts = provider_name.split(":")
@@ -91,9 +86,9 @@ class ProviderFactory:
                 raise ValueError(f"Invalid format: '{provider_name}'. Use 'provider:model'")
             if not parts[0] or not parts[1]:
                 raise ValueError(f"Invalid format: '{provider_name}'. Provider and model cannot be empty")
-                
+
             provider, model = parts
             return LiteLLMProvider(model=f"{provider}/{model}")
-        
+
         # If only model is provided, assume it's a full model path
         return LiteLLMProvider(model=provider_name)

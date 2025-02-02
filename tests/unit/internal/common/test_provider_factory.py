@@ -6,8 +6,6 @@ LiteLLM providers. The tests cover various scenarios including valid and invalid
 and edge cases.
 """
 
-from unittest.mock import patch
-
 import pytest
 
 from smolmodels.internal.common.providers.provider_factory import ProviderFactory, LiteLLMProvider
