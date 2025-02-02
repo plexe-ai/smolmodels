@@ -116,15 +116,13 @@ model = Model(
 
 ### 🌐 Multi-Provider Support
 
-You can use multiple LLM providers as a backend for model generation. You can specify the provider and model in the
-format `provider:[model]` when calling `build()`:
+You can use multiple LLM providers through LiteLLM as a unified backend for model generation. Specify the provider and model in the format `provider:model` when calling `build()`:
 
 ```python
 model.build(pd.read_csv("house-prices.csv"), provider="openai:gpt-4o-mini")
 ```
 
-Currently supported providers are `openai`, `anthropic`, `google` and `deepseek`. You need to configure the
-appropriate API keys for each provider as environment variables (see installation instructions).
+LiteLLM supports various providers including OpenAI, Anthropic, Google, and many others.
 
 ## Installation & Setup
 
@@ -134,13 +132,16 @@ pip install smolmodels
 
 ## API Keys
 
-Set required API keys as environment variables. Which API keys are required depends on which provider you are using.
+Set your API key as an environment variable based on which provider you want to use. The API key will be automatically picked up by LiteLLM. For example:
 
 ```bash
+# For OpenAI
 export OPENAI_API_KEY=<your-API-key>
+
+# For Anthropic
 export ANTHROPIC_API_KEY=<your-API-key>
-export GOOGLE_API_KEY=<your-API-key>
-export DEEPSEEK_API_KEY=<your-API-key>
+
+# For other providers, check LiteLLM documentation
 ```
 
 ## Quick Start
