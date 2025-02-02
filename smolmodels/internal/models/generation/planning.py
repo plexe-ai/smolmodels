@@ -45,7 +45,7 @@ class SolutionPlanGenerator:
             ),
         )
 
-    def select_metric_to_optimise(self, problem_statement: str) -> Metric:
+    def select_target_metric(self, problem_statement: str) -> Metric:
         """
         Selects the metric to optimise for the given problem statement and dataset.
 
@@ -112,8 +112,8 @@ class SolutionPlanGenerator:
 
         try:
             return StoppingCondition(
-                max_generations=min(response.max_generations, max_iterations),
-                max_time=min(response.max_time, max_time),
+                max_generations=min(response.max_generations, max_iterations if max_iterations else float("inf")),
+                max_time=min(response.max_time, max_time if max_time else float("inf")),
                 metric=Metric(metric.name, response.metric_threshold, metric.comparator),
             )
         except Exception as e:
