@@ -156,7 +156,7 @@ class Model:
         self.predictor: types.ModuleType | None = None
         self.trainer_source: str | None = None
         self.predictor_source: str | None = None
-        self.artifacts: List[Path | str] = []
+        self.artifacts: List[Path] = []
         self.metrics: Dict[str, str] = dict()
         self.metadata: Dict[str, str] = dict()  # todo: initialise metadata, etc
 
