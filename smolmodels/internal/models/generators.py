@@ -28,7 +28,7 @@ from smolmodels.callbacks import Callback
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
-from smolmodels.internal.common.providers.provider import Provider
+from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.entities.graph import Graph
 from smolmodels.internal.models.entities.metric import Metric
 from smolmodels.internal.models.entities.node import Node

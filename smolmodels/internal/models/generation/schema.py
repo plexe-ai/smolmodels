@@ -8,7 +8,7 @@ from pydantic import BaseModel
 import pandas as pd
 
 from smolmodels.config import config
-from smolmodels.internal.common.providers.provider import Provider
+from smolmodels.internal.common.provider import Provider
 
 logger = logging.getLogger(__name__)
 

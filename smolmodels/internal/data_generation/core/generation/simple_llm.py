@@ -5,7 +5,7 @@ import math
 import pandas as pd
 
 from .base import BaseDataGenerator
-from smolmodels.internal.common.providers.provider import Provider
+from smolmodels.internal.common.provider import Provider
 
 
 class SimpleLLMDataGenerator(BaseDataGenerator):
