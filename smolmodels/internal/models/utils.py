@@ -9,7 +9,7 @@ from smolmodels.internal.models.execution.executor import Executor
 logger = logging.getLogger(__name__)
 
 
-def join_problem_statement(intent: str, input_schema: dict, output_schema: dict, constraints, directives) -> str:
+def join_task_statement(intent: str, input_schema: dict, output_schema: dict, constraints, directives) -> str:
     """Join the problem statement into a single string."""
     problem_statement: str = (
         "# Problem Statement"

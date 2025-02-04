@@ -25,7 +25,7 @@ Example:
 >>>        }
 >>>    )
 >>>
->>>    model.build(dataset=pd.read_csv("houses.csv"), provider="openai:gpt-4o-mini")
+>>>    model.build(dataset=pd.read_csv("houses.csv"), provider="openai:gpt-4o-mini", max_iterations=10)
 >>>
 >>>    prediction = model.predict({"bedrooms": 3, "bathrooms": 2, "square_footage": 1500.0})
 >>>    print(prediction)
@@ -55,7 +55,7 @@ from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.data_generation.generator import generate_data, DataGenerationRequest
 from smolmodels.internal.models.generation.schema import generate_schema_from_dataset, generate_schema_from_intent
-from smolmodels.internal.models.generators import generate
+from smolmodels.internal.models.generators import ModelGenerator
 
 
 class ModelState(Enum):
@@ -153,11 +153,10 @@ class Model:
 
         # The model's mutable state is defined by these fields
         self.state = ModelState.DRAFT
-        self.trainer: types.ModuleType | None = None
         self.predictor: types.ModuleType | None = None
         self.trainer_source: str | None = None
         self.predictor_source: str | None = None
-        self.artifacts: List[Path | str] = []
+        self.artifacts: List[Path] = []
         self.metrics: Dict[str, str] = dict()
         self.metadata: Dict[str, str] = dict()  # todo: initialise metadata, etc
 
@@ -174,6 +173,8 @@ class Model:
         callbacks: List[Callback] = None,
         isolation: Literal["local", "subprocess", "docker"] = "local",
         provider: str = "openai/gpt-4o-mini",
+        timeout: int = None,
+        max_iterations: int = None,
     ) -> None:
         """
         Build the model using the provided dataset, directives, and optional data generation configuration.
@@ -184,6 +185,8 @@ class Model:
         :param callbacks: functions that are called during the model building process
         :param isolation: level of isolation under which model build should be executed
         :param provider: the provider to use for model building
+        :param timeout: maximum time in seconds to spend building the model
+        :param max_iterations: maximum number of iterations to spend building the model
         :return:
         """
         try:
@@ -251,21 +254,16 @@ class Model:
                 raise ValueError("No data available. Provide dataset or generate_samples.")
 
             # Step 3: Generate Model
-            generated = generate(
-                intent=self.intent,
-                input_schema=self.input_schema,
-                output_schema=self.output_schema,
-                dataset=self.training_data,
-                provider=provider,
-                filedir=self.files_path,
-                constraints=self.constraints,
-                directives=directives,
-                callbacks=callbacks,
-                isolation=isolation,
+            model_generator = ModelGenerator(
+                self.intent, self.input_schema, self.output_schema, provider, self.files_path, self.constraints
             )
-            self.trainer, self.trainer_source, self.predictor, self.predictor_source, self.artifacts, self.metrics = (
-                generated
-            )
+            generated = model_generator.generate(self.training_data, timeout, max_iterations, directives, callbacks)
+
+            self.trainer_source = generated.training_source_code
+            self.predictor_source = generated.inference_source_code
+            self.predictor = generated.inference_module
+            self.artifacts = generated.model_artifacts
+            self.metrics = generated.performance
 
             self.state = ModelState.READY
             print("✅ Model built successfully.")
@@ -344,14 +342,14 @@ def save_model(model: Model, path: str) -> None:
     try:
         with tarfile.open(path, "w:gz") as tar:
             # Save the trainer source code
-            if model.trainer:
+            if model.trainer_source:
                 trainer_info = io.BytesIO(model.trainer_source.encode("utf-8"))
                 trainer_tarinfo = tarfile.TarInfo(name="trainer.py")
                 trainer_tarinfo.size = len(model.trainer_source)
                 tar.addfile(trainer_tarinfo, trainer_info)
 
             # Save the predictor source code
-            if model.predictor:
+            if model.predictor_source:
                 predictor_info = io.BytesIO(model.predictor_source.encode("utf-8"))
                 predictor_tarinfo = tarfile.TarInfo(name="predictor.py")
                 predictor_tarinfo.size = len(model.predictor_source)

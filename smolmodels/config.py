@@ -27,7 +27,7 @@ class _Config:
     @dataclass(frozen=True)
     class _ModelSearchConfig:
         initial_nodes: int = field(default=3)
-        max_nodes: int = field(default=10)
+        max_nodes: int = field(default=15)
         max_fixing_attempts_train: int = field(default=3)
         max_fixing_attempts_predict: int = field(default=10)
         max_time_elapsed: int = field(default=600)
@@ -50,6 +50,7 @@ class _Config:
                 "xgboost",
                 "pyarrow",
                 "torch",
+                "statsmodels",
             ]
         )
         k_fold_validation: int = field(default=5)

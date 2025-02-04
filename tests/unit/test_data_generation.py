@@ -8,6 +8,7 @@ from smolmodels import Model
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.data_generation.core.generation.utils.oversampling import oversample_with_smote
 from smolmodels.internal.data_generation.generator import DataGenerationRequest
+from smolmodels.internal.models.generators import GenerationResult
 
 
 @pytest.fixture
@@ -43,7 +44,7 @@ class TestDataGeneration:
 
         # Mock the model generation function
         self.mock_generate = patch(
-            "smolmodels.models.generate", return_value=(MagicMock(), "", MagicMock(), "", [], {})
+            "smolmodels.models.ModelGenerator.generate", return_value=(GenerationResult("", "", MagicMock(), [], None))
         ).start()
 
         yield
