@@ -1,6 +1,7 @@
 # tests/utils.py
 import numpy as np
 import pandas as pd
+import os
 
 
 def generate_heart_data(n_samples=200, random_seed=42):
@@ -59,3 +60,44 @@ def generate_heart_data(n_samples=200, random_seed=42):
     data["output"] = (risk_factors > 8).astype(int)
 
     return pd.DataFrame(data)
+
+
+def verify_prediction(prediction, expected_schema=None):
+    """Verify that a prediction matches expected format"""
+    assert isinstance(prediction, dict), "Prediction should be a dictionary"
+    assert len(prediction) > 0, "Prediction should not be empty"
+
+    if expected_schema:
+        assert set(prediction.keys()) == set(
+            expected_schema.keys()
+        ), f"Prediction keys {prediction.keys()} don't match schema keys {expected_schema.keys()}"
+
+    output_value = list(prediction.values())[0]
+    assert isinstance(output_value, (int, float)), f"Prediction value should be numeric, got {type(output_value)}"
+    assert 0 <= float(output_value) <= 1 or output_value in [
+        0,
+        1,
+    ], f"Prediction value should be between 0 and 1 or binary, got {output_value}"
+
+
+def cleanup_files(model_dir=None):
+    """Clean up any files created during tests"""
+    files_to_clean = [
+        "smolmodels.log",
+        "heart_attack_model.pmb",
+    ]
+    # Clean up files in current directory
+    for file in files_to_clean:
+        try:
+            if os.path.exists(file):
+                os.remove(file)
+        except Exception as e:
+            print(f"Failed to clean up {file}: {e}")
+
+    # Clean up files in model directory
+    if model_dir is not None and model_dir.exists():
+        for file in model_dir.glob("*"):
+            try:
+                file.unlink()
+            except Exception as e:
+                print(f"Failed to clean up {file}: {e}")

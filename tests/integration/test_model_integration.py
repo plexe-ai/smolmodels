@@ -1,13 +1,11 @@
+# tests/test_model_integration.py
+
 import os
-import logging
 import tempfile
 import pytest
 from pathlib import Path
-from tests.utils.utils import generate_heart_data
-
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+from tests.utils.utils import generate_heart_data, verify_prediction, cleanup_files
+import smolmodels as sm
 
 
 @pytest.fixture(scope="session")
@@ -77,29 +75,6 @@ def model_dir(tmpdir):
     return model_path
 
 
-def cleanup_files(model_dir=None):
-    """Clean up any files created during tests"""
-    files_to_clean = [
-        "smolmodels.log",
-        "heart_attack_model.pmb",
-    ]
-    # Clean up files in current directory
-    for file in files_to_clean:
-        try:
-            if os.path.exists(file):
-                os.remove(file)
-        except Exception as e:
-            logger.warning(f"Failed to clean up {file}: {e}")
-
-    # Clean up files in model directory
-    if model_dir is not None and model_dir.exists():
-        for file in model_dir.glob("*"):
-            try:
-                file.unlink()
-            except Exception as e:
-                logger.warning(f"Failed to clean up {file}: {e}")
-
-
 @pytest.fixture(autouse=True)
 def run_around_tests(model_dir):
     cleanup_files(model_dir)
@@ -110,33 +85,8 @@ def run_around_tests(model_dir):
     cleanup_files(model_dir)
 
 
-def verify_prediction(prediction, expected_schema=None):
-    """Verify that a prediction matches expected format"""
-    assert isinstance(prediction, dict), "Prediction should be a dictionary"
-    assert len(prediction) > 0, "Prediction should not be empty"
-
-    if expected_schema:
-        assert set(prediction.keys()) == set(
-            expected_schema.keys()
-        ), f"Prediction keys {prediction.keys()} don't match schema keys {expected_schema.keys()}"
-
-    output_value = list(prediction.values())[0]
-    assert isinstance(output_value, (int, float)), f"Prediction value should be numeric, got {type(output_value)}"
-    assert 0 <= float(output_value) <= 1 or output_value in [
-        0,
-        1,
-    ], f"Prediction value should be between 0 and 1 or binary, got {output_value}"
-
-
 def test_model_with_data_and_schema(sample_data, input_schema, output_schema, test_input):
     """Test case where user provides data, input and output schema"""
-    import smolmodels as sm
-
-    logger.info("Starting test_model_with_data_and_schema")
-    logger.debug(f"Sample data shape: {sample_data.shape}")
-    logger.debug(f"Input schema keys: {list(input_schema.keys())}")
-    logger.debug(f"Output schema keys: {list(output_schema.keys())}")
-
     model = sm.Model(
         intent="predict the probability of heart attack based on patient features",
         input_schema=input_schema,
@@ -150,10 +100,6 @@ def test_model_with_data_and_schema(sample_data, input_schema, output_schema, te
 
 def test_model_with_data_and_generate(sample_data, input_schema, output_schema, test_input):
     """Test case where user provides data and generate_samples"""
-    import smolmodels as sm
-
-    logger.info("Starting test_model_with_data_and_generate")
-
     model = sm.Model(
         intent="predict the probability of heart attack based on patient features",
         input_schema=input_schema,
