@@ -34,7 +34,7 @@ class Provider:
         backoff: bool = True,
     ) -> str:
         """
-        Method to query the provider using litellm.completion, now directly implemented in this concrete class.
+        Method to query the provider using litellm.completion.
 
         :param [str] system_message: The system message to send to the provider.
         :param [str] user_message: The user message to send to the provider.
