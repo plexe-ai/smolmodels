@@ -50,6 +50,7 @@ class _Config:
                 "xgboost",
                 "pyarrow",
                 "torch",
+                "statsmodels",
             ]
         )
         k_fold_validation: int = field(default=5)
