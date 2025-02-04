@@ -152,7 +152,7 @@ class ModelGenerator:
 
         # Select the metric to optimise and the stopping condition for the search
         target_metric = self.plan_generator.select_target_metric(task)
-        stop_condition = self.plan_generator.select_stopping_condition(task, target_metric, max_iterations, timeout)
+        stop_condition = StoppingCondition(max_iterations, timeout, None)
         logger.info(f"🔨 Optimising {target_metric.name}, {str(stop_condition)}")
 
         # Initialise the solution graph with initial nodes

@@ -25,7 +25,7 @@ Example:
 >>>        }
 >>>    )
 >>>
->>>    model.build(dataset=pd.read_csv("houses.csv"), provider="openai:gpt-4o-mini")
+>>>    model.build(dataset=pd.read_csv("houses.csv"), provider="openai:gpt-4o-mini", max_iterations=10)
 >>>
 >>>    prediction = model.predict({"bedrooms": 3, "bathrooms": 2, "square_footage": 1500.0})
 >>>    print(prediction)

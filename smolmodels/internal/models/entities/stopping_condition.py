@@ -8,7 +8,7 @@ class StoppingCondition:
     A class to represent a stopping condition for an optimization process.
     """
 
-    def __init__(self, max_generations: int, max_time: int, metric: Metric):
+    def __init__(self, max_generations: int = None, max_time: int = None, metric: Metric = None):
         """
         Initialize the StoppingCondition with the given parameters.
 
@@ -16,12 +16,22 @@ class StoppingCondition:
         :param max_time: max time to spend on optimization, in seconds
         :param metric: threshold for the optimization metric, stop once this is reached
         """
+        if not any([max_generations, max_time, metric]):
+            raise ValueError("At least one stopping condition must be provided")
+
         self.max_generations = max_generations
         self.max_time = max_time
         self.metric = metric
 
     def is_met(self, generations: int, start_time: float, metric: Metric) -> bool:
-        return generations >= self.max_generations or time.time() - start_time >= self.max_time or metric >= self.metric
+        return (
+            self.max_generations
+            and generations >= self.max_generations
+            or self.max_time
+            and time.time() - start_time >= self.max_time
+            or self.metric
+            and metric >= self.metric
+        )
 
     def __repr__(self) -> str:
         """
@@ -39,8 +49,12 @@ class StoppingCondition:
 
         :return: A string describing the Metric.
         """
-        return (
-            f"stop after trying {self.max_generations} solutions, "
-            f"expending {self.max_time} seconds, or "
-            f"reaching performance of at least {self.metric}"
-        )
+        msg = "stop after at least one condition is met: "
+        if self.max_generations:
+            msg += f"attempted {self.max_generations} solutions | "
+        if self.max_time:
+            msg += f"elapsed {self.max_time} seconds | "
+        if self.metric:
+            msg += f"reached performance of at least '{self.metric}'"
+
+        return msg
