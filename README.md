@@ -4,6 +4,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/smolmodels.svg)](https://pypi.org/project/smolmodels/)
 [![Discord](https://img.shields.io/discord/1300920499886358529?logo=discord&logoColor=white)](https://discord.gg/3czW7BMj)
+[![PyPI Downloads](https://static.pepy.tech/badge/smolmodels)](https://pepy.tech/projects/smolmodels)
 
 Build specialized ML models using natural language.
 
