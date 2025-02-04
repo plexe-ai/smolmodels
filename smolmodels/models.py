@@ -52,7 +52,7 @@ from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
-from smolmodels.internal.common.providers.provider_factory import ProviderFactory
+from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.data_generation.generator import generate_data, DataGenerationRequest
 from smolmodels.internal.models.generation.schema import generate_schema_from_dataset, generate_schema_from_intent
 from smolmodels.internal.models.generators import generate
@@ -173,7 +173,7 @@ class Model:
         generate_samples: Union[int, Dict[str, Any]] = None,
         callbacks: List[Callback] = None,
         isolation: Literal["local", "subprocess", "docker"] = "local",
-        provider: str = "openai:gpt-4o-mini",
+        provider: str = "openai/gpt-4o-mini",
     ) -> None:
         """
         Build the model using the provided dataset, directives, and optional data generation configuration.
@@ -187,7 +187,7 @@ class Model:
         :return:
         """
         try:
-            provider = ProviderFactory.create(provider)
+            provider = Provider(model=provider)
             self.state = ModelState.BUILDING
 
             # Step 1: Resolve Schema

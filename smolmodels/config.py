@@ -2,9 +2,15 @@
 Configuration for the smolmodels library.
 """
 
+import logging
+import warnings
 from dataclasses import dataclass, field
 from string import Template
 from typing import List
+
+# configure warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 @dataclass(frozen=True)
@@ -247,3 +253,26 @@ def load_config() -> _Config:
 
 
 config: _Config = load_config()
+
+
+# Default logging configuration
+def configure_logging(level: str | int = logging.INFO, file: str = None) -> None:
+    # Configure the library's root logger
+    sm_root_logger = logging.getLogger("smolmodels")
+    sm_root_logger.setLevel(level)
+
+    # Define a common formatter
+    formatter = logging.Formatter(config.logging.format)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.stream.reconfigure(encoding="utf-8")  # Set UTF-8 encoding
+    stream_handler.setFormatter(formatter)
+    sm_root_logger.addHandler(stream_handler)
+
+    if file:
+        file_handler = logging.FileHandler(file, encoding="utf-8")
+        file_handler.setFormatter(formatter)
+        sm_root_logger.addHandler(file_handler)
+
+
+configure_logging(level=config.logging.level)
