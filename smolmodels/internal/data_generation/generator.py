@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Optional
 import pandas as pd
 
-from smolmodels.internal.common.providers.provider import Provider
+from smolmodels.internal.common.provider import Provider
 
 
 @dataclass

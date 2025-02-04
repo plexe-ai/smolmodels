@@ -10,7 +10,7 @@ from typing import List, Dict
 from pydantic import BaseModel
 
 from smolmodels.config import config
-from smolmodels.internal.common.providers.provider import Provider
+from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.common.utils.response import extract_code
 
 
