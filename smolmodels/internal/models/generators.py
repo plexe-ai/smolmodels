@@ -115,7 +115,7 @@ class ModelGenerator:
         self.infer_generator = InferenceCodeGenerator(provider)
         self.search_policy: SearchPolicy = BestFirstSearchPolicy(self.graph)
         self.train_validators: List[Validator] = [SyntaxValidator()]
-        self.infer_validators: List[Validator] = [SyntaxValidator(), PredictorValidator(dict())]
+        self.infer_validators: List[Validator] = [SyntaxValidator(), PredictorValidator(input_schema, output_schema)]
 
     def generate(
         self,
