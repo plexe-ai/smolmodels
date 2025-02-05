@@ -4,6 +4,7 @@ a given problem statement, input schema, and output schema. The function explore
 generates training and inference code, and returns callable functions for training and prediction.
 """
 
+import os
 import logging
 import shutil
 import time
@@ -353,4 +354,5 @@ class ModelGenerator:
             except shutil.SameFileError:
                 pass
         # Delete the working directory before returning
-        shutil.rmtree("./workdir")
+        if os.path.exists("./workdir"):
+            shutil.rmtree("./workdir")
