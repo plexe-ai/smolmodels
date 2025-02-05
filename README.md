@@ -38,7 +38,7 @@ import smolmodels as sm
 # Step 1: define the model
 model = sm.Model(
     intent="Predict sentiment on a news article such that [...]",
-    input_schema={"headline": str, "content": str, "source": str},      # [optional]
+    input_schema={"headline": str, "content": str},                     # [optional]
     output_schema={"sentiment": str}                                    # [optional]
 )
 
@@ -54,7 +54,6 @@ model.build(
 sentiment = model.predict({
    "headline": "600B wiped off NVIDIA market cap",
    "content": "NVIDIA shares fell 38% after [...]",
-   "source": "totally-trustworthy-news.com"
 })
 
 # Step 4: save the model, can be loaded later for reuse
@@ -78,7 +77,7 @@ A model is defined as a transformation from an **input schema** to an **output s
 # This defines the model's identity
 model = sm.Model(
     intent="Predict sentiment on a news article such that [...]",
-    input_schema={"headline": str, "content": str, "source": str},
+    input_schema={"headline": str, "content": str},
     output_schema={"sentiment": str}
 )
 ```
