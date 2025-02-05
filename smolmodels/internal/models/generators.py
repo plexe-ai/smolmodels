@@ -31,7 +31,7 @@ from smolmodels.internal.models.generation.training import TrainingCodeGenerator
 from smolmodels.internal.models.search.best_first_policy import BestFirstSearchPolicy
 from smolmodels.internal.models.search.policy import SearchPolicy
 from smolmodels.internal.models.utils import join_task_statement, execute_node
-from smolmodels.internal.models.validation.security import SecurityValidator
+from smolmodels.internal.models.validation.predictor import PredictorValidator
 from smolmodels.internal.models.validation.syntax import SyntaxValidator
 from smolmodels.internal.models.validation.validator import Validator, ValidationResult
 
@@ -118,8 +118,8 @@ class ModelGenerator:
         self.train_generator = TrainingCodeGenerator(provider)
         self.infer_generator = InferenceCodeGenerator(provider)
         self.search_policy: SearchPolicy = BestFirstSearchPolicy(self.graph)
-        self.train_validators: List[Validator] = [SyntaxValidator(), SecurityValidator()]
-        self.infer_validators: List[Validator] = [SyntaxValidator(), SecurityValidator()]  # todo: flesh this out
+        self.train_validators: List[Validator] = [SyntaxValidator()]
+        self.infer_validators: List[Validator] = [SyntaxValidator(), PredictorValidator(dict())]
 
     def generate(
         self,
