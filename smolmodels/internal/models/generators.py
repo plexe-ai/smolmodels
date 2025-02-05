@@ -90,13 +90,14 @@ class ModelGenerator:
         constraints: List[Constraint] = None,
     ) -> None:
         """
+        Initialises the model generator with the given problem statement, input schema, and output schema.
 
-        :param intent:
-        :param input_schema:
-        :param output_schema:
-        :param provider:
-        :param filedir:
-        :param constraints:
+        :param intent: The intent of the model to generate.
+        :param input_schema: The input schema for the model.
+        :param output_schema: The output schema for the model.
+        :param provider: The provider to use for generating models.
+        :param filedir: The directory to store model artifacts.
+        :param constraints: A list of constraints to apply to the model.
         """
         # Set up the basic configuration of the model generator
         self.intent: str = intent
