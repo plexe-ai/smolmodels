@@ -8,14 +8,12 @@
 
 Build machine learning models using natural language and minimal code
 
-### Table of Contents
+### Contents
 [Quickstart](#1-quickstart)<br>
 [Features](#2-features)<br>
 [Installation & Setup](#3-installation--setup)<br>
 [Documentation](#4-documentation)<br>
 [Benchmarks](#5-benchmarks)<br>
-[Contributing](#6-contributing)<br>
-[License](#7-license)<br>
 
 <br>
 </div>
