@@ -156,11 +156,11 @@ class ModelGenerator:
 
         # Explore the solution graph until the stopping condition is met
         best_node = self._produce_trained_model(task, run_id, dataset, target_metric, stop_condition)
+        self._cache_model_files(best_node)
         logger.info("🧠 Generating inference code for the best solution")
         best_node = self._produce_inference_code(best_node, self.input_schema, self.output_schema)
-        logger.info(f"✅ Built predictor for model with performance: {best_node.performance}")
-
         self._cache_model_files(best_node)
+        logger.info(f"✅ Built predictor for model with performance: {best_node.performance}")
 
         # compile the inference code into a module
         predictor: types.ModuleType = types.ModuleType("predictor")
@@ -345,8 +345,10 @@ class ModelGenerator:
             basename: str = Path(artifact).name
             shutil.copy(artifact, self.filedir)
             # Update the paths in the training and inference code
-            node.training_code = node.training_code.replace(basename, str((self.filedir / basename).as_posix()))
-            node.inference_code = node.inference_code.replace(basename, str((self.filedir / basename).as_posix()))
+            if node.training_code:
+                node.training_code = node.training_code.replace(basename, str((self.filedir / basename).as_posix()))
+            if node.inference_code:
+                node.inference_code = node.inference_code.replace(basename, str((self.filedir / basename).as_posix()))
             node.model_artifacts[i] = self.filedir / basename
         # Delete the working directory before returning
         shutil.rmtree("./workdir")

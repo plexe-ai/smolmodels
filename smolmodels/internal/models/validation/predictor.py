@@ -40,6 +40,7 @@ class PredictorValidator(Validator):
             # todo: try calling the 'predict' function
             # output = predictor.predict(self.sample_input)
             # assert output is not None, "The 'predict' function returned None."
+            return ValidationResult(self.name, True, "Prediction code is valid.")
         except Exception as e:
             return ValidationResult(
                 self.name,
