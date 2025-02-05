@@ -7,9 +7,16 @@ Classes:
     - PredictorValidator: A validator class that checks the behavior of a predictor.
 """
 
+import warnings
 import hypothesis.strategies as st
 import types
+
+from hypothesis.errors import NonInteractiveExampleWarning
+
 from smolmodels.internal.models.validation.validator import Validator, ValidationResult
+
+
+warnings.filterwarnings("ignore", category=NonInteractiveExampleWarning)
 
 
 class PredictorValidator(Validator):
