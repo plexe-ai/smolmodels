@@ -39,7 +39,7 @@ import smolmodels as sm
 
 # Step 1: define the model
 model = sm.Model(
-    intent="Predict sentiment on a news article such that [...]",       # [required]
+    intent="Predict sentiment on a news article such that [...]",
     input_schema={"headline": str, "content": str, "source": str},      # [optional]
     output_schema={"sentiment": str}                                    # [optional]
 )
@@ -48,8 +48,8 @@ model = sm.Model(
 model.build(
    dataset=dataset,                                                     # [optional]
    generate_samples=1000,                                               # [optional]
-   provider="openai/gpt-4o-mini",                                       # [required]
-   timeout=3600                                                         # [required]
+   provider="openai/gpt-4o-mini",
+   timeout=3600
 )
 
 # Step 3: use the model to get predictions on new data
