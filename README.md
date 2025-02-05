@@ -5,198 +5,188 @@
 [![PyPI version](https://img.shields.io/pypi/v/smolmodels.svg)](https://pypi.org/project/smolmodels/)
 [![Discord](https://img.shields.io/discord/1300920499886358529?logo=discord&logoColor=white)](https://discord.gg/3czW7BMj)
 
-Build specialized ML models using natural language.
+Build machine learning models using natural language and minimal code
 
+### Table of Contents
+[Quickstart](#1-quickstart)<br>
+[Features](#2-features)<br>
+[Installation & Setup](#3-installation--setup)<br>
+[Documentation](#4-documentation)<br>
+[Benchmarks](#5-benchmarks)<br>
+[Contributing](#6-contributing)<br>
+[License](#7-license)<br>
+
+<br>
 </div>
 
-`smolmodels` is a Python library that lets you create machine learning models by describing what you want them to do in
-plain English. Instead of wrestling with model architectures and hyperparameters, you simply describe your intent,
-define your inputs and outputs, and let `smolmodels` handle the rest.
+`smolmodels` lets you create machine learning models with minimal code by describing what you want them to do in
+plain words. You explain the task, and the library builds a model for you, including data generation, feature 
+engineering, training, and packaging.
 
-```python
-import pandas as pd
-import smolmodels as sm
 
-# Define a house price predictor in terms of intent
-model = sm.Model(
-    intent="Predict house prices based on property features",
-    # input_schema and output_schema are optional
-    input_schema={
-        "square_feet": float,
-        "bedrooms": int,
-        "location": str,
-        "year_built": int
-    },
-    output_schema={
-        "predicted_price": float
-    }
-)
-
-# Build the model, using the backend of your choice; optionally generate synthetic training data
-model.build(
-   dataset=pd.read_csv("house-prices.csv"),
-   generate_samples=1000,
-   provider="openai:gpt-4o-mini"
-)
-
-# Make predictions
-price = model.predict({
-    "square_feet": 2500,
-    "bedrooms": 4,
-    "location": "San Francisco",
-    "year_built": 1985
-})
-
-# Save the model for later use
-sm.save_model(model, "house-price-predictor")
-```
-
-## How Does It Work?
-
-`smolmodels` combines graph search with LLMs to generate candidate models that meet the specified intent, and then
-selects the best model based on performance and constraints. The process consists of four main phases:
-
-1. **Intent Analysis**: problem description is analyzed to understand the type of model needed and what metric to
-   optimise for.
-
-2. **Data Generation**: synthetic data can be generated to enable model build when there is no training data
-   available, or when the existing data has insufficient coverage of the feature space.
-
-3. **Model Building**:
-   1. Selects appropriate model architectures
-   2. Handles feature engineering
-   3. Manages training and validation
-
-4. **Validation & Refinement**: the model is tested against constraints and refined using directives (like "optimize 
-   for speed" or "prioritize model types with better explainability").
-
-## Key Features
-
-### 📝 Natural Language Intent
-
-Models are defined using natural language descriptions and schema specifications, abstracting away machine learning
-specifics.
-
-### 🎲 Data Generation
-
-Built-in synthetic data generation for training and validation.
-
-### 🎯 Directives for fine-grained Control (Not Yet Implemented - Coming Soon)
-
-Guide the model building process with high-level directives:
-
-```python
-from smolmodels import Directive
-
-model.build(directives=[
-    Directive("Optimize for inference speed"),
-    Directive("Prioritize interpretability")
-])
-```
-
-### ✅ Optional Constraints (Not Yet Implemented - Coming Soon)
-
-Optional declarative constraints for model validation:
-
-```python
-from smolmodels import Constraint
-
-# Ensure predictions are always positive
-positive_constraint = Constraint(
-    lambda inputs, outputs: outputs["predicted_price"] > 0,
-    description="Predictions must be positive"
-)
-
-model = Model(
-    intent="Predict house prices...",
-    constraints=[positive_constraint],
-    ...
-)
-```
-
-### 🌐 Multi-Provider Support
-
-You can use multiple LLM providers through LiteLLM as a unified backend for model generation. Specify the provider and model in the format `provider/model` when calling `build()`:
-
-```python
-model.build(pd.read_csv("house-prices.csv"), provider="openai/gpt-4o-mini")
-```
-
-## Installation & Setup
+## 1. Quickstart
+Installation:
 
 ```bash
 pip install smolmodels
 ```
 
-## API Keys
+Import `smolmodels` to define, train and save a `Model`:
+
+```python
+import smolmodels as sm
+
+# Step 1: define the model
+model = sm.Model(
+    intent="Predict sentiment on a news article such that [...]",       # [required]
+    input_schema={"headline": str, "content": str, "source": str},      # [optional]
+    output_schema={"sentiment": str}                                    # [optional]
+)
+
+# Step 2: build and train the model on data (existing or synthetic)
+model.build(
+   dataset=dataset,                                                     # [optional]
+   generate_samples=1000,                                               # [optional]
+   provider="openai/gpt-4o-mini",                                       # [required]
+   timeout=3600                                                         # [required]
+)
+
+# Step 3: use the model to get predictions on new data
+sentiment = model.predict({
+   "headline": "600B wiped off NVIDIA market cap",
+   "content": "NVIDIA shares fell 38% after [...]",
+   "source": "totally-trustworthy-news.com"
+})
+
+# Step 4: save the model, can be loaded later for reuse
+sm.save_model(model, "news-sentiment-predictor")
+
+# Step 5: load a saved model and use it
+loaded_model = sm.load_model("news-sentiment-predictor.tar.gz")
+```
+
+## 2. Features
+
+`smolmodels` combines graph search, LLM code/data generation and code execution to produce a machine learning model
+that meets the criteria of the task description. When you call `model.build()`, the library generates a graph of
+possible model solutions, evaluates them, and selects the one that maximises the performance metric for this task.
+
+### 2.1. 💬 Define Models using Natural Language
+A model is defined as a transformation from an **input schema** to an **output schema**, which behaves according to an
+**intent**.
+
+```python
+# This defines the model's identity
+model = sm.Model(
+    intent="Predict sentiment on a news article such that [...]",
+    input_schema={"headline": str, "content": str, "source": str},
+    output_schema={"sentiment": str}
+)
+```
+
+You describe the model's expected behaviour in plain English. The library will select a metric to optimise for, 
+and produce logic for feature engineering, model training, evaluation, and so on.
+
+### 2.2. 🎯 Model Building
+The model is built by calling `model.build()`. This method takes a dataset (existing or synthetic) and 
+generates a set of possible model solutions, training and evaluating them to select
+the best one. The model with the highest performance metric becomes the "implementation" of the predictor.
+
+You can specify the model building cutoff in terms of a timeout, a maximum number of solutions to explore, or both.
+
+```python
+model.build(
+    dataset=dataset,
+    provider="openai/gpt-4o-mini",
+    timeout=3600,                       # [optional] max time in seconds
+    max_iterations=10                   # [optional] max number of model solutions to explore
+)
+```
+
+The model can now be used to make predictions, and can be saved or loaded using `sm.save_model()` or `sm.load_model()`.
+
+```python
+sentiment = model.predict({"headline": "600B wiped off NVIDIA market cap", ...})
+```
+
+### 2.3. 🎲 Data Generation and Schema Inference
+The library can generate synthetic data for training and testing. This is useful if you have no data available, or 
+want to augment existing data. When building a model, you specify either a dataset, a number of samples to be
+generated, or both:
+
+```python
+model.build(
+    dataset=dataset,                # [optional] -> at least one of these is required
+    generate_samples=1000,          # [optional] -> at least one of these is required
+    ...
+)
+```
+
+> [!CAUTION]
+> Data generation can consume a lot of tokens. Start with a conservative `generate_samples` value and
+> increase it if needed.
+
+The library can also infer the input and/or output schema of your predictor, if required. This is based either on the
+dataset you provide, or on the model's intent. This can be useful when you don't know what the model should look like.
+
+```python
+# In this case, the library will infer a schema from the intent and generate data for you
+model = sm.Model(intent="Predict sentiment on a news article such that [...]")
+model.build(generate_samples=100, provider="openai/gpt-4o-mini")
+```
+
+> [!TIP]
+> If you know how the model will be used, you will get better results by specifying the schema explicitly.
+> Schema inference is primarily intended to be used if you don't know what the input/output schema at prediction time
+> should be.
+
+### 2.4. 🌐 Multi-Provider Support
+You can use multiple LLM providers for model generation. Specify the provider and model in the format `provider/model`:
+
+```python
+model.build(provider="openai/gpt-4o-mini", ...)
+```
+
+See the section on installation and setup for more details on supported providers and how to configure API keys.
+
+## 3. Installation & Setup
+Install the library in the usual manner:
+
+```bash
+pip install smolmodels
+```
 
 Set your API key as an environment variable based on which provider you want to use. For example:
 
 ```bash
 # For OpenAI
 export OPENAI_API_KEY=<your-API-key>
-
 # For Anthropic
 export ANTHROPIC_API_KEY=<your-API-key>
+# For Gemini
+export GEMINI_API_KEY=<your-API-key>
 ```
 
-> [!NOTE]
-> For other providers, check [LiteLLM](https://docs.litellm.ai/docs/providers) documentation
+> [!TIP]
+> The library uses LiteLLM as its provider abstraction layer. For other supported providers and models,
+> check the [LiteLLM](https://docs.litellm.ai/docs/providers) documentation.
 
-## Quick Start
+## 4. Documentation
+For full documentation, visit [docs.plexe.ai](https://docs.plexe.ai).
 
-1. **Define model**:
-
-```python
-import smolmodels as sm
-
-model = sm.Model(
-    intent="Classify customer feedback as positive, negative, or neutral",
-    input_schema={"text": str},
-    output_schema={"sentiment": str}
-)
-```
-
-2. **Build and save**:
-
-```python
-# Build with existing data
-model.build(dataset=pd.read_csv("feedback.csv"), provider="openai:gpt-4o-mini")
-
-# Or generate synthetic data
-model.build(generate_samples=1000)
-
-# Save model for later use
-sm.save_model(model, "sentiment_model")
-```
-
-3. **Load and use**:
-
-```python
-# Load existing model
-loaded_model = sm.load_model("sentiment_model")
-
-# Make predictions
-result = loaded_model.predict({"text": "Great service, highly recommend!"})
-print(result["sentiment"])  # "positive"
-```
-
-## Benchmarks
-
+## 5. Benchmarks
 Performance evaluated on 20 OpenML benchmark datasets and 12 Kaggle competitions. Higher performance observed on 12/20
 OpenML datasets, with remaining datasets showing performance within 0.005 of baseline. Experiments conducted on standard
 infrastructure (8 vCPUs, 30GB RAM) with 1-hour runtime limit per dataset.
 
 Complete code and results are available at [plexe-ai/plexe-results](https://github.com/plexe-ai/plexe-results).
 
-## Documentation
+## 6. Contributing
 
-For full documentation, visit [docs.plexe.ai](https://docs.plexe.ai).
+We love contributions! You can get started with [issues](https://github.com/plexe-ai/smolmodels/issues),
+submitting a PR with improvements, or joining the [Discord](https://discord.gg/3czW7BMj) to chat with the team. 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
-## Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## License
+## 7. License
 
 Apache-2.0 License - see [LICENSE](LICENSE) for details.
