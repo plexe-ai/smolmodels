@@ -266,7 +266,6 @@ class Model:
             self.metrics = generated.performance
 
             self.state = ModelState.READY
-            print("✅ Model built successfully.")
         except Exception as e:
             self.state = ModelState.ERROR
             logger.error(f"Error during model building: {str(e)}")
