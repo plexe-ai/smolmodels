@@ -338,17 +338,19 @@ class ModelGenerator:
         """
         # Make sure the model cache directory exists
         self.filedir.mkdir(parents=True, exist_ok=True)
-        # Copy the model artifacts to the cache directory
+        # Copy artifacts to cache and update the code to match
         for i in range(len(node.model_artifacts)):
-            # Copy the model artifact to the cache directory
-            artifact: Path = Path(node.model_artifacts[i])
-            basename: str = Path(artifact).name
-            shutil.copy(artifact, self.filedir)
-            # Update the paths in the training and inference code
-            if node.training_code:
-                node.training_code = node.training_code.replace(basename, str((self.filedir / basename).as_posix()))
-            if node.inference_code:
-                node.inference_code = node.inference_code.replace(basename, str((self.filedir / basename).as_posix()))
-            node.model_artifacts[i] = self.filedir / basename
+            path: Path = Path(node.model_artifacts[i])
+            name: str = Path(path).name
+            try:
+                shutil.copy(path, self.filedir)
+                # Update the code only if shutil did not raise SameFileError (i.e. copied for the first time)
+                if node.training_code:
+                    node.training_code = node.training_code.replace(name, str((self.filedir / name).as_posix()))
+                if node.inference_code:
+                    node.inference_code = node.inference_code.replace(name, str((self.filedir / name).as_posix()))
+                node.model_artifacts[i] = self.filedir / name
+            except shutil.SameFileError:
+                pass
         # Delete the working directory before returning
         shutil.rmtree("./workdir")
