@@ -8,19 +8,18 @@
 
 Build machine learning models using natural language and minimal code
 
-### Contents
-[Quickstart](#1-quickstart)<br>
-[Features](#2-features)<br>
-[Installation & Setup](#3-installation--setup)<br>
-[Documentation](#4-documentation)<br>
-[Benchmarks](#5-benchmarks)<br>
+[Quickstart](#1-quickstart) |
+[Features](#2-features) |
+[Installation & Setup](#3-installation--setup) |
+[Documentation](#4-documentation) |
+[Benchmarks](#5-benchmarks)
 
 <br>
-</div>
 
-`smolmodels` lets you create machine learning models with minimal code by describing what you want them to do in
+Create machine learning models with minimal code by describing what you want them to do in
 plain words. You explain the task, and the library builds a model for you, including data generation, feature 
 engineering, training, and packaging.
+</div>
 
 
 ## 1. Quickstart
@@ -30,7 +29,7 @@ Installation:
 pip install smolmodels
 ```
 
-Import `smolmodels` to define, train and save a `Model`:
+Define, train and save a `Model`:
 
 ```python
 import smolmodels as sm
