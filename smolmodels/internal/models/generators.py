@@ -37,12 +37,6 @@ from smolmodels.internal.models.validation.validator import Validator, Validatio
 
 logger = logging.getLogger(__name__)
 
-# todo: where to move these?
-logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
-logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("openai._base_client").setLevel(logging.WARNING)
-
 
 @dataclass
 class GenerationResult:
