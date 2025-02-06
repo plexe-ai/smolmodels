@@ -272,8 +272,6 @@ class ModelGenerator:
                 else:
                     break
 
-            i += 1
-
             # Unpack the solution's performance; if this is better than the best so far, update
             if node.performance and isinstance(node.performance.value, float):
                 logger.info(f"🤔 Solution {i} (graph depth {node.depth}) performance: {str(node.performance)}")
@@ -285,12 +283,13 @@ class ModelGenerator:
                     f"{str(node.performance)}"
                 )
             logger.info(
-                f"📈 Explored {i}/{stop_condition.max_generations} nodes, best performance so far: {str(best_metric)}"
+                f"📈 Explored {i + 1}/{stop_condition.max_generations} nodes, best performance so far: {str(best_metric)}"
             )
+            i += 1
 
         valid_nodes = [n for n in self.graph.nodes if n.performance is not None and not n.exception_was_raised]
         if not valid_nodes:
-            raise RuntimeError("No valid solutions found during search")
+            raise RuntimeError("❌ No valid solutions found during search")
         return max(valid_nodes, key=lambda n: n.performance)
 
     def _produce_inference_code(self, node: Node, input_schema: dict, output_schema: dict) -> Node:
@@ -309,13 +308,18 @@ class ModelGenerator:
             training_code=node.training_code,
         )
         # Iteratively validate and fix the inference code
-        for i in range(config.model_search.max_fixing_attempts_predict):
+        fix_attempts = config.model_search.max_fixing_attempts_predict
+        for i in range(fix_attempts):
             result: ValidationResult | None = None
+            node.exception_was_raised = False
+            node.exception = None
             # Validate the inference code, stopping at the first failed validation
             for validator in self.infer_validators:
                 result = validator.validate(node.inference_code)
                 if not result.passed:
-                    logger.warning(f"Attempt {i} | code failed validation: {result}")
+                    logger.info(f"⚠️ Inference solution {i}/{fix_attempts} failed validation, fixing ...")
+                    node.exception_was_raised = True
+                    node.exception = result.exception
                     break
             # If not all validations passed, review and fix the first failed validation
             if not result.passed:
@@ -328,6 +332,9 @@ class ModelGenerator:
                 )
                 node.inference_code = self.infer_generator.fix_inference_code(node.inference_code, review, str(result))
                 continue
+
+        if node.exception_was_raised:
+            raise RuntimeError(f"❌ Failed to generate valid inference code: {str(node.exception)}")
         return node
 
     def _cache_model_files(self, node: Node) -> None:

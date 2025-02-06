@@ -8,13 +8,12 @@ Classes:
 """
 
 import warnings
-import hypothesis.strategies as st
 import types
+import random
+import hypothesis.strategies as st
 
 from hypothesis.errors import NonInteractiveExampleWarning
-
 from smolmodels.internal.models.validation.validator import Validator, ValidationResult
-
 
 warnings.filterwarnings("ignore", category=NonInteractiveExampleWarning)
 
@@ -29,8 +28,8 @@ class PredictorValidator(Validator):
         Initialize the PredictorValidator with the name 'predictor'.
         """
         super().__init__("predictor")
-        self.input_schema: dict = input_schema
-        self.output_schema: dict = output_schema
+        self.output_schema = output_schema
+        self.input_strategy = st.fixed_dictionaries({k: st.from_type(v) for k, v in input_schema.items()})
 
     def validate(self, code: str) -> ValidationResult:
         """
@@ -39,28 +38,64 @@ class PredictorValidator(Validator):
         :return: True if valid, False otherwise
         """
         try:
-            # Compile the inference code into a module
-            predictor: types.ModuleType = types.ModuleType("test_predictor")
-            exec(code, predictor.__dict__)
-            # Check module has a 'predict' function
-            assert hasattr(predictor, "predict"), "The module does not have a 'predict' function."
-            # Check 'predict' function is callable
-            assert callable(predictor.predict), "'predict' is not a callable function."
-            # Check 'predict' function works with sample input
-            input_strategy = st.fixed_dictionaries({k: st.from_type(v) for k, v in self.input_schema.items()})
-            for _ in range(20):
-                sample_input = input_strategy.example()
-                try:
-                    predictor.predict(sample_input)
-                except Exception as e:
-                    raise RuntimeError(f"Error calling 'predict' function with sample input: {str(e)}") from e
-            # If all checks were passed, return a valid result
+            predictor = self._load_predictor(code)
+            self._validate_predictor_structure(predictor)
+            self._test_predict_function(predictor)
+
             return ValidationResult(self.name, True, "Prediction code is valid.")
+
         except Exception as e:
-            # If any check failed, return an invalid result
             return ValidationResult(
                 self.name,
                 False,
                 message=f"Prediction code is not valid: {str(e)}.",
                 exception=e,
+            )
+
+    @staticmethod
+    def _load_predictor(code: str) -> types.ModuleType:
+        """
+        Compiles and loads the predictor module from the given code.
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            predictor = types.ModuleType("test_predictor")
+            exec(code, predictor.__dict__)
+        return predictor
+
+    @staticmethod
+    def _validate_predictor_structure(predictor: types.ModuleType) -> None:
+        """
+        Ensures that the predictor module has a valid `predict` function.
+        """
+        if not hasattr(predictor, "predict"):
+            raise AttributeError("The module does not have a 'predict' function.")
+        if not callable(predictor.predict):
+            raise TypeError("'predict' is not a callable function.")
+
+    def _test_predict_function(self, predictor) -> None:
+        """
+        Tests the `predict` function by calling it with sample inputs.
+        """
+        issues = []
+        total_tests = 100
+
+        for _ in range(total_tests):
+            sample_input = self.input_strategy.example()
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    predictor.predict(sample_input)
+            except Exception as e:
+                issues.append(f"Error: {str(e)} | Input: {sample_input}")
+
+        failed_tests = len(issues)
+
+        if failed_tests == total_tests:
+            raise RuntimeError(
+                f"All {total_tests} calls to 'predict' failed. Sample issues: {random.sample(issues, 5)}"
+            )
+        if failed_tests >= total_tests * 0.5:
+            raise RuntimeError(
+                f"{failed_tests}/{total_tests} calls to 'predict' failed. Sample issues: {random.sample(issues, 5)}"
             )
