@@ -21,7 +21,7 @@ plain words. You explain the task, and the library builds a model for you, inclu
 engineering, training, and packaging.
 </div>
 
-> [!NOTE]
+> [!INFO]
 > This library is in early development, and we're actively working on new features and improvements! Please report any
 > bugs or share your feature requests on [GitHub](https://github.com/plexe-ai/smolmodels/issues) 
 > or [Discord](https://discord.gg/3czW7BMj) 💛
