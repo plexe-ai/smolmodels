@@ -93,7 +93,12 @@ def test_model_with_data_and_schema(sample_data, input_schema, output_schema, te
         output_schema=output_schema,
     )
 
-    model.build(dataset=sample_data)
+    model.build(
+        dataset=sample_data,
+        provider="openai/gpt-4o-mini",
+        max_iterations=10,
+        timeout=3600,
+    )
     prediction = model.predict(test_input)
     verify_prediction(prediction, output_schema)
 
@@ -106,6 +111,12 @@ def test_model_with_data_and_generate(sample_data, input_schema, output_schema, 
         output_schema=output_schema,
     )
 
-    model.build(dataset=sample_data, generate_samples=10)
+    model.build(
+        dataset=sample_data,
+        generate_samples=10,
+        provider="openai/gpt-4o-mini",
+        max_iterations=10,
+        timeout=3600,
+    )
     prediction = model.predict(test_input)
     verify_prediction(prediction, output_schema)
