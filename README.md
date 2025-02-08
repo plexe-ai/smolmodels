@@ -21,6 +21,10 @@ plain words. You explain the task, and the library builds a model for you, inclu
 engineering, training, and packaging.
 </div>
 
+> [!WARNING]
+> This library is in early development and is not yet suitable for production use. We are actively working on
+> improving the library and adding new features. If you encounter any issues, please report them on GitHub or Discord.
+
 
 ## 1. Quickstart
 Installation:
