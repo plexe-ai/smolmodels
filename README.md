@@ -19,6 +19,10 @@ Build machine learning models using natural language and minimal code
 Create machine learning models with minimal code by describing what you want them to do in
 plain words. You explain the task, and the library builds a model for you, including data generation, feature 
 engineering, training, and packaging.
+
+> [!WARNING]
+> This library is in early development and is not yet suitable for production use. We are actively working on
+> improving the library and adding new features. If you encounter any issues, please report them on GitHub or Discord.
 </div>
 
 > [!WARNING]
