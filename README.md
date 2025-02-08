@@ -22,8 +22,9 @@ engineering, training, and packaging.
 </div>
 
 > [!WARNING]
-> This library is in early development and is not yet suitable for production use. We are actively working on
-> improving the library and adding new features. If you encounter any issues, please report them on GitHub or Discord.
+> This library is in early development, and we're actively working on new features and improvements. Please report any
+> bugs or feature requests on [GitHub](https://github.com/plexe-ai/smolmodels/issues) 
+> or [Discord](https://discord.gg/3czW7BMj) 💛
 
 
 ## 1. Quickstart
