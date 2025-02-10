@@ -7,6 +7,8 @@ import warnings
 from dataclasses import dataclass, field
 from string import Template
 from typing import List
+import sys
+
 
 # configure warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -266,7 +268,9 @@ def configure_logging(level: str | int = logging.INFO, file: str = None) -> None
     formatter = logging.Formatter(config.logging.format)
 
     stream_handler = logging.StreamHandler()
-    stream_handler.stream.reconfigure(encoding="utf-8")  # Set UTF-8 encoding
+    # Only apply reconfigure if the stream supports it
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     stream_handler.setFormatter(formatter)
     sm_root_logger.addHandler(stream_handler)
 
