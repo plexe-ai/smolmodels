@@ -32,7 +32,7 @@ from smolmodels.internal.models.search.best_first_policy import BestFirstSearchP
 from smolmodels.internal.models.search.policy import SearchPolicy
 from smolmodels.internal.models.utils import join_task_statement, execute_node
 from smolmodels.internal.models.validation.validator import Validator
-from smolmodels.internal.models.validation.validators import TrainingCodeValidator, PredictionCodeValidator
+from smolmodels.internal.models.validation.composites import TrainingCodeValidator, InferenceCodeValidator
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ class ModelGenerator:
         self.infer_generator = InferenceCodeGenerator(provider)
         self.search_policy: SearchPolicy = BestFirstSearchPolicy(self.graph)
         self.train_validators: Validator = TrainingCodeValidator()
-        self.infer_validators: Validator = PredictionCodeValidator(provider, intent, input_schema, output_schema, 10)
+        self.infer_validators: Validator = InferenceCodeValidator(provider, intent, input_schema, output_schema, 10)
 
     def generate(
         self,
