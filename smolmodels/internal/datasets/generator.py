@@ -1,4 +1,4 @@
-# internal/data_generation/generator.py
+# internal/datasets/generator.py
 from dataclasses import dataclass
 from typing import Optional
 import pandas as pd

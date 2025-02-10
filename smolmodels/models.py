@@ -53,7 +53,7 @@ from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.provider import Provider
-from smolmodels.internal.data_generation.generator import generate_data, DataGenerationRequest
+from smolmodels.internal.datasets.generator import generate_data, DataGenerationRequest
 from smolmodels.internal.models.generation.schema import generate_schema_from_dataset, generate_schema_from_intent
 from smolmodels.internal.models.generators import ModelGenerator
 
