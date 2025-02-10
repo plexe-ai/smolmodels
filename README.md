@@ -191,3 +191,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 ## 7. License
 
 Apache-2.0 License - see [LICENSE](LICENSE) for details.
+
+## 8. Product Roadmap
+
+- [ ] Model imports and fine-tuning support
+- [ ] Solution graph visualization
+- [ ] 
