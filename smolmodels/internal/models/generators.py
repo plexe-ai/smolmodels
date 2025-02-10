@@ -4,8 +4,8 @@ a given problem statement, input schema, and output schema. The function explore
 generates training and inference code, and returns callable functions for training and prediction.
 """
 
-import os
 import logging
+import os
 import shutil
 import time
 import types
@@ -16,7 +16,6 @@ from typing import List
 
 import pandas as pd
 
-from smolmodels.callbacks import Callback
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
@@ -32,9 +31,8 @@ from smolmodels.internal.models.generation.training import TrainingCodeGenerator
 from smolmodels.internal.models.search.best_first_policy import BestFirstSearchPolicy
 from smolmodels.internal.models.search.policy import SearchPolicy
 from smolmodels.internal.models.utils import join_task_statement, execute_node
-from smolmodels.internal.models.validation.predictor import PredictorValidator
-from smolmodels.internal.models.validation.syntax import SyntaxValidator
-from smolmodels.internal.models.validation.validator import Validator, ValidationResult
+from smolmodels.internal.models.validation.validator import Validator
+from smolmodels.internal.models.validation.validators import TrainingCodeValidator, PredictionCodeValidator
 
 logger = logging.getLogger(__name__)
 
@@ -114,8 +112,8 @@ class ModelGenerator:
         self.train_generator = TrainingCodeGenerator(provider)
         self.infer_generator = InferenceCodeGenerator(provider)
         self.search_policy: SearchPolicy = BestFirstSearchPolicy(self.graph)
-        self.train_validators: List[Validator] = [SyntaxValidator()]
-        self.infer_validators: List[Validator] = [SyntaxValidator(), PredictorValidator(input_schema, output_schema)]
+        self.train_validators: Validator = TrainingCodeValidator()
+        self.infer_validators: Validator = PredictionCodeValidator(provider, intent, input_schema, output_schema, 10)
 
     def generate(
         self,
@@ -123,7 +121,6 @@ class ModelGenerator:
         timeout: int = None,
         max_iterations=None,
         directives: List[Directive] = None,
-        callbacks: List[Callback] = None,
     ) -> GenerationResult:
         """
         Generates a machine learning model based on the given problem statement, input schema, and output schema.
@@ -132,7 +129,6 @@ class ModelGenerator:
         :param timeout: The maximum time to spend generating the model, in seconds.
         :param max_iterations: The maximum number of iterations to spend generating the model.
         :param directives: A list of directives to apply to the model generation process.
-        :param callbacks: A list of callbacks to apply to the model generation process.
         :return: A GenerationResult object containing the training and inference code, and the predictor module.
         """
         # Check either timeout or max_iterations is set
@@ -223,25 +219,21 @@ class ModelGenerator:
 
             # Iteratively validate and fix the training code
             for i_fix in range(config.model_search.max_fixing_attempts_train):
-                result: ValidationResult | None = None
                 node.exception_was_raised = False
                 node.exception = None
 
                 # Validate the training code, stopping at the first failed validation
-                for validator in self.train_validators:
-                    result = validator.validate(node.training_code)
-                    if not result.passed:
-                        logger.warning(f"Node {i}, attempt {i_fix}: Failed validation {result}")
-                        node.exception_was_raised = True
-                        node.exception = result.exception
-                        break
-                # If not all validations passed, review and fix the first failed validation
-                if not result.passed:
+                validation = self.train_validators.validate(node.training_code)
+                if not validation.passed:
+                    logger.warning(f"Node {i}, attempt {i_fix}: Failed validation {validation}")
+                    node.exception_was_raised = True
+                    node.exception = validation.exception
+
                     review = self.train_generator.review_training_code(
-                        node.training_code, task, node.solution_plan, str(result)
+                        node.training_code, task, node.solution_plan, str(validation)
                     )
                     node.training_code = self.train_generator.fix_training_code(
-                        node.training_code, node.solution_plan, review, str(result)
+                        node.training_code, node.solution_plan, review, str(validation)
                     )
                     continue
 
@@ -310,27 +302,24 @@ class ModelGenerator:
         # Iteratively validate and fix the inference code
         fix_attempts = config.model_search.max_fixing_attempts_predict
         for i in range(fix_attempts):
-            result: ValidationResult | None = None
             node.exception_was_raised = False
             node.exception = None
             # Validate the inference code, stopping at the first failed validation
-            for validator in self.infer_validators:
-                result = validator.validate(node.inference_code)
-                if not result.passed:
-                    logger.info(f"⚠️ Inference solution {i}/{fix_attempts} failed validation, fixing ...")
-                    node.exception_was_raised = True
-                    node.exception = result.exception
-                    break
-            # If not all validations passed, review and fix the first failed validation
-            if not result.passed:
+            validation = self.infer_validators.validate(node.inference_code)
+            if not validation.passed:
+                logger.info(f"⚠️ Inference solution {i}/{fix_attempts} failed validation, fixing ...")
+                node.exception_was_raised = True
+                node.exception = validation.exception
                 review = self.infer_generator.review_inference_code(
                     inference_code=node.inference_code,
                     input_schema=input_schema,
                     output_schema=output_schema,
                     training_code=node.training_code,
-                    problems=str(result),
+                    problems=str(validation),
                 )
-                node.inference_code = self.infer_generator.fix_inference_code(node.inference_code, review, str(result))
+                node.inference_code = self.infer_generator.fix_inference_code(
+                    node.inference_code, review, str(validation)
+                )
                 continue
 
         if node.exception_was_raised:

@@ -76,7 +76,7 @@ class ModelReview:
 
 
 @dataclass
-class GenerationConfig:
+class GenerationConfig:  # todo: move to internal/datasets
     """Configuration for data generation/augmentation"""
 
     n_samples: int
@@ -253,11 +253,12 @@ class Model:
             else:
                 raise ValueError("No data available. Provide dataset or generate_samples.")
 
+            # todo: keep the model generator across multiple build() calls
             # Step 3: Generate Model
             model_generator = ModelGenerator(
                 self.intent, self.input_schema, self.output_schema, provider, self.files_path, self.constraints
             )
-            generated = model_generator.generate(self.training_data, timeout, max_iterations, directives, callbacks)
+            generated = model_generator.generate(self.training_data, timeout, max_iterations, directives)
 
             self.trainer_source = generated.training_source_code
             self.predictor_source = generated.inference_source_code
@@ -329,6 +330,7 @@ class Model:
         raise NotImplementedError("Review functionality is not yet implemented.")
 
 
+# todo: move to a separate module
 def save_model(model: Model, path: str) -> None:
     """
     Save a model to a single archive file, including trainer, predictor, and artifacts.
@@ -390,6 +392,7 @@ def save_model(model: Model, path: str) -> None:
             shutil.rmtree(model.files_path)
 
 
+# todo: move to a separate module
 def load_model(path: str) -> Model:
     """
     Load a model from the archive created by `save_model`.
