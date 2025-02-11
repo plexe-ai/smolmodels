@@ -15,7 +15,6 @@ from typing import List
 
 import pandas as pd
 
-from smolmodels.callbacks import Callback
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
@@ -31,17 +30,10 @@ from smolmodels.internal.models.generation.training import TrainingCodeGenerator
 from smolmodels.internal.models.search.best_first_policy import BestFirstSearchPolicy
 from smolmodels.internal.models.search.policy import SearchPolicy
 from smolmodels.internal.models.utils import join_task_statement, execute_node
-from smolmodels.internal.models.validation.primitives.security import SecurityValidator
-from smolmodels.internal.models.validation.primitives.syntax import SyntaxValidator
-from smolmodels.internal.models.validation.validator import Validator, ValidationResult
+from smolmodels.internal.models.validation.validator import Validator
+from smolmodels.internal.models.validation.composites import TrainingCodeValidator, InferenceCodeValidator
 
 logger = logging.getLogger(__name__)
-
-# todo: where to move these?
-logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
-logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("openai._base_client").setLevel(logging.WARNING)
 
 
 @dataclass
@@ -96,13 +88,14 @@ class ModelGenerator:
         constraints: List[Constraint] = None,
     ) -> None:
         """
+        Initialises the model generator with the given problem statement, input schema, and output schema.
 
-        :param intent:
-        :param input_schema:
-        :param output_schema:
-        :param provider:
-        :param filedir:
-        :param constraints:
+        :param intent: The intent of the model to generate.
+        :param input_schema: The input schema for the model.
+        :param output_schema: The output schema for the model.
+        :param provider: The provider to use for generating models.
+        :param filedir: The directory to store model artifacts.
+        :param constraints: A list of constraints to apply to the model.
         """
         # Set up the basic configuration of the model generator
         self.intent: str = intent
@@ -118,8 +111,8 @@ class ModelGenerator:
         self.train_generator = TrainingCodeGenerator(provider)
         self.infer_generator = InferenceCodeGenerator(provider)
         self.search_policy: SearchPolicy = BestFirstSearchPolicy(self.graph)
-        self.train_validators: List[Validator] = [SyntaxValidator(), SecurityValidator()]
-        self.infer_validators: List[Validator] = [SyntaxValidator(), SecurityValidator()]  # todo: flesh this out
+        self.train_validators: Validator = TrainingCodeValidator()
+        self.infer_validators: Validator = InferenceCodeValidator(provider, intent, input_schema, output_schema, 10)
 
     def generate(
         self,
@@ -127,7 +120,6 @@ class ModelGenerator:
         timeout: int = None,
         max_iterations=None,
         directives: List[Directive] = None,
-        callbacks: List[Callback] = None,
     ) -> GenerationResult:
         """
         Generates a machine learning model based on the given problem statement, input schema, and output schema.
@@ -136,7 +128,6 @@ class ModelGenerator:
         :param timeout: The maximum time to spend generating the model, in seconds.
         :param max_iterations: The maximum number of iterations to spend generating the model.
         :param directives: A list of directives to apply to the model generation process.
-        :param callbacks: A list of callbacks to apply to the model generation process.
         :return: A GenerationResult object containing the training and inference code, and the predictor module.
         """
         # Check either timeout or max_iterations is set
@@ -161,19 +152,16 @@ class ModelGenerator:
 
         # Explore the solution graph until the stopping condition is met
         best_node = self._produce_trained_model(task, run_id, dataset, target_metric, stop_condition)
+        self._cache_model_files(best_node)
         logger.info("🧠 Generating inference code for the best solution")
         best_node = self._produce_inference_code(best_node, self.input_schema, self.output_schema)
+        self._cache_model_files(best_node)
         logger.info(f"✅ Built predictor for model with performance: {best_node.performance}")
 
         # compile the inference code into a module
         predictor: types.ModuleType = types.ModuleType("predictor")
         # Add model artifacts directory to the module's globals
         predictor.__dict__["MODEL_ARTIFACTS_DIR"] = str(self.filedir / config.file_storage.model_artifacts_dir)
-
-        # Cache model files after setting up the module environment
-        self._cache_model_files(best_node)
-
-        # Execute the inference code
         exec(best_node.inference_code, predictor.__dict__)
 
         return GenerationResult(
@@ -232,25 +220,21 @@ class ModelGenerator:
 
             # Iteratively validate and fix the training code
             for i_fix in range(config.model_search.max_fixing_attempts_train):
-                result: ValidationResult | None = None
                 node.exception_was_raised = False
                 node.exception = None
 
                 # Validate the training code, stopping at the first failed validation
-                for validator in self.train_validators:
-                    result = validator.validate(node.training_code)
-                    if not result.passed:
-                        logger.warning(f"Node {i}, attempt {i_fix}: Failed validation {result}")
-                        node.exception_was_raised = True
-                        node.exception = result.exception
-                        break
-                # If not all validations passed, review and fix the first failed validation
-                if not result.passed:
+                validation = self.train_validators.validate(node.training_code)
+                if not validation.passed:
+                    logger.warning(f"Node {i}, attempt {i_fix}: Failed validation {validation}")
+                    node.exception_was_raised = True
+                    node.exception = validation.exception
+
                     review = self.train_generator.review_training_code(
-                        node.training_code, task, node.solution_plan, str(result)
+                        node.training_code, task, node.solution_plan, str(validation)
                     )
                     node.training_code = self.train_generator.fix_training_code(
-                        node.training_code, node.solution_plan, review, str(result)
+                        node.training_code, node.solution_plan, review, str(validation)
                     )
                     continue
 
@@ -281,8 +265,6 @@ class ModelGenerator:
                 else:
                     break
 
-            i += 1
-
             # Unpack the solution's performance; if this is better than the best so far, update
             if node.performance and isinstance(node.performance.value, float):
                 logger.info(f"🤔 Solution {i} (graph depth {node.depth}) performance: {str(node.performance)}")
@@ -294,12 +276,13 @@ class ModelGenerator:
                     f"{str(node.performance)}"
                 )
             logger.info(
-                f"📈 Explored {i}/{stop_condition.max_generations} nodes, best performance so far: {str(best_metric)}"
+                f"📈 Explored {i + 1}/{stop_condition.max_generations} nodes, best performance so far: {str(best_metric)}"
             )
+            i += 1
 
         valid_nodes = [n for n in self.graph.nodes if n.performance is not None and not n.exception_was_raised]
         if not valid_nodes:
-            raise RuntimeError("No valid solutions found during search")
+            raise RuntimeError("❌ No valid solutions found during search")
         return max(valid_nodes, key=lambda n: n.performance)
 
     def _produce_inference_code(self, node: Node, input_schema: dict, output_schema: dict) -> Node:
@@ -318,25 +301,30 @@ class ModelGenerator:
             training_code=node.training_code,
         )
         # Iteratively validate and fix the inference code
-        for i in range(config.model_search.max_fixing_attempts_predict):
-            result: ValidationResult | None = None
+        fix_attempts = config.model_search.max_fixing_attempts_predict
+        for i in range(fix_attempts):
+            node.exception_was_raised = False
+            node.exception = None
             # Validate the inference code, stopping at the first failed validation
-            for validator in self.infer_validators:
-                result = validator.validate(node.inference_code)
-                if not result.passed:
-                    logger.warning(f"Attempt {i} | code failed validation: {result}")
-                    break
-            # If not all validations passed, review and fix the first failed validation
-            if not result.passed:
+            validation = self.infer_validators.validate(node.inference_code)
+            if not validation.passed:
+                logger.info(f"⚠️ Inference solution {i}/{fix_attempts} failed validation, fixing ...")
+                node.exception_was_raised = True
+                node.exception = validation.exception
                 review = self.infer_generator.review_inference_code(
                     inference_code=node.inference_code,
                     input_schema=input_schema,
                     output_schema=output_schema,
                     training_code=node.training_code,
-                    problems=str(result),
+                    problems=str(validation),
                 )
-                node.inference_code = self.infer_generator.fix_inference_code(node.inference_code, review, str(result))
+                node.inference_code = self.infer_generator.fix_inference_code(
+                    node.inference_code, review, str(validation)
+                )
                 continue
+
+        if node.exception_was_raised:
+            raise RuntimeError(f"❌ Failed to generate valid inference code: {str(node.exception)}")
         return node
 
     def _cache_model_files(self, node: Node) -> None:
@@ -348,9 +336,9 @@ class ModelGenerator:
         """
         # Make sure the model cache directory exists
         self.filedir.mkdir(parents=True, exist_ok=True)
-        # Copy the model artifacts to the cache directory
+
+        # Copy artifacts to cache and update the code to match
         for i in range(len(node.model_artifacts)):
-            # Copy the model artifact to the cache directory
             artifact: Path = Path(node.model_artifacts[i])
             if artifact.is_dir():
                 # If the artifact is a directory, copy its contents
@@ -358,23 +346,34 @@ class ModelGenerator:
                 target_dir.mkdir(parents=True, exist_ok=True)
                 for file in artifact.glob("*"):
                     if file.is_file():
-                        shutil.copy2(file, target_dir)
+                        try:
+                            shutil.copy2(file, target_dir)
+                        except shutil.SameFileError:
+                            pass
                 # Update the paths in the training and inference code
-                node.training_code = node.training_code.replace(str(artifact), str(target_dir.as_posix()))
-                node.inference_code = node.inference_code.replace(str(artifact), str(target_dir.as_posix()))
+                if node.training_code:
+                    node.training_code = node.training_code.replace(str(artifact), str(target_dir.as_posix()))
+                if node.inference_code:
+                    node.inference_code = node.inference_code.replace(str(artifact), str(target_dir.as_posix()))
                 node.model_artifacts[i] = target_dir
             else:
-                # Handle individual files as before
+                # Handle individual files
                 basename: str = artifact.name
-                shutil.copy2(artifact, self.filedir)
-                # Update the paths in the training and inference code
-                node.training_code = node.training_code.replace(
-                    str(artifact), str((self.filedir / basename).as_posix())
-                )
-                node.inference_code = node.inference_code.replace(
-                    str(artifact), str((self.filedir / basename).as_posix())
-                )
-                node.model_artifacts[i] = self.filedir / basename
+                try:
+                    shutil.copy2(artifact, self.filedir)
+                    # Update the code only if shutil did not raise SameFileError
+                    if node.training_code:
+                        node.training_code = node.training_code.replace(
+                            basename, str((self.filedir / basename).as_posix())
+                        )
+                    if node.inference_code:
+                        node.inference_code = node.inference_code.replace(
+                            basename, str((self.filedir / basename).as_posix())
+                        )
+                    node.model_artifacts[i] = self.filedir / basename
+                except shutil.SameFileError:
+                    pass
+
         # Delete the working directory before returning
         if Path("./workdir").exists():
             shutil.rmtree("./workdir")
