@@ -20,17 +20,8 @@ class DataGenerationRequest:
 
 
 def generate_data(provider: Provider, request: DataGenerationRequest) -> pd.DataFrame:
-    """Generate synthetic data based on request parameters.
-    
-    The generation process displays two progress bars:
-    - Total samples progress: Shows number of samples generated out of total requested
-    - Batch progress: Shows the progress of individual batch generation
-    
-    Each progress bar includes:
-    - Progress percentage
-    - Number of items processed
-    - Processing speed
-    - Estimated time remaining"""
+    """Generate synthetic data based on request parameters."""
+
     from .core.generation.combined import CombinedDataGenerator
     from .config import Config
 
