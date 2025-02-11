@@ -82,7 +82,6 @@ class CombinedDataGenerator(BaseDataGenerator):
         num_batches = math.ceil(n_to_generate / self.batch_size)
         logger.info(f"Generating {n_to_generate} samples in {num_batches} batches")
 
-        # Create progress bars
         overall_pbar = tqdm(total=n_to_generate, desc="Total samples generated", unit="samples")
 
         # Generate batches
