@@ -84,7 +84,6 @@ class CombinedDataGenerator(BaseDataGenerator):
 
         # Create progress bars
         overall_pbar = tqdm(total=n_to_generate, desc="Total samples generated", unit="samples")
-        batch_pbar = tqdm(total=num_batches, desc="Generating batches", unit="batch", leave=False)
 
         # Generate batches
         with self.tp_executor as executor:
@@ -103,14 +102,10 @@ class CombinedDataGenerator(BaseDataGenerator):
                     if batch_df is not None and len(batch_df) > 0:
                         df_generated = pd.concat([df_generated, batch_df], ignore_index=True)
                         overall_pbar.update(len(batch_df))
-                    batch_pbar.update(1)
                 except Exception as e:
                     logger.error(f"Failed to process batch: {e}")
-                    batch_pbar.update(1)
 
-        # Close progress bars
         overall_pbar.close()
-        batch_pbar.close()
 
         if len(df_generated) == 0:
             raise RuntimeError("Failed to generate any valid data")
