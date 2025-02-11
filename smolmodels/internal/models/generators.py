@@ -165,10 +165,15 @@ class ModelGenerator:
         best_node = self._produce_inference_code(best_node, self.input_schema, self.output_schema)
         logger.info(f"✅ Built predictor for model with performance: {best_node.performance}")
 
-        self._cache_model_files(best_node)
-
         # compile the inference code into a module
         predictor: types.ModuleType = types.ModuleType("predictor")
+        # Add model artifacts directory to the module's globals
+        predictor.__dict__["MODEL_ARTIFACTS_DIR"] = str(self.filedir / config.file_storage.model_artifacts_dir)
+
+        # Cache model files after setting up the module environment
+        self._cache_model_files(best_node)
+
+        # Execute the inference code
         exec(best_node.inference_code, predictor.__dict__)
 
         return GenerationResult(
@@ -347,11 +352,29 @@ class ModelGenerator:
         for i in range(len(node.model_artifacts)):
             # Copy the model artifact to the cache directory
             artifact: Path = Path(node.model_artifacts[i])
-            basename: str = Path(artifact).name
-            shutil.copy(artifact, self.filedir)
-            # Update the paths in the training and inference code
-            node.training_code = node.training_code.replace(basename, str((self.filedir / basename).as_posix()))
-            node.inference_code = node.inference_code.replace(basename, str((self.filedir / basename).as_posix()))
-            node.model_artifacts[i] = self.filedir / basename
+            if artifact.is_dir():
+                # If the artifact is a directory, copy its contents
+                target_dir = self.filedir / artifact.name
+                target_dir.mkdir(parents=True, exist_ok=True)
+                for file in artifact.glob("*"):
+                    if file.is_file():
+                        shutil.copy2(file, target_dir)
+                # Update the paths in the training and inference code
+                node.training_code = node.training_code.replace(str(artifact), str(target_dir.as_posix()))
+                node.inference_code = node.inference_code.replace(str(artifact), str(target_dir.as_posix()))
+                node.model_artifacts[i] = target_dir
+            else:
+                # Handle individual files as before
+                basename: str = artifact.name
+                shutil.copy2(artifact, self.filedir)
+                # Update the paths in the training and inference code
+                node.training_code = node.training_code.replace(
+                    str(artifact), str((self.filedir / basename).as_posix())
+                )
+                node.inference_code = node.inference_code.replace(
+                    str(artifact), str((self.filedir / basename).as_posix())
+                )
+                node.model_artifacts[i] = self.filedir / basename
         # Delete the working directory before returning
-        shutil.rmtree("./workdir")
+        if Path("./workdir").exists():
+            shutil.rmtree("./workdir")

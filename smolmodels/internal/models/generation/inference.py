@@ -41,6 +41,7 @@ class InferenceCodeGenerator:
                     training_code=training_code,
                     context="",  # todo: implement memory to provide as 'context'
                     allowed_packages=config.code_generation.allowed_packages,
+                    model_artifacts_dir=config.file_storage.model_artifacts_dir,
                 ),
             )
         )

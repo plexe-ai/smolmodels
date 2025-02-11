@@ -82,6 +82,10 @@ class ProcessExecutor(Executor):
         dataset_file: Path = self.working_dir / config.execution.training_data_path
         pq.write_table(pa.Table.from_pandas(df=self.dataset), dataset_file)
 
+        # Create model_artifacts directory
+        model_artifacts_dir = self.working_dir / config.file_storage.model_artifacts_dir
+        model_artifacts_dir.mkdir(parents=True, exist_ok=True)
+
         try:
             # Execute the code in a subprocess
             process = subprocess.Popen(
@@ -95,11 +99,25 @@ class ProcessExecutor(Executor):
             stdout, stderr = process.communicate(timeout=self.timeout)
             exec_time = time.time() - start_time
 
-            # Collect all model artefacts created by the execution
+            # Collect all model artifacts created by the execution
             model_artifacts = []
+            model_artifacts_dir = self.working_dir / config.file_storage.model_artifacts_dir
+
+            # If model_artifacts directory exists and has files, add the directory itself
+            if model_artifacts_dir.exists() and any(model_artifacts_dir.iterdir()):
+                model_artifacts.append(str(model_artifacts_dir))
+                # Log the contents of the model_artifacts directory for debugging
+                logger.debug(f"Model artifacts directory contents: {list(model_artifacts_dir.iterdir())}")
+            else:
+                logger.warning(f"Model artifacts directory {model_artifacts_dir} is empty or does not exist")
+
+            # Also collect any other files in working directory (except code file and dataset)
             for file in self.working_dir.iterdir():
-                if file != code_file:
+                if file != code_file and file != dataset_file and file != model_artifacts_dir:
                     model_artifacts.append(str(file))
+
+            if not model_artifacts:
+                logger.warning("No model artifacts were found after execution")
 
             if process.returncode != 0:
                 return ExecutionResult(

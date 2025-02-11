@@ -20,6 +20,7 @@ class _Config:
     @dataclass(frozen=True)
     class _FileStorageConfig:
         model_cache_dir: str = field(default=".smolcache/")
+        model_artifacts_dir: str = field(default="model_artifacts/")
 
     @dataclass(frozen=True)
     class _LoggingConfig:
@@ -130,8 +131,14 @@ class _Config:
                 "be in the comments in the code itself, but your overall answer must only consist of the code script. "
                 "The script must assume that the dataset is in the current working directory as a parquet file "
                 "called ${training_data_path}. "
-                "The script must train the model, compute and print the final evaluation metric to standard output, "
-                "and save the model as 'model.joblib' in the current working directory. Use only ${allowed_packages}. "
+                "The script must:\n"
+                "1. Create the '${model_artifacts_dir}' directory if it doesn't exist\n"
+                "2. Train the model and compute the final evaluation metric\n"
+                "3. Print the evaluation metric to standard output\n"
+                "4. Save all model artifacts (preprocessors, models, etc.) in the '${model_artifacts_dir}' directory\n"
+                "5. Use os.path.join('${model_artifacts_dir}', filename) when saving files\n"
+                "Each artifact should be saved as a separate joblib file with a descriptive name (e.g., 'preprocessor.joblib', 'model.joblib'). "
+                "Use only ${allowed_packages}. "
                 "Do NOT use any packages that are not part of this list of the Python standard library."
                 "Do not skip steps or combine preprocessors and models in the same joblib file."
             )
@@ -143,8 +150,8 @@ class _Config:
                 "# CODE:\n${training_code}\n"
                 "# ISSUES:\n${review}\n"
                 "# ERRORS:\n${problems}\n"
-                "Correct the code, train the model, compute and print the evaluation metric, and save the model in "
-                "the current working directory as 'model.joblib'. Use only ${allowed_packages}. Do NOT use any "
+                "Correct the code, train the model, compute and print the evaluation metric, and save all model artifacts "
+                "in the '${model_artifacts_dir}' directory. Use only ${allowed_packages}. Do NOT use any "
                 "packages that are not part of this list of the Python standard library. Assume the training "
                 "data is in the current working directory as a parquet file called ${training_data_path}."
             )
@@ -169,15 +176,23 @@ class _Config:
                 "Complete the following Python script, such that it can be used to get predictions from a machine "
                 "learning model. The script to complete is the below:\n\n"
                 "```python\n"
-                "# todo: any library imports you need go here"
+                "import os\n"
+                "import joblib\n"
                 "\n"
-                "# todo: load model binaries here at the module level\n"
+                "# MODEL_ARTIFACTS_DIR is provided at module level\n"
+                "# Always use os.path.join(MODEL_ARTIFACTS_DIR, filename) to load files\n"
+                "# Example: preprocessor = joblib.load(os.path.join(MODEL_ARTIFACTS_DIR, 'preprocessor.joblib'))\n"
+                "\n"
+                "# Load model artifacts\n"
+                "preprocessor = joblib.load(os.path.join(MODEL_ARTIFACTS_DIR, 'preprocessor.joblib'))\n"
                 "\n"
                 "def predict(sample: dict) -> dict:\n"
                 "    # todo: prediction code goes here\n"
                 "    pass\n"
                 "```\n\n"
-                "You can add any imports or functionality to the code, but you must not change the overall structure "
+                "You can add any imports or functionality to the code, but you must not change the overall structure. "
+                "Use MODEL_ARTIFACTS_DIR (provided at module level) to construct absolute paths to model files, e.g., "
+                "os.path.join(MODEL_ARTIFACTS_DIR, 'preprocessor.joblib'). Do not use relative paths. "
                 "or the signature of the predict() function. The input parameter 'sample' will take a single input "
                 "sample for which a model inference must be produced. The contents of 'sample' will be as per the "
                 "input schema below, and the contents of the returned dictionary must be as per the output schema "
