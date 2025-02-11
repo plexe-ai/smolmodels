@@ -69,6 +69,7 @@ class InferenceCodeGenerator:
                         review=review,
                         problems=problems,
                     ),
+                    response_format=FixResponse,
                 )
             )
         )

@@ -82,6 +82,8 @@ class CombinedDataGenerator(BaseDataGenerator):
         num_batches = math.ceil(n_to_generate / self.batch_size)
         logger.info(f"Generating {n_to_generate} samples in {num_batches} batches")
 
+        overall_pbar = tqdm(total=n_to_generate, desc="Total samples generated", unit="samples")
+
         # Generate batches
         with self.tp_executor as executor:
             futures = []
@@ -93,13 +95,16 @@ class CombinedDataGenerator(BaseDataGenerator):
 
                 futures.append(executor.submit(self._generate_batch, batch_size, description, schema, sample_data))
 
-            for future in tqdm(as_completed(futures), total=len(futures), desc="Generating batches"):
+            for future in as_completed(futures):
                 try:
                     batch_df = future.result()
                     if batch_df is not None and len(batch_df) > 0:
                         df_generated = pd.concat([df_generated, batch_df], ignore_index=True)
+                        overall_pbar.update(len(batch_df))
                 except Exception as e:
                     logger.error(f"Failed to process batch: {e}")
+
+        overall_pbar.close()
 
         if len(df_generated) == 0:
             raise RuntimeError("Failed to generate any valid data")
