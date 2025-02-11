@@ -67,6 +67,12 @@ class PredictorValidator(Validator):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             predictor = types.ModuleType("test_predictor")
+            # Set up MODEL_ARTIFACTS_DIR for testing
+            import os
+            from smolmodels.config import config
+            model_artifacts_dir = os.path.join(os.getcwd(), config.file_storage.model_artifacts_dir)
+            os.makedirs(model_artifacts_dir, exist_ok=True)
+            predictor.__dict__['MODEL_ARTIFACTS_DIR'] = model_artifacts_dir
             exec(code, predictor.__dict__)
         return predictor
 
