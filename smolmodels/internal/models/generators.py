@@ -31,8 +31,8 @@ from smolmodels.internal.models.generation.training import TrainingCodeGenerator
 from smolmodels.internal.models.search.best_first_policy import BestFirstSearchPolicy
 from smolmodels.internal.models.search.policy import SearchPolicy
 from smolmodels.internal.models.utils import join_task_statement, execute_node
-from smolmodels.internal.models.validation.security import SecurityValidator
-from smolmodels.internal.models.validation.syntax import SyntaxValidator
+from smolmodels.internal.models.validation.primitives.security import SecurityValidator
+from smolmodels.internal.models.validation.primitives.syntax import SyntaxValidator
 from smolmodels.internal.models.validation.validator import Validator, ValidationResult
 
 logger = logging.getLogger(__name__)
