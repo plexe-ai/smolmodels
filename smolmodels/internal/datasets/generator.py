@@ -20,7 +20,8 @@ class DataGenerationRequest:
 
 
 def generate_data(provider: Provider, request: DataGenerationRequest) -> pd.DataFrame:
-    """Generate synthetic data based on request parameters"""
+    """Generate synthetic data based on request parameters."""
+
     from .core.generation.combined import CombinedDataGenerator
     from .config import Config
 
