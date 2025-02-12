@@ -64,7 +64,6 @@ class ProcessExecutor(Executor):
         # Create a unique working directory for this execution
         self.working_dir = Path(working_dir).resolve() / execution_id
         self.working_dir.mkdir(parents=True, exist_ok=True)
-
         # Set the file names for the code and training data
         self.code_file_name = code_execution_file_name
         self.dataset = dataset

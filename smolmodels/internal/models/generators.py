@@ -323,13 +323,11 @@ class ModelGenerator:
             training_code=node.training_code,
             model_id=model_id,
         )
-
         # Iteratively validate and fix the inference code
         fix_attempts = config.model_search.max_fixing_attempts_predict
         for i in range(fix_attempts):
             node.exception_was_raised = False
             node.exception = None
-
             # Validate the inference code, stopping at the first failed validation
             validation = self.infer_validators.validate(node.inference_code)
             if not validation.passed:
