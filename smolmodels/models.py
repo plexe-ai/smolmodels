@@ -46,6 +46,7 @@ from typing import Dict, Union, List, Literal, Any
 
 import numpy as np
 import pandas as pd
+import os
 
 from smolmodels.callbacks import Callback
 from smolmodels.config import config
@@ -163,7 +164,8 @@ class Model:
         # Unique identifier for the model, used in directory paths etc
         self.identifier: str = f"model-{abs(hash(self.intent))}-{str(uuid.uuid4())}"
         # Directory for any required model files
-        self.files_path: Path = Path(config.file_storage.model_cache_dir) / self.identifier
+        base_dir = os.environ.get("MODEL_PATH", config.file_storage.model_cache_dir)
+        self.files_path: Path = Path(base_dir) / self.identifier
 
     def build(
         self,
