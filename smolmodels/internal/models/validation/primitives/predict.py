@@ -67,7 +67,10 @@ class PredictorValidator(Validator):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             predictor = types.ModuleType("test_predictor")
-            exec(code, predictor.__dict__)
+            try:
+                exec(code, predictor.__dict__)
+            except Exception as e:
+                raise RuntimeError(f"Failed to load predictor: {str(e)}")
         return predictor
 
     @staticmethod

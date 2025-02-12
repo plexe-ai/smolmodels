@@ -31,8 +31,8 @@ from smolmodels.internal.models.generation.training import TrainingCodeGenerator
 from smolmodels.internal.models.search.best_first_policy import BestFirstSearchPolicy
 from smolmodels.internal.models.search.policy import SearchPolicy
 from smolmodels.internal.models.utils import join_task_statement, execute_node
-from smolmodels.internal.models.validation.validator import Validator
-from smolmodels.internal.models.validation.composites import TrainingCodeValidator, InferenceCodeValidator
+from smolmodels.internal.models.validation.composites.training import TrainingCodeValidator
+from smolmodels.internal.models.validation.composites.inference import InferenceCodeValidator
 
 logger = logging.getLogger(__name__)
 
@@ -112,8 +112,10 @@ class ModelGenerator:
         self.train_generator = TrainingCodeGenerator(provider)
         self.infer_generator = InferenceCodeGenerator(provider)
         self.search_policy: SearchPolicy = BestFirstSearchPolicy(self.graph)
-        self.train_validators: Validator = TrainingCodeValidator()
-        self.infer_validators: Validator = InferenceCodeValidator(provider, intent, input_schema, output_schema, 10)
+        self.train_validators: TrainingCodeValidator = TrainingCodeValidator()
+        self.infer_validators: InferenceCodeValidator = InferenceCodeValidator(
+            provider, intent, input_schema, output_schema, 10
+        )
 
     def generate(
         self,
@@ -293,17 +295,41 @@ class ModelGenerator:
         :param output_schema: the output schema that the predict function must match
         :return: the node with updated inference code
         """
+        # Create model directory in .smolcache with proper model ID format
+        cache_dir = Path(config.file_storage.model_cache_dir)
+        model_id = f"model-{hash(node.id)}-{node.id}"
+        model_dir = cache_dir / model_id
+
+        # Create directory if it doesn't exist
+        model_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy model files to the model directory
+        for artifact in node.model_artifacts:
+            artifact_path = Path(artifact)
+            if artifact_path.is_file():
+                shutil.copy2(artifact_path, model_dir / artifact_path.name)
+            elif artifact_path.is_dir():
+                for item in artifact_path.glob("*"):
+                    if item.is_file():
+                        shutil.copy2(item, model_dir / item.name)
+
+        # Update node's model_artifacts to use the new path
+        node.model_artifacts = [str(model_dir)]
+
         # Generate inference code using LLM
         node.inference_code = self.infer_generator.generate_inference_code(
             input_schema=input_schema,
             output_schema=output_schema,
             training_code=node.training_code,
+            model_id=model_id,
         )
+
         # Iteratively validate and fix the inference code
         fix_attempts = config.model_search.max_fixing_attempts_predict
         for i in range(fix_attempts):
             node.exception_was_raised = False
             node.exception = None
+
             # Validate the inference code, stopping at the first failed validation
             validation = self.infer_validators.validate(node.inference_code)
             if not validation.passed:
@@ -335,18 +361,36 @@ class ModelGenerator:
         """
         # Make sure the model cache directory exists
         self.filedir.mkdir(parents=True, exist_ok=True)
+
+        # Create a model_files directory inside the cache directory
+        model_dir = self.filedir / config.file_storage.model_dir
+        model_dir.mkdir(parents=True, exist_ok=True)
+
         # Copy artifacts to cache and update the code to match
         for i in range(len(node.model_artifacts)):
             path: Path = Path(node.model_artifacts[i])
             name: str = Path(path).name
             try:
-                shutil.copy(path, self.filedir)
-                # Update the code only if shutil did not raise SameFileError (i.e. copied for the first time)
-                if node.training_code:
-                    node.training_code = node.training_code.replace(name, str((self.filedir / name).as_posix()))
-                if node.inference_code:
-                    node.inference_code = node.inference_code.replace(name, str((self.filedir / name).as_posix()))
-                node.model_artifacts[i] = self.filedir / name
+                if path.is_dir():
+                    # If it's a directory, copy its contents to model_dir
+                    if model_dir.exists():
+                        shutil.rmtree(model_dir)
+                    shutil.copytree(path, model_dir)
+                    # Update the code to use the new model directory path
+                    if node.training_code:
+                        node.training_code = node.training_code.replace(str(path), str(model_dir.as_posix()))
+                    if node.inference_code:
+                        node.inference_code = node.inference_code.replace(str(path), str(model_dir.as_posix()))
+                    node.model_artifacts[i] = model_dir
+                else:
+                    # If it's a file, copy it to model_dir
+                    shutil.copy(path, model_dir)
+                    # Update the code to use the new file path
+                    if node.training_code:
+                        node.training_code = node.training_code.replace(name, str((model_dir / name).as_posix()))
+                    if node.inference_code:
+                        node.inference_code = node.inference_code.replace(name, str((model_dir / name).as_posix()))
+                    node.model_artifacts[i] = model_dir / name
             except shutil.SameFileError:
                 pass
         # Delete the working directory before returning

@@ -73,10 +73,18 @@ class ProcessExecutor(Executor):
         logger.debug(f"ProcessExecutor is executing code with working directory: {self.working_dir}")
         start_time = time.time()
 
-        # Write code to file
+        # Write code to file with module environment setup
         code_file: Path = self.working_dir / self.code_file_name
+        module_setup = (
+            "import os\n"
+            "import sys\n"
+            "from pathlib import Path\n\n"
+            "# Set up module environment\n"
+            "__file__ = os.path.abspath(__file__)\n"
+            "MODULE_DIR = Path(__file__).parent\n\n"
+        )
         with open(code_file, "w") as f:
-            f.write(self.code)
+            f.write(module_setup + self.code)
 
         # Write dataset to file
         dataset_file: Path = self.working_dir / config.execution.training_data_path
@@ -95,11 +103,16 @@ class ProcessExecutor(Executor):
             stdout, stderr = process.communicate(timeout=self.timeout)
             exec_time = time.time() - start_time
 
-            # Collect all model artefacts created by the execution
+            # Collect all model artifacts created by the execution
             model_artifacts = []
-            for file in self.working_dir.iterdir():
-                if file != code_file:
-                    model_artifacts.append(str(file))
+            model_dir = self.working_dir / "model_files"
+            if model_dir.exists() and model_dir.is_dir():
+                model_artifacts.append(str(model_dir))
+            else:
+                # If model_files directory doesn't exist, collect individual files
+                for file in self.working_dir.iterdir():
+                    if file != code_file and file != dataset_file:
+                        model_artifacts.append(str(file))
 
             if process.returncode != 0:
                 return ExecutionResult(

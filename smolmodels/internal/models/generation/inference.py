@@ -23,13 +23,16 @@ class InferenceCodeGenerator:
         self.provider: Provider = provider
         self.context: List[Dict[str, str]] = []
 
-    def generate_inference_code(self, input_schema: dict, output_schema: dict, training_code: str) -> str:
+    def generate_inference_code(
+        self, input_schema: dict, output_schema: dict, training_code: str, model_id: str
+    ) -> str:
         """
         Generates inference code based on the problem statement, solution plan, and training code.
 
         :param [dict] input_schema: The schema of the input data.
         :param [dict] output_schema: The schema of the output data.
         :param [str] training_code: The training code that has already been generated.
+        :param [str] model_id: The ID of the model to load.
         :return: The generated inference code.
         """
         return extract_code(
@@ -39,6 +42,7 @@ class InferenceCodeGenerator:
                     input_schema=input_schema,
                     output_schema=output_schema,
                     training_code=training_code,
+                    model_id=model_id,
                     context="",  # todo: implement memory to provide as 'context'
                     allowed_packages=config.code_generation.allowed_packages,
                 ),

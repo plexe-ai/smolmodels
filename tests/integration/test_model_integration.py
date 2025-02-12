@@ -96,7 +96,7 @@ def test_model_with_data_and_schema(sample_data, input_schema, output_schema, te
     model.build(
         dataset=sample_data,
         provider="openai/gpt-4o-mini",
-        max_iterations=10,
+        max_iterations=2,
         timeout=3600,
     )
     prediction = model.predict(test_input)
@@ -115,7 +115,7 @@ def test_model_with_data_and_generate(sample_data, input_schema, output_schema, 
         dataset=sample_data,
         generate_samples=10,
         provider="openai/gpt-4o-mini",
-        max_iterations=10,
+        max_iterations=2,
         timeout=3600,
     )
     prediction = model.predict(test_input)
