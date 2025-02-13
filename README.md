@@ -194,5 +194,7 @@ Apache-2.0 License - see [LICENSE](LICENSE) for details.
 
 ## 8. Product Roadmap
 
-- [ ] Model imports and fine-tuning support
-- [ ] Solution graph visualization
+- [ ] Fine-tuning and transfer learning for small pre-trained models
+- [ ] Support for non-tabular data types in model generation
+- [ ] Use Pydantic for schemas and split data generation into a separate module
+- [ ] Smolmodels self-hosted platform ⭐ (More details coming soon!)
