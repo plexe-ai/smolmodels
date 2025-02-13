@@ -6,8 +6,8 @@ import numpy as np
 from unittest.mock import patch, MagicMock
 from smolmodels import Model
 from smolmodels.internal.common.provider import Provider
-from smolmodels.internal.data_generation.core.generation.utils.oversampling import oversample_with_smote
-from smolmodels.internal.data_generation.generator import DataGenerationRequest
+from smolmodels.internal.datasets.core.generation.utils.oversampling import oversample_with_smote
+from smolmodels.internal.datasets.generator import DataGenerationRequest
 from smolmodels.internal.models.generators import GenerationResult
 
 
