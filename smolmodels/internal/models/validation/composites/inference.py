@@ -18,11 +18,19 @@ class InferenceCodeValidator(CompositeValidator):
     A validator class that validates the correctness of prediction code.
     """
 
-    def __init__(self, provider: Provider, intent: str, input_schema: dict, output_schema: dict, n_samples=10):
+    def __init__(
+        self,
+        provider: Provider,
+        intent: str,
+        input_schema: dict,
+        output_schema: dict,
+        n_samples=10,
+        model_id: str = None,
+    ):
         """
         Initialize the PredictionValidator with the name 'prediction'.
         """
         super().__init__(
             "prediction",
-            [SyntaxValidator(), PredictorValidator(provider, intent, input_schema, output_schema, n_samples)],
+            [SyntaxValidator(), PredictorValidator(provider, intent, input_schema, output_schema, n_samples, model_id)],
         )

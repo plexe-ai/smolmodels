@@ -151,10 +151,10 @@ class CombinedDataGenerator(BaseDataGenerator):
             )
             logger.debug(prompt)
             # generate the content
-            r = self.llm.query(self.instruction, prompt)
-            logger.debug(r)
+            response = self.llm.query(self.instruction, prompt)
+            logger.debug(response)
             # return as dataframe
-            return json_to_df(r).dropna()
+            return json_to_df(response).dropna()
 
     class FilterModel(Model):
         def __init__(self, provider, max_tokens: int, instruction):
@@ -224,14 +224,39 @@ def json_to_df(json_str: str, handle_partial: bool = True) -> pd.DataFrame:
     """
     try:
         logger.debug(f"Converting JSON to DataFrame:\n{json_str}")
-        json_str = json_str.replace("json", "").replace("`", "").replace("'", '"').replace("\n", "")
-        if handle_partial:
-            last_bracket = json_str.rfind("}")
-            json_str = json_str[: last_bracket + 1] + "]"
-        df = pd.read_json(json_str)
-        logger.debug("Successfully converted JSON to DataFrame.")
+
+        # Remove code blocks
+        if "```" in json_str:
+            import re
+
+            json_str = re.search(r"```(?:json)?\s*(.*?)\s*```", json_str, re.DOTALL)
+            if json_str:
+                json_str = json_str.group(1)
+
+        # Clean up the string
+        json_str = json_str.strip()
+
+        # Find the actual JSON array
+        start_idx = json_str.find("[")
+        end_idx = json_str.rfind("]")
+        if start_idx >= 0 and end_idx >= 0:
+            json_str = json_str[start_idx : end_idx + 1]
+
+        # Basic cleanup
+        json_str = json_str.replace("\n", " ").replace("\r", " ")
+
+        # Simply remove apostrophes and handle quotes for JSON
+        json_str = json_str.replace("'", "")
+        json_str = json_str.replace('"', '\\"').replace('\\"', '"')
+
+        import json
+
+        data = json.loads(json_str)
+        df = pd.DataFrame(data)
+        logger.debug("Successfully converted JSON to DataFrame")
         return df
-    except ValueError as e:
+
+    except Exception as e:
         logger.error(f"Error converting JSON to DataFrame: {e}")
         logger.debug(f"JSON string:\n{json_str}")
         return pd.DataFrame()

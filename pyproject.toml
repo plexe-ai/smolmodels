@@ -45,6 +45,13 @@ torch = ">=2.0.0,<2.3.0"
 litellm = "^1.60.0"
 statsmodels = "^0.14.4"
 hypothesis = "^6.125.1"
+datasets = "^2.16.1"
+tokenizers = "^0.15.1"
+peft = "^0.7.1"
+numpy = ">=1.23.2,<2.0.0"
+transformers = "4.35.2"  # Last version before the accelerator changes
+accelerate = "0.24.1"   # Compatible version
+safetensors = "^0.4.1"
 
 
 [tool.poetry.group.dev.dependencies]

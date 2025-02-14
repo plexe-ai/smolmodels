@@ -35,21 +35,25 @@ class InferenceCodeGenerator:
         :param [str] model_id: The ID of the model to load.
         :return: The generated inference code.
         """
-        return extract_code(
-            self.provider.query(
-                system_message=config.code_generation.prompt_inference_base.safe_substitute(),
-                user_message=config.code_generation.prompt_inference_generate.safe_substitute(
-                    input_schema=input_schema,
-                    output_schema=output_schema,
-                    training_code=training_code,
-                    model_id=model_id,
-                    context="",  # todo: implement memory to provide as 'context'
-                    allowed_packages=config.code_generation.allowed_packages,
-                ),
-            )
+        user_message = config.code_generation.prompt_inference_generate.safe_substitute(
+            input_schema=input_schema,
+            output_schema=output_schema,
+            training_code=training_code,
+            model_id=model_id,
+            context="",
+            allowed_packages=config.code_generation.allowed_packages,
         )
 
-    def fix_inference_code(self, inference_code: str, review: str, problems: str) -> str:
+        raw_response = self.provider.query(
+            system_message=config.code_generation.prompt_inference_base.safe_substitute(),
+            user_message=user_message,
+        )
+
+        extracted_code = extract_code(raw_response)
+
+        return extracted_code
+
+    def fix_inference_code(self, inference_code: str, review: str, problems: str, model_id: str) -> str:
         """
         Fixes the inference code based on the review and identified problems.
 
@@ -71,6 +75,7 @@ class InferenceCodeGenerator:
                         inference_code=inference_code,
                         review=review,
                         problems=problems,
+                        model_id=model_id,
                     ),
                     response_format=FixResponse,
                 )
@@ -79,7 +84,13 @@ class InferenceCodeGenerator:
         return extract_code(response.code)
 
     def review_inference_code(
-        self, inference_code: str, input_schema: dict, output_schema: dict, training_code: str, problems: str = None
+        self,
+        inference_code: str,
+        input_schema: dict,
+        output_schema: dict,
+        training_code: str,
+        problems: str = None,
+        model_id: str = None,
     ) -> str:
         """
         Reviews the inference code to identify improvements and fix issues.
@@ -99,6 +110,7 @@ class InferenceCodeGenerator:
                 output_schema=output_schema,
                 training_code=training_code,
                 problems=problems,
+                model_id=model_id,
                 context="",  # todo: implement memory to provide as 'context'
             ),
         )

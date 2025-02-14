@@ -20,7 +20,13 @@ class PredictorValidator(Validator):
     """
 
     def __init__(
-        self, provider: Provider, intent: str, input_schema: dict, output_schema: dict, n_samples: int = 10
+        self,
+        provider: Provider,
+        intent: str,
+        input_schema: dict,
+        output_schema: dict,
+        n_samples: int = 10,
+        model_id: str = None,
     ) -> None:
         """
         Initialize the PredictorValidator with the name 'predictor'.
@@ -36,7 +42,9 @@ class PredictorValidator(Validator):
         self.intent: str = intent
         self.input_schema: dict = input_schema
         self.output_schema: dict = output_schema
-        self.input_sample: list = self._generate_input_sample(n_samples)
+        self.input_sample = None
+        self.n_samples: int = n_samples
+        self.model_id: str = model_id
 
     def validate(self, code: str) -> ValidationResult:
         """
@@ -45,6 +53,8 @@ class PredictorValidator(Validator):
         :return: True if valid, False otherwise
         """
         try:
+            if self.input_sample is None:
+                self.input_sample = self._generate_input_sample(self.n_samples)
             predictor: types.ModuleType = self._load_predictor(code)
             self._has_predict_function(predictor)
             self._returns_output_when_called(predictor)

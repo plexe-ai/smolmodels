@@ -123,7 +123,6 @@ class ProcessExecutor(Executor):
                 )
 
             # Parse performance from last line of stdout
-
             return ExecutionResult(
                 term_out=[stdout],
                 exec_time=exec_time,

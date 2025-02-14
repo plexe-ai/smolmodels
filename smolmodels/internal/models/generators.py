@@ -113,9 +113,6 @@ class ModelGenerator:
         self.infer_generator = InferenceCodeGenerator(provider)
         self.search_policy: SearchPolicy = BestFirstSearchPolicy(self.graph)
         self.train_validators: TrainingCodeValidator = TrainingCodeValidator()
-        self.infer_validators: InferenceCodeValidator = InferenceCodeValidator(
-            provider, intent, input_schema, output_schema, 10
-        )
 
     def generate(
         self,
@@ -316,6 +313,15 @@ class ModelGenerator:
         # Update node's model_artifacts to use the new path
         node.model_artifacts = [str(model_dir)]
 
+        validator = InferenceCodeValidator(
+            provider=self.provider,
+            intent=self.intent,
+            input_schema=input_schema,
+            output_schema=output_schema,
+            n_samples=10,
+            model_id=model_id,
+        )
+
         # Generate inference code using LLM
         node.inference_code = self.infer_generator.generate_inference_code(
             input_schema=input_schema,
@@ -326,14 +332,14 @@ class ModelGenerator:
 
         # Iteratively validate and fix the inference code
         fix_attempts = config.model_search.max_fixing_attempts_predict
-        for i in range(fix_attempts):
+        for i in range(fix_attempts + 1):
             node.exception_was_raised = False
             node.exception = None
 
             # Validate the inference code, stopping at the first failed validation
-            validation = self.infer_validators.validate(node.inference_code)
+            validation = validator.validate(node.inference_code)
             if not validation.passed:
-                logger.info(f"⚠️ Inference solution {i}/{fix_attempts} failed validation, fixing ...")
+                logger.info(f"⚠️ Inference solution {i+1}/{fix_attempts+1} failed validation, fixing ...")
                 node.exception_was_raised = True
                 node.exception = validation.exception
                 review = self.infer_generator.review_inference_code(
@@ -342,9 +348,13 @@ class ModelGenerator:
                     output_schema=output_schema,
                     training_code=node.training_code,
                     problems=str(validation),
+                    model_id=model_id,
                 )
                 node.inference_code = self.infer_generator.fix_inference_code(
-                    node.inference_code, review, str(validation)
+                    node.inference_code,
+                    review,
+                    str(validation),
+                    model_id=model_id,
                 )
                 continue
 
@@ -362,8 +372,8 @@ class ModelGenerator:
         # Make sure the model cache directory exists
         self.filedir.mkdir(parents=True, exist_ok=True)
 
-        # Create a model_files directory inside the cache directory
-        model_dir = self.filedir / config.file_storage.model_dir
+        # Create the model directory with model ID
+        model_dir = self.filedir / f"model-{hash(node.id)}-{node.id}"
         model_dir.mkdir(parents=True, exist_ok=True)
 
         # Copy artifacts to cache and update the code to match
@@ -372,20 +382,20 @@ class ModelGenerator:
             name: str = Path(path).name
             try:
                 if path.is_dir():
-                    # If it's a directory, copy its contents to model_dir
+                    # If it's a directory, copy its contents
                     if model_dir.exists():
                         shutil.rmtree(model_dir)
                     shutil.copytree(path, model_dir)
-                    # Update the code to use the new model directory path
+                    # Update code paths
                     if node.training_code:
                         node.training_code = node.training_code.replace(str(path), str(model_dir.as_posix()))
                     if node.inference_code:
                         node.inference_code = node.inference_code.replace(str(path), str(model_dir.as_posix()))
                     node.model_artifacts[i] = model_dir
                 else:
-                    # If it's a file, copy it to model_dir
-                    shutil.copy(path, model_dir)
-                    # Update the code to use the new file path
+                    # If it's a file, copy directly
+                    shutil.copy(path, model_dir / name)
+                    # Update code paths
                     if node.training_code:
                         node.training_code = node.training_code.replace(name, str((model_dir / name).as_posix()))
                     if node.inference_code:

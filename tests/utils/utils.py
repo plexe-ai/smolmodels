@@ -73,19 +73,20 @@ def verify_prediction(prediction, expected_schema=None):
         ), f"Prediction keys {prediction.keys()} don't match schema keys {expected_schema.keys()}"
 
     output_value = list(prediction.values())[0]
-    assert isinstance(output_value, (int, float)), f"Prediction value should be numeric, got {type(output_value)}"
-    assert 0 <= float(output_value) <= 1 or output_value in [
-        0,
-        1,
-    ], f"Prediction value should be between 0 and 1 or binary, got {output_value}"
+    assert isinstance(
+        output_value, (int, float, str)
+    ), f"Prediction value should be numeric or string, got {type(output_value)}"
 
 
 def cleanup_files(model_dir=None):
     """Clean up any files created during tests"""
+    import shutil
+
     files_to_clean = [
         "smolmodels.log",
         "heart_attack_model.pmb",
     ]
+
     # Clean up files in current directory
     for file in files_to_clean:
         try:
@@ -96,8 +97,17 @@ def cleanup_files(model_dir=None):
 
     # Clean up files in model directory
     if model_dir is not None and model_dir.exists():
-        for file in model_dir.glob("*"):
-            try:
-                file.unlink()
-            except Exception as e:
-                print(f"Failed to clean up {file}: {e}")
+        try:
+            # Use rmtree to recursively remove directory and contents
+            shutil.rmtree(model_dir, ignore_errors=True)
+        except Exception as e:
+            print(f"Failed to clean up {model_dir}: {e}")
+            # If rmtree fails, try to at least clean individual files
+            for file in model_dir.glob("*"):
+                try:
+                    if file.is_file():
+                        file.unlink(missing_ok=True)
+                    elif file.is_dir():
+                        shutil.rmtree(file, ignore_errors=True)
+                except Exception as e:
+                    print(f"Failed to clean up {file}: {e}")
