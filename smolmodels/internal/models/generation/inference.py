@@ -35,23 +35,19 @@ class InferenceCodeGenerator:
         :param [str] model_id: The ID of the model to load.
         :return: The generated inference code.
         """
-        user_message = config.code_generation.prompt_inference_generate.safe_substitute(
-            input_schema=input_schema,
-            output_schema=output_schema,
-            training_code=training_code,
-            model_id=model_id,
-            context="",
-            allowed_packages=config.code_generation.allowed_packages,
+        return extract_code(
+            self.provider.query(
+                system_message=config.code_generation.prompt_inference_base.safe_substitute(),
+                user_message=config.code_generation.prompt_inference_generate.safe_substitute(
+                    input_schema=input_schema,
+                    output_schema=output_schema,
+                    training_code=training_code,
+                    model_id=model_id,
+                    context="",  # todo: implement memory to provide as 'context'
+                    allowed_packages=config.code_generation.allowed_packages,
+                ),
+            )
         )
-
-        raw_response = self.provider.query(
-            system_message=config.code_generation.prompt_inference_base.safe_substitute(),
-            user_message=user_message,
-        )
-
-        extracted_code = extract_code(raw_response)
-
-        return extracted_code
 
     def fix_inference_code(self, inference_code: str, review: str, problems: str, model_id: str) -> str:
         """
