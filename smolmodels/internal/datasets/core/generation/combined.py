@@ -242,10 +242,9 @@ def json_to_df(json_str: str, handle_partial: bool = True) -> pd.DataFrame:
         if start_idx >= 0 and end_idx >= 0:
             json_str = json_str[start_idx : end_idx + 1]
 
-        # Basic cleanup
         json_str = json_str.replace("\n", " ").replace("\r", " ")
 
-        # Simply remove apostrophes and handle quotes for JSON
+        # Remove apostrophes and handle quotes for JSON
         json_str = json_str.replace("'", "")
         json_str = json_str.replace('"', '\\"').replace('\\"', '"')
 

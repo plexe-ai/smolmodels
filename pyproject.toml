@@ -49,8 +49,8 @@ datasets = "^2.16.1"
 tokenizers = "^0.15.1"
 peft = "^0.7.1"
 numpy = ">=1.23.2,<2.0.0"
-transformers = "4.35.2"  # Last version before the accelerator changes
-accelerate = "0.24.1"   # Compatible version
+transformers = "4.35.2"
+accelerate = "0.24.1"
 safetensors = "^0.4.1"
 
 
