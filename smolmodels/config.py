@@ -55,7 +55,6 @@ class _Config:
                 "torch",
                 "statsmodels",
                 "transformers",
-                "datasets",
                 "tokenizers",
                 "accelerate",
                 "safetensors",
@@ -184,7 +183,7 @@ class _Config:
                 "\n"
                 "# todo: add any additional imports you need here\n"
                 "\n"
-                "# IMPORTANT: Use exactly this model directory structure - do not modify or use environment variables\n"
+                "#**IMPORTANT: Use exactly this model directory structure - do not modify or use environment variables**\n"
                 "MODEL_DIR = Path('${model_id}')\n"
                 "if not MODEL_DIR.exists():\n"
                 "    MODEL_DIR = Path('.smolcache') / '${model_id}'\n"
@@ -234,7 +233,7 @@ class _Config:
                 "    # todo: prediction code goes here\n"
                 "    pass\n"
                 "```\n\n"
-                "IMPORTANT: The error '${problems}' indicates what went wrong when trying to load or use the model. "
+                "IMPORTANT: The error in the 'SPECIFIC ERRORS' indicate what went wrong when trying to load or use the model. "
                 "# INFERENCE CODE TO FIX:\n```python\n${inference_code}```\n"
                 "# IDENTIFIED ISSUES:\n${review}\n\n"
                 "# SPECIFIC ERRORS:\n${problems}\n\n"
