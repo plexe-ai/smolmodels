@@ -339,7 +339,7 @@ class ModelGenerator:
             # Validate the inference code, stopping at the first failed validation
             validation = validator.validate(node.inference_code)
             if not validation.passed:
-                logger.info(f"⚠️ Inference solution {i+1}/{fix_attempts+1} failed validation, fixing ...")
+                logger.info(f"⚠️ Inference solution {i+1}/{fix_attempts} failed validation, fixing ...")
                 node.exception_was_raised = True
                 node.exception = validation.exception
                 review = self.infer_generator.review_inference_code(
