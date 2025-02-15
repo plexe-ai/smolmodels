@@ -332,14 +332,14 @@ class ModelGenerator:
 
         # Iteratively validate and fix the inference code
         fix_attempts = config.model_search.max_fixing_attempts_predict
-        for i in range(1, fix_attempts + 1):
+        for i in range(fix_attempts):
             node.exception_was_raised = False
             node.exception = None
 
             # Validate the inference code, stopping at the first failed validation
             validation = validator.validate(node.inference_code)
             if not validation.passed:
-                logger.info(f"⚠️ Inference solution {i}/{fix_attempts} failed validation, fixing ...")
+                logger.info(f"⚠️ Inference solution {i+1}/{fix_attempts+1} failed validation, fixing ...")
                 node.exception_was_raised = True
                 node.exception = validation.exception
                 review = self.infer_generator.review_inference_code(
