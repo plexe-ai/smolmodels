@@ -5,10 +5,11 @@ logging and retry mechanisms for querying the providers.
 
 import textwrap
 from typing import Type
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from pydantic import BaseModel
 import logging
 from litellm import completion
+from litellm.exceptions import RateLimitError, ServiceUnavailableError
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,16 @@ class Provider:
         if "/" not in self.model:
             self.model = default_model
             logger.warning(f"Model name should be in the format 'provider/model', using default model: {default_model}")
+
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=2, min=4),
+        retry=retry_if_exception_type((RateLimitError, ServiceUnavailableError)),
+    )
+    def _make_completion_call(self, messages, response_format):
+        """Helper method to make the actual API call with built-in retries for rate limits"""
+        response = completion(model=self.model, messages=messages, response_format=response_format)
+        return response.choices[0].message.content
 
     def query(
         self,
@@ -47,20 +58,22 @@ class Provider:
 
         messages = [{"role": "system", "content": system_message}, {"role": "user", "content": user_message}]
         try:
+            # Handle general errors with standard retries
             if backoff:
 
                 @retry(stop=stop_after_attempt(retries), wait=wait_exponential(multiplier=2))
                 def call_with_backoff():
-                    response = completion(model=self.model, messages=messages, response_format=response_format)
-                    return response.choices[0].message.content
+                    return self._make_completion_call(messages, response_format)
 
                 r = call_with_backoff()
             else:
-                response = completion(model=self.model, messages=messages, response_format=response_format)
-                r = response.choices[0].message.content
+                r = self._make_completion_call(messages, response_format)
 
             self._log_response(r, self.__class__.__name__)
             return r
+        except (RateLimitError, ServiceUnavailableError) as e:
+            logger.warning(f"Rate limit or service error encountered: {str(e)}. Retrying with backoff...")
+            raise  # Let the decorator handle the retry
         except Exception as e:
             self._log_error(e)
             raise e
