@@ -84,7 +84,7 @@ class ProcessExecutor(Executor):
             "__file__ = os.path.abspath(__file__)\n"
             "MODULE_DIR = Path(__file__).parent\n\n"
         )
-        with open(code_file, "w") as f:
+        with open(code_file, "w", encoding="utf-8") as f:
             f.write(module_setup + self.code)
 
         # Write datasets to files
