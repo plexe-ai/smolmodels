@@ -1,4 +1,3 @@
-
 from unittest.mock import patch
 
 import numpy as np
@@ -37,7 +36,9 @@ class TestDataGeneration:
     def setup_mocks(self):
         """Setup all required mocks for the test class"""
         # Mock the data generation function
-        self.mock_generate_data = patch("smolmodels.datasets.DataGenerator.generate", return_value=pd.DataFrame()).start()
+        self.mock_generate_data = patch(
+            "smolmodels.datasets.DataGenerator.generate", return_value=pd.DataFrame()
+        ).start()
 
         yield
 
@@ -82,7 +83,7 @@ class TestDataGeneration:
             description="House features and prices, each row is a house",
             schema={**sample_schema["input_schema"], **sample_schema["output_schema"]},
             provider="openai/gpt-4",
-            data=existing_data.copy()
+            data=existing_data.copy(),
         )
         dataset.generate(50)
 

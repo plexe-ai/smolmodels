@@ -27,7 +27,7 @@ engineering, training, and packaging.
 
 
 ## 1. Quickstart
-Installation:
+Installation: 
 
 ```bash
 pip install smolmodels

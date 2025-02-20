@@ -19,9 +19,9 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 import pandas as pd
 import pyarrow
+import pytest
 
 from smolmodels.internal.models.execution.executor import ExecutionResult
 from smolmodels.internal.models.execution.process_executor import ProcessExecutor
@@ -60,7 +60,9 @@ class TestProcessExecutor:
             result = self.process_executor.run()
 
         dataset_file = self.working_dir / "training_data.parquet"
-        mock_write_table.assert_called_once_with(pyarrow.Table.from_pandas(self.datasets["training_data"]), dataset_file)
+        mock_write_table.assert_called_once_with(
+            pyarrow.Table.from_pandas(self.datasets["training_data"]), dataset_file
+        )
         mock_popen.assert_called_once_with(
             [sys.executable, str(self.working_dir / "run.py")],
             stdout=subprocess.PIPE,
@@ -101,7 +103,9 @@ class TestProcessExecutor:
     def test_dataset_written_to_file(self, mock_write_table):
         self.process_executor.run()
         dataset_file = self.working_dir / "training_data.parquet"
-        mock_write_table.assert_called_once_with(pyarrow.Table.from_pandas(self.datasets["training_data"]), dataset_file)
+        mock_write_table.assert_called_once_with(
+            pyarrow.Table.from_pandas(self.datasets["training_data"]), dataset_file
+        )
 
 
 if __name__ == "__main__":
