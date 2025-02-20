@@ -47,6 +47,7 @@ from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.generators import ModelGenerator
 from smolmodels.internal.schemas.resolver import SchemaResolver
+from smolmodels.datasets import DatasetGenerator
 
 
 class ModelState(Enum):
@@ -163,7 +164,7 @@ class Model:
 
     def build(
         self,
-        datasets: Dict[str, pd.DataFrame],
+        datasets: List[pd.DataFrame | DatasetGenerator],
         provider: str = "openai/gpt-4o-mini",
         directives: List[Directive] = None,
         timeout: int = None,
@@ -184,7 +185,10 @@ class Model:
             self.state = ModelState.BUILDING
 
             # Step 1: coerce datasets to supported formats
-            self.training_data = {name: DatasetAdapter.coerce(data) for name, data in datasets.items()}
+            self.training_data = {
+                f"dataset_{i}": DatasetAdapter.coerce((data.data if isinstance(data, DatasetGenerator) else data))
+                for i, data in enumerate(datasets)
+            }
 
             # Step 2: resolve schemas
             self.schema_resolver = SchemaResolver(provider, self.intent)

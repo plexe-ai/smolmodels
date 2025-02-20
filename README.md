@@ -47,7 +47,7 @@ model = sm.Model(
 
 # Step 2: build and train the model on data
 model.build(
-   datasets={"news_data": dataset, "some_other_data": auxiliary_dataset},
+   datasets=[dataset, auxiliary_dataset],
    provider="openai/gpt-4o-mini",
    timeout=3600
 )
@@ -96,7 +96,7 @@ You can specify the model building cutoff in terms of a timeout, a maximum numbe
 
 ```python
 model.build(
-    datasets={"table-a": dataset_a, "table-b": dataset_b},
+    datasets=[dataset_a, dataset_b],
     provider="openai/gpt-4o-mini",
     timeout=3600,                       # [optional] max time in seconds
     max_iterations=10                   # [optional] max number of model solutions to explore
@@ -121,7 +121,7 @@ dataset = sm.DatasetGenerator(
 dataset.generate(1000)
 
 model.build(
-    datasets={"data": dataset.data},
+    datasets=[dataset],
     ...
 )
 ```
