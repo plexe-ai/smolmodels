@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from string import Template
 from typing import List
 import sys
+from pathlib import Path
 
 
 # configure warnings
@@ -39,7 +40,7 @@ class _Config:
     class _ExecutionConfig:
         timeout: int = field(default=300)
         runfile_name: str = field(default="execution_script.py")
-        training_data_path: str = field(default="training_data.parquet")
+        data_dir: Path = field(default=Path("./training_data/"))
 
     @dataclass(frozen=True)
     class _CodeGenerationConfig:
@@ -134,8 +135,8 @@ class _Config:
                 "# PREVIOUS ATTEMPTS, IF ANY:\n${history}\n\n"
                 "Only return the code to train the model, no explanations outside the code. Any explanation should "
                 "be in the comments in the code itself, but your overall answer must only consist of the code script. "
-                "The script must assume that the dataset is in the current working directory as a parquet file "
-                "called ${training_data_path}. "
+                "The script must assume that the data to be used for training and evaluation is in the following files "
+                "relative to the current directory: ${training_data_files}\n\n"
                 "The script must train the model, compute and print the final evaluation metric to standard output, "
                 "and **save all model files directly in the CURRENT directory** with descriptive names. "
                 "Do not create any subdirectories. Use only ${allowed_packages}. "
@@ -184,11 +185,7 @@ class _Config:
                 "# todo: add any additional imports you need here\n"
                 "\n"
                 "#**IMPORTANT: Use exactly this model directory structure - do not modify or use environment variables**\n"
-                "MODEL_DIR = Path('${model_id}')\n"
-                "if not MODEL_DIR.exists():\n"
-                "    MODEL_DIR = Path('.smolcache') / '${model_id}'\n"
-                "    if not MODEL_DIR.exists():\n"
-                "        raise RuntimeError(f'Model directory {MODEL_DIR} does not exist')\n"
+                "MODEL_DIR = Path('${filedir}')\n"
                 "\n"
                 "# The model files are saved locally in MODEL_DIR - load them directly from there\n"
                 "# Look at the training code to see exactly what files were saved and how\n"
@@ -224,10 +221,6 @@ class _Config:
                 "\n"
                 "# Load model binaries from .smolcache directory\n"
                 "MODEL_DIR = Path('${model_id}')\n"
-                "if not MODEL_DIR.exists():\n"
-                "    MODEL_DIR = Path('.smolcache') / '${model_id}'\n"
-                "    if not MODEL_DIR.exists():\n"
-                "        raise RuntimeError(f'Model directory {MODEL_DIR} does not exist')\n"
                 "\n"
                 "def predict(sample: dict) -> dict:\n"
                 "    # todo: prediction code goes here\n"
@@ -254,11 +247,7 @@ class _Config:
                 "# todo: add any additional imports you need here\n"
                 "\n"
                 "# Load model binaries from .smolcache directory\n"
-                "MODEL_DIR = Path('${model_id}')\n"
-                "if not MODEL_DIR.exists():\n"
-                "    MODEL_DIR = Path('.smolcache') / '${model_id}'\n"
-                "    if not MODEL_DIR.exists():\n"
-                "        raise RuntimeError(f'Model directory {MODEL_DIR} does not exist')\n"
+                "MODEL_DIR = Path('${filedir}')\n"
                 "\n"
                 "def predict(sample: dict) -> dict:\n"
                 "    # todo: prediction code goes here\n"

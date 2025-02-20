@@ -1,16 +1,16 @@
-# smolmodels/internal/models/validation/predictor.py
-
 """
 This module defines the `PredictorValidator` class, which validates that a predictor behaves as expected.
 
 Classes:
     - PredictorValidator: A validator class that checks the behavior of a predictor.
 """
+
 import types
 import warnings
 
+import pandas as pd
+
 from smolmodels.internal.common.provider import Provider
-from smolmodels.internal.datasets.generator import generate_data, DataGenerationRequest
 from smolmodels.internal.models.validation.validator import Validator, ValidationResult
 
 
@@ -25,8 +25,7 @@ class PredictorValidator(Validator):
         intent: str,
         input_schema: dict,
         output_schema: dict,
-        n_samples: int = 10,
-        model_id: str = None,
+        sample: pd.DataFrame,
     ) -> None:
         """
         Initialize the PredictorValidator with the name 'predictor'.
@@ -35,16 +34,14 @@ class PredictorValidator(Validator):
         :param intent: The intent of the predictor.
         :param input_schema: The input schema of the predictor.
         :param output_schema: The output schema of the predictor.
-        :param n_samples: The number of samples to generate for testing.
+        :param sample: The sample input data to test the predictor.
         """
         super().__init__("predictor")
         self.provider: Provider = provider
         self.intent: str = intent
         self.input_schema: dict = input_schema
         self.output_schema: dict = output_schema
-        self.input_sample = None
-        self.n_samples: int = n_samples
-        self.model_id: str = model_id
+        self.input_sample: pd.DataFrame = sample
 
     def validate(self, code: str) -> ValidationResult:
         """
@@ -53,8 +50,6 @@ class PredictorValidator(Validator):
         :return: True if valid, False otherwise
         """
         try:
-            if self.input_sample is None:
-                self.input_sample = self._generate_input_sample(self.n_samples)
             predictor: types.ModuleType = self._load_predictor(code)
             self._has_predict_function(predictor)
             self._returns_output_when_called(predictor)
@@ -100,28 +95,13 @@ class PredictorValidator(Validator):
         total_tests = len(self.input_sample)
         issues = []
 
-        for i, sample in enumerate(self.input_sample):
+        for i, sample in self.input_sample.iterrows():
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    predictor.predict(sample)
+                    predictor.predict(sample.to_dict())
             except Exception as e:
                 issues.append({"error": str(e), "sample": sample, "index": i})
 
-        # fixme: potential failure mode is where an input sample is invalid
         if len(issues) > 0:
             raise RuntimeError(f"{len(issues)}/{total_tests} calls to 'predict' failed. Issues: {issues}")
-
-    def _generate_input_sample(self, n_samples: int) -> list:
-        """
-        Generates a sample input for the predictor.
-        """
-        return generate_data(
-            self.provider,
-            DataGenerationRequest(
-                intent=self.intent,
-                input_schema=self.input_schema,
-                output_schema=self.output_schema,
-                n_samples=n_samples,
-            ),
-        ).to_dict(orient="records")
