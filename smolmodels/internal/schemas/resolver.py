@@ -5,7 +5,7 @@ Module for schema generation and handling.
 import json
 import logging
 from enum import Enum
-from typing import Tuple, Dict, Type
+from typing import Tuple, Dict
 
 import numpy as np
 import pandas as pd
