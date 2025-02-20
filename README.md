@@ -1,4 +1,4 @@
-<div align="center">
+from predict_heart_attack import dataset<div align="center">
 
 # smolmodels ✨
 
@@ -45,10 +45,9 @@ model = sm.Model(
     output_schema={"sentiment": str}                                    # [optional]
 )
 
-# Step 2: build and train the model on data (existing or synthetic)
+# Step 2: build and train the model on data
 model.build(
-   dataset=dataset,                                                     # [optional]
-   generate_samples=1000,                                               # [optional]
+   datasets={"news_data": dataset, "some_other_data": auxiliary_dataset},
    provider="openai/gpt-4o-mini",
    timeout=3600
 )
@@ -89,7 +88,7 @@ You describe the model's expected behaviour in plain English. The library will s
 and produce logic for feature engineering, model training, evaluation, and so on.
 
 ### 2.2. 🎯 Model Building
-The model is built by calling `model.build()`. This method takes a dataset (existing or synthetic) and 
+The model is built by calling `model.build()`. This method takes one or more datasets and 
 generates a set of possible model solutions, training and evaluating them to select
 the best one. The model with the highest performance metric becomes the "implementation" of the predictor.
 
@@ -97,7 +96,7 @@ You can specify the model building cutoff in terms of a timeout, a maximum numbe
 
 ```python
 model.build(
-    dataset=dataset,
+    datasets={"table-a": dataset_a, "table-b": dataset_b},
     provider="openai/gpt-4o-mini",
     timeout=3600,                       # [optional] max time in seconds
     max_iterations=10                   # [optional] max number of model solutions to explore
@@ -112,13 +111,17 @@ sentiment = model.predict({"headline": "600B wiped off NVIDIA market cap", ...})
 
 ### 2.3. 🎲 Data Generation and Schema Inference
 The library can generate synthetic data for training and testing. This is useful if you have no data available, or 
-want to augment existing data. When building a model, you specify either a dataset, a number of samples to be
-generated, or both:
+want to augment existing data. You can do this with the `sm.DatasetGenerator` class:
 
 ```python
+dataset = sm.DatasetGenerator(
+    schema={"headline": str, "content": str, "sentiment": str},
+    data=existing_data
+)
+dataset.generate(1000)
+
 model.build(
-    dataset=dataset,                # [optional] -> at least one of these is required
-    generate_samples=1000,          # [optional] -> at least one of these is required
+    datasets={"data": dataset.data},
     ...
 )
 ```
@@ -133,7 +136,7 @@ dataset you provide, or on the model's intent. This can be useful when you don't
 ```python
 # In this case, the library will infer a schema from the intent and generate data for you
 model = sm.Model(intent="Predict sentiment on a news article such that [...]")
-model.build(generate_samples=100, provider="openai/gpt-4o-mini")
+model.build(provider="openai/gpt-4o-mini")
 ```
 
 > [!TIP]
