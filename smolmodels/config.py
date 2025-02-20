@@ -172,44 +172,74 @@ class _Config:
         prompt_inference_base: Template = field(
             default=Template("You are an experienced ML Engineer deploying a trained model.")
         )
-        prompt_inference_generate: Template = field(
+        prompt_inference_model_loading: Template = field(
             default=Template(
-                "Complete the following Python script for loading and using a locally saved model, such that it can be used to get predictions from a machine "
-                "learning model. The script to complete is the below:\n\n"
-                "IMPORTANT: All model files have already been saved directly in MODEL_DIR during training.\n\n"
+                "Looking at this training code, generate ONLY the model loading part of the inference script.\n"
+                "Focus on correctly loading all saved model files from MODEL_DIR.\n\n"
+                "Training code:\n"
+                "```python\n"
+                "${training_code}\n"
+                "```\n\n"
+                "Return only the imports and model loading code that loads the saved model files.\n"
+                "The model files should be loaded from MODEL_DIR."
+            )
+        )
+        prompt_inference_preprocessing: Template = field(
+            default=Template(
+                "Generate ONLY the preprocessing part of the inference script.\n"
+                "This should match exactly how the data was preprocessed during training.\n\n"
+                "Input schema:\n"
+                "```python\n"
+                "${input_schema}\n"
+                "```\n\n"
+                "Training code:\n"
+                "```python\n"
+                "${training_code}\n"
+                "```\n\n"
+                "Return only the preprocessing code that converts the input dictionary to the format needed by the model."
+            )
+        )
+        prompt_inference_prediction: Template = field(
+            default=Template(
+                "Generate ONLY the prediction part of the inference script.\n"
+                "This should use the preprocessed data to make predictions and format them according to the output schema.\n\n"
+                "Output schema:\n"
+                "```python\n"
+                "${output_schema}\n"
+                "```\n\n"
+                "Training code:\n"
+                "```python\n"
+                "${training_code}\n"
+                "```\n\n"
+                "Return only the code that makes predictions and formats them according to the schema."
+            )
+        )
+        prompt_inference_combine: Template = field(
+            default=Template(
+                "Combine these code segments into a complete inference script following this structure:\n\n"
                 "```python\n"
                 "import os\n"
                 "from pathlib import Path\n"
-                "\n"
-                "# todo: add any additional imports you need here\n"
-                "\n"
-                "#**IMPORTANT: Use exactly this model directory structure - do not modify or use environment variables**\n"
+                "# Additional imports from model loading code\n\n"
                 "MODEL_DIR = Path('${model_id}')\n"
                 "if not MODEL_DIR.exists():\n"
                 "    MODEL_DIR = Path('.smolcache') / '${model_id}'\n"
                 "    if not MODEL_DIR.exists():\n"
-                "        raise RuntimeError(f'Model directory {MODEL_DIR} does not exist')\n"
-                "\n"
-                "# The model files are saved locally in MODEL_DIR - load them directly from there\n"
-                "# Look at the training code to see exactly what files were saved and how\n"
-                "\n"
+                "        raise RuntimeError(f'Model directory {MODEL_DIR} does not exist')\n\n"
+                "# Model loading code:\n"
+                "${model_loading_code}\n\n"
                 "def predict(sample: dict) -> dict:\n"
-                "    # todo: prediction code goes here\n"
-                "    pass\n"
+                "    # Preprocessing code:\n"
+                "    ${preprocessing_code}\n\n"
+                "    # Prediction code:\n"
+                "    ${prediction_code}\n"
                 "```\n\n"
-                "You can add any imports or functionality to the code, but you must not change the overall structure "
-                "or the signature of the predict() function. The input parameter 'sample' will take a single input "
-                "sample for which a model inference must be produced. The contents of 'sample' will be as per the "
-                "input schema below, and the contents of the returned dictionary must be as per the output schema "
-                "below.\n\n"
-                "# INPUT SCHEMA:\n```python\n${input_schema}```\n\n"
-                "# OUTPUT SCHEMA:\n```python\n${output_schema}```\n\n"
-                "The model in question has been trained using the following ML training script. Take a look at the "
-                "script in order to understand what type of model is being used, how it needs to be loaded, and what "
-                "type of input it expects.\n\n"
-                "# TRAINING CODE FOR REFERENCE:\n```python\n${training_code}```\n\n"
-                "The script must not use any packages that are not in ${allowed_packages}. Return only the completed "
-                "inference script, with no external explanations or commentary."
+                "Return the complete, properly formatted inference script.\n"
+                "Make sure to:\n"
+                "1. Keep all necessary imports\n"
+                "2. Maintain proper variable scoping\n"
+                "3. Ensure the predict() function returns a dictionary\n"
+                "4. Remove any duplicate code"
             )
         )
         prompt_inference_fix: Template = field(
