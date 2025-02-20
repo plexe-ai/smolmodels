@@ -1,4 +1,4 @@
-from predict_heart_attack import dataset<div align="center">
+<div align="center">
 
 # smolmodels ✨
 
