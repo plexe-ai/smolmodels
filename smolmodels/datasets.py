@@ -11,11 +11,9 @@ The Dataset class offers functionalities for:
 Users can either pass raw datasets directly to models or leverage this class for dataset management and augmentation.
 """
 
-from typing import Union, Iterator
+from typing import Iterator
 import pandas as pd
-import torch
 from smolmodels.internal.common.provider import Provider
-from smolmodels.internal.common.utils.pydantic_utils import merge_models
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.schemas.resolver import SchemaResolver
 from smolmodels.internal.datasets.generator import DatasetGenerator as DataGenerator
@@ -64,15 +62,15 @@ class DatasetGenerator:
         self._data: pd.DataFrame = data
         self._index = 0
 
-        if schema and data:
+        if schema is not None and data is not None:
             self.schema = schema
             self._validate_schema(data)
             self._data = DatasetAdapter.coerce(data)
-        elif data:
+        elif data is not None:
             self._data = DatasetAdapter.coerce(data)
             schemas = SchemaResolver(self.provider, self.description).resolve({"data": self._data})
-            self.schema = merge_models([schemas[0], schemas[1]])
-        elif schema:
+            self.schema = {**schemas[0], **schemas[1]}
+        elif schema is not None:
             self.schema = schema
 
         self.data_generator = DataGenerator(self.provider, self.description, self.schema)
@@ -86,12 +84,13 @@ class DatasetGenerator:
         from pydantic import ValidationError
 
         try:
-            [self.schema(**row) for row in data.to_dict(orient="records")]
+            if not all(key in data.columns for key in self.schema.keys()):
+                raise ValidationError("Missing columns in dataset.")
         except ValidationError as e:
             raise ValueError(f"Dataset does not match schema: {e}")
 
     @property
-    def data(self) -> Union[pd.DataFrame, torch.Tensor]:
+    def data(self) -> pd.DataFrame:
         """Returns the dataset."""
         if self._data is None:
             raise ValueError("No data has been set or generated.")
@@ -101,8 +100,6 @@ class DatasetGenerator:
         """Returns the number of samples in the dataset."""
         if isinstance(self._data, pd.DataFrame):
             return len(self._data)
-        elif isinstance(self._data, torch.Tensor):
-            return self._data.shape[0]
         return 0
 
     def __iter__(self) -> Iterator:
@@ -117,8 +114,6 @@ class DatasetGenerator:
 
         if isinstance(self._data, pd.DataFrame):
             row = self._data.iloc[self._index].to_dict()
-        elif isinstance(self._data, torch.Tensor):
-            row = self._data[self._index]
         else:
             raise TypeError("Unsupported data type in dataset.")
 
@@ -132,7 +127,5 @@ class DatasetGenerator:
 
         if isinstance(self._data, pd.DataFrame):
             return self._data.iloc[index].to_dict()
-        elif isinstance(self._data, torch.Tensor):
-            return self._data[index]
         else:
             raise TypeError("Unsupported data type in dataset.")

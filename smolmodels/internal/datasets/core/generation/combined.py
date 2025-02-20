@@ -53,7 +53,7 @@ class CombinedDataGenerator(BaseDataGenerator):
     ) -> pd.DataFrame:
         """Generate complete dataset"""
         # Initialize empty dataframe
-        columns = schema["column_names"]
+        columns = list(schema.keys())
         df_generated = pd.DataFrame(columns=columns)
 
         num_batches = math.ceil(n_to_generate / self.batch_size)
