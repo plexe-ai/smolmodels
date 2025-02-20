@@ -55,8 +55,8 @@ class Provider:
         :return [str]: The response from the provider.
         """
         self._log_request(system_message, user_message, self.__class__.__name__)
-
         messages = [{"role": "system", "content": system_message}, {"role": "user", "content": user_message}]
+
         try:
             # Handle general errors with standard retries
             if backoff:
@@ -67,13 +67,11 @@ class Provider:
 
                 r = call_with_backoff()
             else:
-                r = self._make_completion_call(messages, response_format)
+                response = completion(model=self.model, messages=messages, response_format=response_format)
+                r = response.choices[0].message.content
 
             self._log_response(r, self.__class__.__name__)
             return r
-        except (RateLimitError, ServiceUnavailableError) as e:
-            logger.warning(f"Rate limit or service error encountered: {str(e)}. Retrying with backoff...")
-            raise  # Let the decorator handle the retry
         except Exception as e:
             self._log_error(e)
             raise e
