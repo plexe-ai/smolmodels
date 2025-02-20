@@ -12,7 +12,7 @@ import types
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 
 import pandas as pd
 
@@ -116,7 +116,7 @@ class ModelGenerator:
 
     def generate(
         self,
-        dataset: pd.DataFrame,
+        datasets: Dict[str, pd.DataFrame],
         timeout: int = None,
         max_iterations=None,
         directives: List[Directive] = None,
@@ -124,7 +124,7 @@ class ModelGenerator:
         """
         Generates a machine learning model based on the given problem statement, input schema, and output schema.
 
-        :param dataset: The dataset to use for training the model.
+        :param datasets: The dataset to use for training the model.
         :param timeout: The maximum time to spend generating the model, in seconds.
         :param max_iterations: The maximum number of iterations to spend generating the model.
         :param directives: A list of directives to apply to the model generation process.
@@ -151,10 +151,10 @@ class ModelGenerator:
         logger.info(f"🔨 Initialised solution graph with {config.model_search.initial_nodes} nodes")
 
         # Explore the solution graph until the stopping condition is met
-        best_node = self._produce_trained_model(task, run_id, dataset, target_metric, stop_condition)
+        best_node = self._produce_trained_model(task, run_id, datasets, target_metric, stop_condition)
         self._cache_model_files(best_node)
         logger.info("🧠 Generating inference code for the best solution")
-        best_node = self._produce_inference_code(best_node, self.input_schema, self.output_schema)
+        best_node = self._produce_inference_code(best_node, self.input_schema, self.output_schema, datasets)
         self._cache_model_files(best_node)
         logger.info(f"✅ Built predictor for model with performance: {best_node.performance}")
 
@@ -184,14 +184,19 @@ class ModelGenerator:
             )
 
     def _produce_trained_model(
-        self, task: str, run_name: str, dataset: pd.DataFrame, target_metric: Metric, stop_condition: StoppingCondition
+        self,
+        task: str,
+        run_name: str,
+        datasets: Dict[str, pd.DataFrame],
+        target_metric: Metric,
+        stop_condition: StoppingCondition,
     ) -> Node:
         """
         Searches for the best training solution in the solution graph.
 
         :param task: the problem statement for which to generate a solution
         :param run_name: name of this run, used for working directory
-        :param dataset: dataset to be used for training
+        :param datasets: datasets to be used for training
         :param target_metric: metric to optimise for
         :param stop_condition: determines when the search should stop
         :return: graph node containing the best solution
@@ -213,7 +218,9 @@ class ModelGenerator:
 
             # Generate training code for the selected node
             logger.info(f"🔨 Solution {i} (graph depth {node.depth}): generating training module")
-            node.training_code = self.train_generator.generate_training_code(task, node.solution_plan)
+            node.training_code = self.train_generator.generate_training_code(
+                task, node.solution_plan, list(datasets.keys())
+            )
             node.visited = True
 
             # Iteratively validate and fix the training code
@@ -244,7 +251,7 @@ class ModelGenerator:
                         execution_id=f"{i}-{node.id}-{i_fix}",
                         code=node.training_code,
                         working_dir=f"./workdir/{run_name}/",
-                        dataset=dataset,
+                        datasets=datasets,
                         timeout=config.execution.timeout,
                         code_execution_file_name=config.execution.runfile_name,
                     ),
@@ -283,7 +290,9 @@ class ModelGenerator:
             raise RuntimeError("❌ No valid solutions found during search")
         return max(valid_nodes, key=lambda n: n.performance)
 
-    def _produce_inference_code(self, node: Node, input_schema: dict, output_schema: dict) -> Node:
+    def _produce_inference_code(
+        self, node: Node, input_schema: dict, output_schema: dict, datasets: Dict[str, pd.DataFrame]
+    ) -> Node:
         """
         Generates inference code for the given node, and validates it.
 
@@ -292,34 +301,31 @@ class ModelGenerator:
         :param output_schema: the output schema that the predict function must match
         :return: the node with updated inference code
         """
-        # Create model directory in .smolcache with proper model ID format
-        cache_dir = Path(config.file_storage.model_cache_dir)
-        model_id = f"model-{hash(node.id)}-{node.id}"
-        model_dir = cache_dir / model_id
-
         # Create directory if it doesn't exist
-        model_dir.mkdir(parents=True, exist_ok=True)
+        self.filedir.mkdir(parents=True, exist_ok=True)
 
         # Copy model files to the model directory
         for artifact in node.model_artifacts:
             artifact_path = Path(artifact)
             if artifact_path.is_file():
-                shutil.copy2(artifact_path, model_dir / artifact_path.name)
+                shutil.copy2(artifact_path, self.filedir)
             elif artifact_path.is_dir():
                 for item in artifact_path.glob("*"):
                     if item.is_file():
-                        shutil.copy2(item, model_dir / item.name)
+                        shutil.copy2(item, self.filedir / item.name)
 
         # Update node's model_artifacts to use the new path
-        node.model_artifacts = [str(model_dir)]
+        node.model_artifacts = [str(self.filedir)]
+
+        # Extract input sample from the datasets
+        input_sample = pd.concat([df.head(10) for df in datasets.values()], axis=1)[list(input_schema.keys())]
 
         validator = InferenceCodeValidator(
             provider=self.provider,
             intent=self.intent,
             input_schema=input_schema,
             output_schema=output_schema,
-            n_samples=10,
-            model_id=model_id,
+            input_sample=input_sample,
         )
 
         # Generate inference code using LLM
@@ -327,7 +333,7 @@ class ModelGenerator:
             input_schema=input_schema,
             output_schema=output_schema,
             training_code=node.training_code,
-            model_id=model_id,
+            filedir=self.filedir,
         )
 
         # Iteratively validate and fix the inference code
@@ -339,7 +345,7 @@ class ModelGenerator:
             # Validate the inference code, stopping at the first failed validation
             validation = validator.validate(node.inference_code)
             if not validation.passed:
-                logger.info(f"⚠️ Inference solution {i+1}/{fix_attempts} failed validation, fixing ...")
+                logger.info(f"⚠️ Inference solution {i + 1}/{fix_attempts} failed validation, fixing ...")
                 node.exception_was_raised = True
                 node.exception = validation.exception
                 review = self.infer_generator.review_inference_code(
@@ -348,13 +354,13 @@ class ModelGenerator:
                     output_schema=output_schema,
                     training_code=node.training_code,
                     problems=str(validation),
-                    model_id=model_id,
+                    filedir=self.filedir,
                 )
                 node.inference_code = self.infer_generator.fix_inference_code(
                     node.inference_code,
                     review,
                     str(validation),
-                    model_id=model_id,
+                    filedir=self.filedir,
                 )
                 continue
 

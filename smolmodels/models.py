@@ -1,5 +1,3 @@
-# smolmodels/models.py
-
 """
 This module defines the `Model` class, which represents a machine learning model.
 
@@ -25,7 +23,7 @@ Example:
 >>>        }
 >>>    )
 >>>
->>>    model.build(dataset=pd.read_csv("houses.csv"), provider="openai:gpt-4o-mini", max_iterations=10)
+>>>    model.build(datasets={"hist": pd.read_csv("houses.csv")}, provider="openai:gpt-4o-mini", max_iterations=10)
 >>>
 >>>    prediction = model.predict({"bedrooms": 3, "bathrooms": 2, "square_footage": 1500.0})
 >>>    print(prediction)
@@ -37,21 +35,19 @@ import uuid
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Union, List, Literal, Any
+from typing import Dict, Union, List, Any
 
-import numpy as np
 import pandas as pd
 import os
 
-from smolmodels.callbacks import Callback
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.provider import Provider
-from smolmodels.internal.datasets.generator import generate_data, DataGenerationRequest
-from smolmodels.internal.models.generation.schema import generate_schema_from_dataset, generate_schema_from_intent
 from smolmodels.internal.models.generators import ModelGenerator
+from smolmodels.internal.schemas.resolver import SchemaResolver
+from smolmodels.datasets import DatasetGenerator
 
 
 class ModelState(Enum):
@@ -145,16 +141,20 @@ class Model:
         self.output_schema = output_schema
         self.input_schema = input_schema
         self.constraints = constraints or []
-        self.training_data: pd.DataFrame | None = None
+        self.training_data: Dict[str, pd.DataFrame] = dict()
 
         # The model's mutable state is defined by these fields
-        self.state = ModelState.DRAFT
+        self.state: ModelState = ModelState.DRAFT
         self.predictor: types.ModuleType | None = None
         self.trainer_source: str | None = None
         self.predictor_source: str | None = None
         self.artifacts: List[Path] = []
         self.metrics: Dict[str, str] = dict()
         self.metadata: Dict[str, str] = dict()  # todo: initialise metadata, etc
+
+        # Generator objects used to create schemas, datasets, and the model itself
+        self.schema_resolver: SchemaResolver | None = None
+        self.model_generator: ModelGenerator | None = None
 
         # Unique identifier for the model, used in directory paths etc
         self.identifier: str = f"model-{abs(hash(self.intent))}-{str(uuid.uuid4())}"
@@ -164,24 +164,18 @@ class Model:
 
     def build(
         self,
-        dataset: pd.DataFrame | np.ndarray = None,
-        directives: List[Directive] = None,
-        generate_samples: Union[int, Dict[str, Any]] = None,
-        callbacks: List[Callback] = None,
-        isolation: Literal["local", "subprocess", "docker"] = "local",
+        datasets: List[pd.DataFrame | DatasetGenerator],
         provider: str = "openai/gpt-4o-mini",
+        directives: List[Directive] = None,
         timeout: int = None,
         max_iterations: int = None,
     ) -> None:
         """
         Build the model using the provided dataset, directives, and optional data generation configuration.
 
-        :param dataset: the dataset to use for training the model
-        :param directives: instructions related to the model building process - not the model itself
-        :param generate_samples: synthetic data generation configuration
-        :param callbacks: functions that are called during the model building process
-        :param isolation: level of isolation under which model build should be executed
+        :param datasets: the datasets to use for training the model
         :param provider: the provider to use for model building
+        :param directives: instructions related to the model building process - not the model itself
         :param timeout: maximum time in seconds to spend building the model
         :param max_iterations: maximum number of iterations to spend building the model
         :return:
@@ -190,80 +184,35 @@ class Model:
             provider = Provider(model=provider)
             self.state = ModelState.BUILDING
 
-            # Step 1: Resolve Schema
-            if dataset is not None:
-                self.training_data = DatasetAdapter.convert(dataset)
+            # Step 1: coerce datasets to supported formats
+            self.training_data = {
+                f"dataset_{i}": DatasetAdapter.coerce((data.data if isinstance(data, DatasetGenerator) else data))
+                for i, data in enumerate(datasets)
+            }
 
-                if self.input_schema is None and self.output_schema is None:
-                    self.input_schema, self.output_schema = generate_schema_from_dataset(
-                        provider=provider, intent=self.intent, dataset=self.training_data
-                    )
-                elif self.output_schema is None:
-                    _, self.output_schema = generate_schema_from_dataset(
-                        provider=provider, intent=self.intent, dataset=self.training_data
-                    )
-                elif self.input_schema is None:
-                    self.input_schema, _ = generate_schema_from_dataset(
-                        provider=provider, intent=self.intent, dataset=self.training_data
-                    )
-            else:
-                if self.input_schema is None or self.output_schema is None:
-                    self.input_schema, self.output_schema = generate_schema_from_intent(
-                        provider=provider, intent=self.intent
-                    )
+            # Step 2: resolve schemas
+            self.schema_resolver = SchemaResolver(provider, self.intent)
 
-            # Step 2: Handle Data (now we have schemas)
-            if dataset is not None:
-                # Ensure training data is loaded
-                if self.training_data is None:
-                    self.training_data = DatasetAdapter.convert(dataset)
+            if self.input_schema is None and self.output_schema is None:
+                self.input_schema, self.output_schema = self.schema_resolver.resolve(self.training_data)
+            elif self.output_schema is None:
+                _, self.output_schema = self.schema_resolver.resolve(self.training_data)
+            elif self.input_schema is None:
+                self.input_schema, _ = self.schema_resolver.resolve(self.training_data)
 
-                # Handle optional augmentation
-                if generate_samples is not None:
-                    datagen_config = GenerationConfig.from_input(generate_samples)
-                    request = DataGenerationRequest(
-                        intent=self.intent,
-                        input_schema=self.input_schema,
-                        output_schema=self.output_schema,
-                        n_samples=datagen_config.n_samples,
-                        augment_existing=True,
-                        quality_threshold=datagen_config.quality_threshold,
-                        existing_data=self.training_data,
-                    )
-                    synthetic_data = generate_data(provider, request)
-                    self.training_data = pd.concat([self.training_data, synthetic_data], ignore_index=True)
-
-            elif generate_samples is not None:
-                # Generate new data
-                datagen_config = GenerationConfig.from_input(generate_samples)
-                request = DataGenerationRequest(
-                    intent=self.intent,
-                    input_schema=self.input_schema,
-                    output_schema=self.output_schema,
-                    n_samples=datagen_config.n_samples,
-                    augment_existing=False,
-                    quality_threshold=datagen_config.quality_threshold,
-                    existing_data=None,
-                )
-                self.training_data = generate_data(provider, request)
-
-            else:
-                raise ValueError("No data available. Provide dataset or generate_samples.")
-
-            # todo: keep the model generator across multiple build() calls
-            # Step 3: Generate Model
-            model_generator = ModelGenerator(
+            # Step 3: generate model
+            self.model_generator = ModelGenerator(
                 self.intent, self.input_schema, self.output_schema, provider, self.files_path, self.constraints
             )
-            generated = model_generator.generate(self.training_data, timeout, max_iterations, directives)
+            generated = self.model_generator.generate(self.training_data, timeout, max_iterations, directives)
 
             self.trainer_source = generated.training_source_code
             self.predictor_source = generated.inference_source_code
             self.predictor = generated.inference_module
             self.artifacts = generated.model_artifacts
             self.metrics = generated.performance
-
             self.state = ModelState.READY
+
         except Exception as e:
             self.state = ModelState.ERROR
             logger.error(f"Error during model building: {str(e)}")

@@ -38,35 +38,12 @@ class CombinedDataGenerator(BaseDataGenerator):
         self.labeller = self.LabellerModel(provider, 20000, config.BASE_INSTRUCTION + config.LABELLER_INSTRUCTION)
         self.reviewer = self.ReviewerModel(provider, 20000, config.BASE_INSTRUCTION + config.REVIEWER_INSTRUCTION)
 
-    def generate(
-        self,
-        problem_description: str,
-        n_records_to_generate: int,
-        output_path: str = None,
-        schema: dict = None,
-        sample_data_path: str = None,
-    ) -> str:
-        """Generate synthetic data based on problem description and schema"""
+    def generate(self, intent: str, n_generate: int, schema: dict, existing_data: pd.DataFrame = None) -> pd.DataFrame:
+        """
+        Generate synthetic data based on problem description and schema
+        """
         try:
-            # Load sample data if provided
-            reference_df = None
-            if sample_data_path:
-                try:
-                    reference_df = pd.read_csv(sample_data_path)
-                except Exception as e:
-                    logger.warning(f"Failed to load sample data: {e}")
-
-            # Generate the synthetic data
-            generated_df = self._generate_dataset(n_records_to_generate, problem_description, schema, reference_df)
-
-            # Save to temporary file
-            import tempfile
-
-            output_path = tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode="w").name
-
-            generated_df.to_csv(output_path, index=False)
-            return output_path
-
+            return self._generate_dataset(n_generate, intent, schema, existing_data)
         except Exception as e:
             logger.error(f"Data generation failed: {e}")
             raise
@@ -76,7 +53,7 @@ class CombinedDataGenerator(BaseDataGenerator):
     ) -> pd.DataFrame:
         """Generate complete dataset"""
         # Initialize empty dataframe
-        columns = schema["column_names"]
+        columns = list(schema.keys())
         df_generated = pd.DataFrame(columns=columns)
 
         num_batches = math.ceil(n_to_generate / self.batch_size)

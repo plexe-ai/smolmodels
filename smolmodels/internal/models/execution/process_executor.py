@@ -26,6 +26,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 import pyarrow as pa
 from pathlib import Path
+from typing import Dict
 
 from smolmodels.internal.common.utils.response import extract_performance
 from smolmodels.internal.models.execution.executor import ExecutionResult, Executor
@@ -47,7 +48,7 @@ class ProcessExecutor(Executor):
         execution_id: str,
         code: str,
         working_dir: Path | str,
-        dataset: pd.DataFrame,
+        datasets: Dict[str, pd.DataFrame],
         code_execution_file_name: str = config.execution.runfile_name,
         timeout: int = config.execution.timeout,
     ):
@@ -66,7 +67,7 @@ class ProcessExecutor(Executor):
         self.working_dir.mkdir(parents=True, exist_ok=True)
         # Set the file names for the code and training data
         self.code_file_name = code_execution_file_name
-        self.dataset = dataset
+        self.dataset = datasets
 
     def run(self) -> ExecutionResult:
         """Execute code in a subprocess and return results."""
@@ -83,12 +84,15 @@ class ProcessExecutor(Executor):
             "__file__ = os.path.abspath(__file__)\n"
             "MODULE_DIR = Path(__file__).parent\n\n"
         )
-        with open(code_file, "w") as f:
+        with open(code_file, "w", encoding="utf-8") as f:
             f.write(module_setup + self.code)
 
-        # Write dataset to file
-        dataset_file: Path = self.working_dir / config.execution.training_data_path
-        pq.write_table(pa.Table.from_pandas(df=self.dataset), dataset_file)
+        # Write datasets to files
+        dataset_files = []
+        for dataset_name, dataset in self.dataset.items():
+            dataset_file: Path = self.working_dir / f"{dataset_name}.parquet"
+            pq.write_table(pa.Table.from_pandas(df=dataset), dataset_file)
+            dataset_files.append(dataset_file)
 
         try:
             # Execute the code in a subprocess
@@ -111,7 +115,7 @@ class ProcessExecutor(Executor):
             else:
                 # If model_files directory doesn't exist, collect individual files
                 for file in self.working_dir.iterdir():
-                    if file != code_file and file != dataset_file:
+                    if file != code_file and file not in dataset_files:
                         model_artifacts.append(str(file))
 
             if process.returncode != 0:

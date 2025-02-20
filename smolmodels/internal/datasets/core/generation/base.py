@@ -1,23 +1,28 @@
+"""
+This module defines the base class for data generators used in the project.
+
+Classes:
+    BaseDataGenerator: Abstract base class for generating data samples in a given schema.
+"""
+
 from abc import ABC, abstractmethod
+
+import pandas as pd
 
 
 class BaseDataGenerator(ABC):
+    """
+    Abstract base class for an object that generates data samples in a given schema.
+    """
+
     @abstractmethod
-    def generate(
-        self,
-        problem_description: str,
-        n_records_to_generate: int,
-        output_path: str = None,
-        schema: dict = None,
-        sample_data_path: str = None,
-    ) -> str:
+    def generate(self, intent: str, n_generate: int, schema: dict, existing_data: pd.DataFrame) -> pd.DataFrame:
         """
         Generate synthetic data for a given problem description.
-        :param problem_description: natural language description of the problem
-        :param n_records_to_generate: number of records to generate
-        :param output_path: if provided, specifies the path to save the generated data
-        :param schema: if provided, specifies the schema of the data to generate
-        :param sample_data_path: if provided, specifies the path to a sample of existing data for the problem
-        :return: path to the generated data
+        :param intent: natural language description of the problem
+        :param n_generate: number of records to generate
+        :param schema: the schema of the data to generate
+        :param existing_data: existing data to augment
+        :return: a pandas DataFrame containing the generated data
         """
         pass
