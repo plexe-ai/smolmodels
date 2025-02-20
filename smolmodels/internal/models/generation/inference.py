@@ -27,7 +27,7 @@ class InferenceCodeGenerator:
         self, input_schema: dict, output_schema: dict, training_code: str, model_id: str
     ) -> str:
         """
-        Generates inference code in stages for better reliability.
+        Generates inference code based on the problem statement, solution plan, and training code.
 
         :param [dict] input_schema: The schema of the input data.
         :param [dict] output_schema: The schema of the output data.
