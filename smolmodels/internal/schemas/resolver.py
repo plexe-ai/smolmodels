@@ -33,8 +33,8 @@ class SchemaResolver:
     ):
         self.provider: Provider = provider
         self.intent: str = intent
-        self.input_schema: Type[BaseModel] | None = input_schema
-        self.output_schema: Type[BaseModel] | None = output_schema
+        self.input_schema: dict | None = input_schema
+        self.output_schema: dict | None = output_schema
 
     def resolve(self, datasets: Dict[str, pd.DataFrame] = None) -> Tuple[dict, dict]:
         """

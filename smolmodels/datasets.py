@@ -42,21 +42,18 @@ class DatasetGenerator:
         self,
         description: str,
         provider: str,
-        num_samples: int,
         schema: dict = None,
         data: pd.DataFrame = None,
     ) -> None:
         """
         :param description: A human-readable description of the dataset
         :param provider: LLM provider used for synthetic data generation
-        :param num_samples: Number of synthetic samples to generate
         :param schema: The schema the data should match, if any
         :param data: A dataset of real data on which to base the generation, if available
         """
         # Core attributes required for dataset generation
         self.description = description
         self.provider = Provider(provider)
-        self.num_samples = num_samples
 
         # Internal attributes for data management
         self._data: pd.DataFrame = data
@@ -81,13 +78,9 @@ class DatasetGenerator:
 
     def _validate_schema(self, data: pd.DataFrame):
         """Ensures data matches the schema."""
-        from pydantic import ValidationError
-
-        try:
-            if not all(key in data.columns for key in self.schema.keys()):
-                raise ValidationError("Missing columns in dataset.")
-        except ValidationError as e:
-            raise ValueError(f"Dataset does not match schema: {e}")
+        for key in self.schema.keys():
+            if key not in data.columns:
+                raise ValueError(f"Dataset does not match schema, missing column in dataset: {key}")
 
     @property
     def data(self) -> pd.DataFrame:
