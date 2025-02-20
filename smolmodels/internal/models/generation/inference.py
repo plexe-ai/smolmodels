@@ -27,7 +27,7 @@ class InferenceCodeGenerator:
         self, input_schema: dict, output_schema: dict, training_code: str, model_id: str
     ) -> str:
         """
-        Generates inference code based on the problem statement, solution plan, and training code.
+        Generates inference code in stages for better reliability.
 
         :param [dict] input_schema: The schema of the input data.
         :param [dict] output_schema: The schema of the output data.
@@ -35,16 +35,63 @@ class InferenceCodeGenerator:
         :param [str] model_id: The ID of the model to load.
         :return: The generated inference code.
         """
+        # Stage 1: Generate model loading code
+        model_loading_code = self._generate_model_loading(training_code, model_id)
+
+        # Stage 2: Generate preprocessing code
+        preprocessing_code = self._generate_preprocessing(input_schema, training_code)
+
+        # Stage 3: Generate prediction code
+        prediction_code = self._generate_prediction(output_schema, training_code)
+
+        # Combine the stages
+        return self._combine_code_stages(model_loading_code, preprocessing_code, prediction_code, model_id)
+
+    def _generate_model_loading(self, training_code: str, model_id: str) -> str:
+        """Generate code for loading the model files."""
         return extract_code(
             self.provider.query(
                 system_message=config.code_generation.prompt_inference_base.safe_substitute(),
-                user_message=config.code_generation.prompt_inference_generate.safe_substitute(
-                    input_schema=input_schema,
-                    output_schema=output_schema,
-                    training_code=training_code,
+                user_message=config.code_generation.prompt_inference_model_loading.safe_substitute(
+                    training_code=training_code
+                ),
+            )
+        )
+
+    def _generate_preprocessing(self, input_schema: dict, training_code: str) -> str:
+        """Generate code for preprocessing the input data."""
+        return extract_code(
+            self.provider.query(
+                system_message=config.code_generation.prompt_inference_base.safe_substitute(),
+                user_message=config.code_generation.prompt_inference_preprocessing.safe_substitute(
+                    input_schema=input_schema, training_code=training_code
+                ),
+            )
+        )
+
+    def _generate_prediction(self, output_schema: dict, training_code: str) -> str:
+        """Generate code for making predictions."""
+        return extract_code(
+            self.provider.query(
+                system_message=config.code_generation.prompt_inference_base.safe_substitute(),
+                user_message=config.code_generation.prompt_inference_prediction.safe_substitute(
+                    output_schema=output_schema, training_code=training_code
+                ),
+            )
+        )
+
+    def _combine_code_stages(
+        self, model_loading_code: str, preprocessing_code: str, prediction_code: str, model_id: str
+    ) -> str:
+        """Combine code stages into a complete inference script."""
+        return extract_code(
+            self.provider.query(
+                system_message=config.code_generation.prompt_inference_base.safe_substitute(),
+                user_message=config.code_generation.prompt_inference_combine.safe_substitute(
                     model_id=model_id,
-                    context="",  # todo: implement memory to provide as 'context'
-                    allowed_packages=config.code_generation.allowed_packages,
+                    model_loading_code=model_loading_code,
+                    preprocessing_code=preprocessing_code,
+                    prediction_code=prediction_code,
                 ),
             )
         )
