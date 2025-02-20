@@ -137,13 +137,15 @@ def load_model(path: str) -> Model:
         # Restore artifacts
         if temp_dir.exists():
             for artifact_path in temp_dir.iterdir():
-                shutil.copy(artifact_path, model.files_path / artifact_path.name)
-                model.artifacts.append(str(model.files_path / artifact_path.name))
+                if artifact_path.is_file():
+                    shutil.copy(artifact_path, model.files_path / artifact_path.name)
+                    model.artifacts.append(str(model.files_path / artifact_path.name))
+                elif artifact_path.is_dir():
+                    shutil.copytree(artifact_path, model.files_path / artifact_path.name)
+                    model.artifacts.append(str(model.files_path / artifact_path.name))
 
         with open(trainer_path, "r") as f:
-            model.trainer = types.ModuleType("trainer")
             model.trainer_source = f.read()
-            exec(model.trainer_source, model.trainer.__dict__)
 
         with open(predictor_path, "r") as f:
             model.predictor = types.ModuleType("predictor")

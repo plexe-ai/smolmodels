@@ -6,6 +6,7 @@ This module provides functionality for generating inference code for machine lea
 
 import json
 from typing import List, Dict
+from pathlib import Path
 
 from pydantic import BaseModel
 
@@ -24,7 +25,7 @@ class InferenceCodeGenerator:
         self.context: List[Dict[str, str]] = []
 
     def generate_inference_code(
-        self, input_schema: dict, output_schema: dict, training_code: str, model_id: str
+        self, input_schema: dict, output_schema: dict, training_code: str, filedir: Path
     ) -> str:
         """
         Generates inference code based on the problem statement, solution plan, and training code.
@@ -32,7 +33,7 @@ class InferenceCodeGenerator:
         :param [dict] input_schema: The schema of the input data.
         :param [dict] output_schema: The schema of the output data.
         :param [str] training_code: The training code that has already been generated.
-        :param [str] model_id: The ID of the model to load.
+        :param [str] filedir: The directory in which the predictor should expect model files.
         :return: The generated inference code.
         """
         return extract_code(
@@ -42,20 +43,21 @@ class InferenceCodeGenerator:
                     input_schema=input_schema,
                     output_schema=output_schema,
                     training_code=training_code,
-                    model_id=model_id,
+                    filedir=filedir.as_posix(),
                     context="",  # todo: implement memory to provide as 'context'
                     allowed_packages=config.code_generation.allowed_packages,
                 ),
             )
         )
 
-    def fix_inference_code(self, inference_code: str, review: str, problems: str, model_id: str) -> str:
+    def fix_inference_code(self, inference_code: str, review: str, problems: str, filedir: Path) -> str:
         """
         Fixes the inference code based on the review and identified problems.
 
         :param [str] inference_code: The previously generated inference code.
         :param [str] review: The review of the previous solution.
         :param [str] problems: Specific errors or bugs identified.
+        :param [str] filedir: The directory in which the predictor should expect model files.
         :return str: The fixed inference code.
         """
 
@@ -71,7 +73,7 @@ class InferenceCodeGenerator:
                         inference_code=inference_code,
                         review=review,
                         problems=problems,
-                        model_id=model_id,
+                        fildeir=filedir.as_posix(),
                     ),
                     response_format=FixResponse,
                 )
@@ -86,7 +88,7 @@ class InferenceCodeGenerator:
         output_schema: dict,
         training_code: str,
         problems: str = None,
-        model_id: str = None,
+        filedir: Path = None,
     ) -> str:
         """
         Reviews the inference code to identify improvements and fix issues.
@@ -96,6 +98,7 @@ class InferenceCodeGenerator:
         :param [dict] output_schema: The schema of the output data.
         :param [str] training_code: The training code that has already been generated.
         :param [str] problems: Specific errors or bugs identified.
+        :param [str] filedir: The directory in which the predictor should expect model files.
         :return: The review of the inference code with suggestions for improvements.
         """
         return self.provider.query(
@@ -106,7 +109,7 @@ class InferenceCodeGenerator:
                 output_schema=output_schema,
                 training_code=training_code,
                 problems=problems,
-                model_id=model_id,
+                filedir=filedir.as_posix(),
                 context="",  # todo: implement memory to provide as 'context'
             ),
         )

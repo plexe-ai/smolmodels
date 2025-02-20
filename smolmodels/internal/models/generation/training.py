@@ -16,6 +16,7 @@ Classes:
 import json
 import logging
 from typing import List, Dict
+from pathlib import Path
 
 from pydantic import BaseModel
 
@@ -40,12 +41,13 @@ class TrainingCodeGenerator:
         self.provider = provider
         self.history: List[Dict[str, str]] = []
 
-    def generate_training_code(self, problem_statement: str, plan: str) -> str:
+    def generate_training_code(self, problem_statement: str, plan: str, dataset_names: list[str]) -> str:
         """
         Generates machine learning model training code based on the given problem statement and solution plan.
 
         :param [str] problem_statement: The description of the problem to be solved.
         :param [str] plan: The proposed solution plan.
+        :param [str] dataset_names: The names of the datasets to use for training.
         :return str: The generated training code.
         """
         return extract_code(
@@ -56,7 +58,7 @@ class TrainingCodeGenerator:
                     plan=plan,
                     history=self.history,
                     allowed_packages=config.code_generation.allowed_packages,
-                    training_data_path=config.execution.training_data_path,
+                    training_data_files=[Path(f"{file}.parquet").as_posix() for file in dataset_names],
                 ),
             )
         )
@@ -85,7 +87,7 @@ class TrainingCodeGenerator:
                         training_code=training_code,
                         review=review,
                         problems=problems,
-                        training_data_path=config.execution.training_data_path,
+                        training_data_path=config.execution.data_dir,
                         allowed_packages=config.code_generation.allowed_packages,
                     ),
                     response_format=FixResponse,

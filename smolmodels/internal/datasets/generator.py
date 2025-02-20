@@ -1,45 +1,39 @@
-# internal/datasets/generator.py
-from dataclasses import dataclass
-from typing import Optional
 import pandas as pd
 
 from smolmodels.internal.common.provider import Provider
 
 
-@dataclass
-class DataGenerationRequest:
-    """Data needed for generation"""
-
-    intent: str
-    input_schema: dict
-    output_schema: dict
-    n_samples: int
-    augment_existing: bool = False
-    quality_threshold: float = 0.8
-    existing_data: Optional[pd.DataFrame] = None
-
-
-def generate_data(provider: Provider, request: DataGenerationRequest) -> pd.DataFrame:
+class DatasetGenerator:
     """Generate synthetic data based on request parameters."""
 
-    from .core.generation.combined import CombinedDataGenerator
-    from .config import Config
+    def __init__(self, provider: Provider, description: str, schema: dict):
+        """
+        Initialize the DatasetGenerator with a provider.
 
-    generator = CombinedDataGenerator(provider, Config())
+        :param [Provider] provider: The provider to use for data generation.
+        :param [str] description: The description of the data to generate.
+        :param [Type[BaseModel]] schema: The schema for the data to generate.
+        """
+        from .core.generation.combined import CombinedDataGenerator
+        from .config import Config
 
-    # Convert schemas to generator format
-    schema = {
-        "column_names": [*request.input_schema.keys(), *request.output_schema.keys()],
-        "column_types": [str(t) for t in [*request.input_schema.values(), *request.output_schema.values()]],
-        "column_descriptors": [""] * len({**request.input_schema, **request.output_schema}),
-        "column_nullable": [False] * len({**request.input_schema, **request.output_schema}),
-    }
+        self.provider = provider
+        self.description = description
+        self.schema = schema
+        self.generator = CombinedDataGenerator(self.provider, Config())
 
-    output_path = generator.generate(
-        problem_description=request.intent,
-        n_records_to_generate=request.n_samples,
-        schema=schema,
-        sample_data_path=request.existing_data.to_csv(index=False) if request.existing_data is not None else None,
-    )
+    def generate(self, n_samples: int, existing_data: pd.DataFrame = None) -> pd.DataFrame:
+        """
+        Generate synthetic data based on request parameters.
 
-    return pd.read_csv(output_path)
+        :param [int] n_samples: The number of samples to generate.
+        :param [SupportedDatasets] existing_data: The existing data to augment.
+        :return [SupportedDatasets]: The generated synthetic data.
+        """
+
+        return self.generator.generate(
+            intent=self.description,
+            n_generate=n_samples,
+            schema=self.schema,
+            existing_data=existing_data,
+        )

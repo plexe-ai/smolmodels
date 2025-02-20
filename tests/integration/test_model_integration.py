@@ -122,26 +122,7 @@ def test_model_with_data_and_schema(sample_data, input_schema, output_schema, te
     )
 
     model.build(
-        dataset=sample_data,
-        provider="openai/gpt-4o-mini",
-        max_iterations=2,
-        timeout=3600,
-    )
-    prediction = model.predict(test_input)
-    verify_prediction(prediction, output_schema)
-
-
-def test_model_with_data_and_generate(sample_data, input_schema, output_schema, test_input):
-    """Test case where user provides data and generate_samples"""
-    model = sm.Model(
-        intent="predict the probability of heart attack based on patient features",
-        input_schema=input_schema,
-        output_schema=output_schema,
-    )
-
-    model.build(
-        dataset=sample_data,
-        generate_samples=10,
+        datasets={"data": sample_data},
         provider="openai/gpt-4o-mini",
         max_iterations=2,
         timeout=3600,
@@ -160,7 +141,7 @@ def test_sentiment_classification(sentiment_data):
 
     # Build the model
     model.build(
-        dataset=sentiment_data,
+        datasets={"data": sentiment_data},
         max_iterations=3,  # Keep iterations low for testing
         timeout=3600,
     )

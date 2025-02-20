@@ -1,11 +1,10 @@
-import os
 import asyncio
 import math
 
 import pandas as pd
 
-from .base import BaseDataGenerator
 from smolmodels.internal.common.provider import Provider
+from .base import BaseDataGenerator
 
 
 class SimpleLLMDataGenerator(BaseDataGenerator):
@@ -22,35 +21,20 @@ class SimpleLLMDataGenerator(BaseDataGenerator):
             "Expectations for your performance are extremely high. Mediocrity is not acceptable. "
         )
 
-    def generate(
-        self,
-        problem_description: str,
-        n_records_to_generate: int,
-        output_path: str = None,
-        schema: dict = None,
-        sample_data_path: str = None,
-    ) -> str:
-        # sample data is optional, as it may not always be available to the user
-        if sample_data_path is not None:
-            df_real = pd.read_csv(sample_data_path)
-        else:
-            df_real = None
-
+    def generate(self, intent: str, n_generate: int, schema: dict, existing_data: pd.DataFrame = None) -> pd.DataFrame:
         # basic problem specification
         base_prompt = (
-            f"Give me a dataset of samples for the following ML problem:\n\n"
-            f"PROBLEM DESCRIPTION:\n{problem_description}\n\n"
+            f"Give me a dataset of samples for the following ML problem:\n\n" f"PROBLEM DESCRIPTION:\n{intent}\n\n"
         )
-        # the data schema is optional, as it may not always be provided
-        if schema is not None:
-            base_prompt += f"SCHEMA:\n{schema}\n\n"
 
-        df_generated = pd.DataFrame(columns=df_real.columns if df_real is not None else schema["column_names"])
+        df_generated = pd.DataFrame(
+            columns=existing_data.columns if existing_data is not None else schema["column_names"]
+        )
 
         # prepare prompts for all batches
         batch_size = 60
-        num_batches = math.ceil(n_records_to_generate / batch_size)
-        records_left = n_records_to_generate
+        num_batches = math.ceil(n_generate / batch_size)
+        records_left = n_generate
 
         prompts = []
         for _ in range(num_batches):
@@ -58,7 +42,7 @@ class SimpleLLMDataGenerator(BaseDataGenerator):
             records_left -= n_generate_this_iteration
 
             # add sample data to the prompt if available
-            sample_str = df_real.sample(5).to_string() if df_real is not None else ""
+            sample_str = existing_data.sample(5).to_string() if existing_data is not None else ""
             prompt = (
                 f"{base_prompt}"
                 f"SAMPLE DATA:{sample_str}\n\n"
@@ -118,11 +102,5 @@ class SimpleLLMDataGenerator(BaseDataGenerator):
             else:
                 print("All batches processed successfully.")
 
-        if output_path is None:
-            output_path = "outputs/data.csv"
-
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        df_generated.to_csv(output_path, index=False)
-
         # Parse the response and return the synthetic data
-        return output_path
+        return df_generated
