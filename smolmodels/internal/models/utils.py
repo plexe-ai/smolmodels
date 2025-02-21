@@ -2,6 +2,9 @@ import json
 import logging
 import textwrap
 
+from typing import Type
+from pydantic import BaseModel
+
 from smolmodels.internal.models.entities.metric import Metric
 from smolmodels.internal.models.entities.node import Node
 from smolmodels.internal.models.execution.executor import Executor
@@ -9,7 +12,9 @@ from smolmodels.internal.models.execution.executor import Executor
 logger = logging.getLogger(__name__)
 
 
-def join_task_statement(intent: str, input_schema: dict, output_schema: dict, constraints, directives) -> str:
+def join_task_statement(
+    intent: str, input_schema: Type[BaseModel], output_schema: Type[BaseModel], constraints, directives
+) -> str:
     """Join the problem statement into a single string."""
     problem_statement: str = (
         "# Problem Statement"
@@ -18,11 +23,11 @@ def join_task_statement(intent: str, input_schema: dict, output_schema: dict, co
         "\n\n"
         "# Input Schema"
         "\n\n"
-        f"{json.dumps(input_schema, indent=4, default=str)}"
+        f"{json.dumps(input_schema.model_fields, indent=4, default=str)}"
         "\n\n"
         "# Output Schema"
         "\n\n"
-        f"{json.dumps(output_schema, indent=4, default=str)}"
+        f"{json.dumps(output_schema.model_fields, indent=4, default=str)}"
         "\n\n"
         "# Constraints"
         "\n\n"

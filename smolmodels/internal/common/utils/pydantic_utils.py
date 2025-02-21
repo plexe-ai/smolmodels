@@ -20,3 +20,15 @@ def merge_models(models: List[Type[BaseModel]]) -> Type[BaseModel]:
         for name, properties in model.model_fields.items():
             fields[name] = (properties.annotation, ... if properties.is_required() else properties.default)
     return create_model("MergedModel", **fields)
+
+
+def create_model_from_fields(model_name: str, model_fields: dict) -> Type[BaseModel]:
+    """
+    Create a Pydantic model from a dictionary of fields.
+
+    :param model_name: The name of the model to create.
+    :param model_fields: A dictionary of field names to field properties.
+    """
+    for name, properties in model_fields.items():
+        model_fields[name] = (properties.annotation, ... if properties.is_required() else properties.default)
+    return create_model(model_name, **model_fields)

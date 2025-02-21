@@ -15,15 +15,15 @@ Key Features:
 Example:
 >>>    model = Model(
 >>>        intent="Given a dataset of house features, predict the house price.",
->>>        output_schema={"price": float},
->>>        input_schema={
+>>>        output_schema=create_model("output", **{"price": float}),
+>>>        input_schema=create_model("input", **{
 >>>            "bedrooms": int,
 >>>            "bathrooms": int,
 >>>            "square_footage": float
->>>        }
+>>>        })
 >>>    )
 >>>
->>>    model.build(datasets={"hist": pd.read_csv("houses.csv")}, provider="openai:gpt-4o-mini", max_iterations=10)
+>>>    model.build(datasets=[pd.read_csv("houses.csv")], provider="openai:gpt-4o-mini", max_iterations=10)
 >>>
 >>>    prediction = model.predict({"bedrooms": 3, "bathrooms": 2, "square_footage": 1500.0})
 >>>    print(prediction)
@@ -35,10 +35,11 @@ import uuid
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Union, List, Any
+from typing import Dict, Union, List, Any, Type
 
 import pandas as pd
 import os
+from pydantic import BaseModel
 
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
@@ -58,13 +59,6 @@ class ModelState(Enum):
 
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ModelReview:
-    summary: str
-    suggested_directives: List[Directive]
-    # todo: this can be fleshed out further
 
 
 @dataclass
@@ -112,35 +106,39 @@ class Model:
     Example:
         model = Model(
             intent="Given a dataset of house features, predict the house price.",
-            output_schema={"price": float},
-            input_schema={
+            output_schema=create_model("output_schema", **{"price": float}),
+            input_schema=create_model("input_schema", **{
                 "bedrooms": int,
                 "bathrooms": int,
                 "square_footage": float,
-            }
+            })
         )
     """
 
     def __init__(
-        self, intent: str, output_schema: dict = None, input_schema: dict = None, constraints: List[Constraint] = None
+        self,
+        intent: str,
+        input_schema: Type[BaseModel] = None,
+        output_schema: Type[BaseModel] = None,
+        constraints: List[Constraint] = None,
     ):
         """
         Initialise a model with a natural language description of its intent, as well as
         structured definitions of its input schema, output schema, and any constraints.
 
         :param [str] intent: A human-readable, natural language description of the model's expected intent.
-        :param [dict] output_schema: A mapping of output key names to their types.
-        :param [dict] input_schema: A mapping of input key names to their types.
+        :param [Type[BaseModel]] input_schema: A subclass of pydantic.BaseModel, defining input schema
+        :param [Type[BaseModel]] output_schema: A subclass of pydantic.BaseModel, defining output schema
         :param List[Constraint] constraints: A list of Constraint objects that represent rules which must be
             satisfied by every input/output pair for the model.
         """
         # todo: analyse natural language inputs and raise errors where applicable
 
         # The model's identity is defined by these fields
-        self.intent = intent
-        self.output_schema = output_schema
-        self.input_schema = input_schema
-        self.constraints = constraints or []
+        self.intent: str = intent
+        self.output_schema: Type[BaseModel] = output_schema
+        self.input_schema: Type[BaseModel] = input_schema
+        self.constraints: List[Constraint] = constraints or []
         self.training_data: Dict[str, pd.DataFrame] = dict()
 
         # The model's mutable state is defined by these fields
@@ -180,6 +178,8 @@ class Model:
         :param max_iterations: maximum number of iterations to spend building the model
         :return:
         """
+        # TODO: validate that schema features are present in the dataset
+        # TODO: validate that datasets do not contain duplicate features
         try:
             provider = Provider(model=provider)
             self.state = ModelState.BUILDING
@@ -206,6 +206,7 @@ class Model:
             )
             generated = self.model_generator.generate(self.training_data, timeout, max_iterations, directives)
 
+            # Step 4: update model state and attributes
             self.trainer_source = generated.training_source_code
             self.predictor_source = generated.inference_source_code
             self.predictor = generated.inference_module
@@ -257,6 +258,7 @@ class Model:
         Return a human-readable description of the model.
         :return: a human-readable description of the model
         """
+        # TODO: flesh this out with a dataclass etc
         return {
             "intent": self.intent,
             "output_schema": self.output_schema,
@@ -267,10 +269,11 @@ class Model:
             "metrics": self.metrics,
         }
 
-    def review(self) -> ModelReview:
+    def review(self) -> dict:
         """
         Return a review of the model, which is a structured object consisting of a natural language
         summary, suggested directives to apply, and more.
         :return: a review of the model
         """
+        # TODO: implement this
         raise NotImplementedError("Review functionality is not yet implemented.")

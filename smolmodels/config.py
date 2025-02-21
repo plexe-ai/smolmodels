@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from string import Template
 from typing import List
 import sys
-from pathlib import Path
 
 
 # configure warnings
@@ -40,7 +39,6 @@ class _Config:
     class _ExecutionConfig:
         timeout: int = field(default=300)
         runfile_name: str = field(default="execution_script.py")
-        data_dir: Path = field(default=Path("./training_data/"))
 
     @dataclass(frozen=True)
     class _CodeGenerationConfig:
@@ -155,7 +153,7 @@ class _Config:
                 "directly in the current directory with descriptive names. "
                 "Do not create any subdirectories. Use only ${allowed_packages}. Do NOT use any "
                 "packages that are not part of this list of the Python standard library. Assume the training "
-                "data is in the current working directory as a parquet file called ${training_data_path}."
+                "data is in the following files relative to the current directory ${training_data_files}."
             )
         )
         prompt_training_review: Template = field(

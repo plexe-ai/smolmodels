@@ -1,3 +1,6 @@
+from pydantic import BaseModel
+from typing import Type
+
 import pandas as pd
 
 from smolmodels.internal.common.provider import Provider
@@ -6,7 +9,7 @@ from smolmodels.internal.common.provider import Provider
 class DatasetGenerator:
     """Generate synthetic data based on request parameters."""
 
-    def __init__(self, provider: Provider, description: str, schema: dict):
+    def __init__(self, provider: Provider, description: str, schema: Type[BaseModel]):
         """
         Initialize the DatasetGenerator with a provider.
 

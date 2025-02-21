@@ -5,9 +5,11 @@ Classes:
     BaseDataGenerator: Abstract base class for generating data samples in a given schema.
 """
 
-from abc import ABC, abstractmethod
+from typing import Type
 
 import pandas as pd
+from pydantic import BaseModel
+from abc import ABC, abstractmethod
 
 
 class BaseDataGenerator(ABC):
@@ -16,7 +18,9 @@ class BaseDataGenerator(ABC):
     """
 
     @abstractmethod
-    def generate(self, intent: str, n_generate: int, schema: dict, existing_data: pd.DataFrame) -> pd.DataFrame:
+    def generate(
+        self, intent: str, n_generate: int, schema: Type[BaseModel], existing_data: pd.DataFrame
+    ) -> pd.DataFrame:
         """
         Generate synthetic data for a given problem description.
         :param intent: natural language description of the problem

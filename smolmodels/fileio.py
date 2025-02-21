@@ -13,6 +13,7 @@ from pathlib import Path
 
 from smolmodels.config import config
 from smolmodels.models import Model, ModelState
+from smolmodels.internal.common.utils.pydantic_utils import create_model_from_fields
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +54,8 @@ def save_model(model: Model, path: str) -> None:
             # Save the model metadata
             model_data = {
                 "intent": model.intent,
-                "output_schema": model.output_schema,
-                "input_schema": model.input_schema,
+                "output_schema": model.output_schema.model_fields,
+                "input_schema": model.input_schema.model_fields,
                 "constraints": model.constraints,
                 "metrics": model.metrics,
                 "metadata": model.metadata,
@@ -108,8 +109,8 @@ def load_model(path: str) -> Model:
         # Create the model instance
         model = Model(
             intent=model_data["intent"],
-            output_schema=model_data["output_schema"],
-            input_schema=model_data["input_schema"],
+            input_schema=create_model_from_fields("input", model_data["input_schema"]),
+            output_schema=create_model_from_fields("output", model_data["output_schema"]),
             constraints=model_data["constraints"],
         )
 

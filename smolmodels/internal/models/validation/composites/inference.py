@@ -6,6 +6,9 @@ Classes:
 """
 
 import pandas as pd
+from typing import Type
+
+from pydantic import BaseModel
 
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.validation.composite import CompositeValidator
@@ -22,8 +25,8 @@ class InferenceCodeValidator(CompositeValidator):
         self,
         provider: Provider,
         intent: str,
-        input_schema: dict,
-        output_schema: dict,
+        input_schema: Type[BaseModel],
+        output_schema: Type[BaseModel],
         input_sample: pd.DataFrame,
     ):
         """

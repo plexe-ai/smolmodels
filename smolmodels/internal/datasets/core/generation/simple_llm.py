@@ -1,7 +1,9 @@
 import asyncio
 import math
+from typing import Type
 
 import pandas as pd
+from pydantic import BaseModel
 
 from smolmodels.internal.common.provider import Provider
 from .base import BaseDataGenerator
@@ -21,14 +23,16 @@ class SimpleLLMDataGenerator(BaseDataGenerator):
             "Expectations for your performance are extremely high. Mediocrity is not acceptable. "
         )
 
-    def generate(self, intent: str, n_generate: int, schema: dict, existing_data: pd.DataFrame = None) -> pd.DataFrame:
+    def generate(
+        self, intent: str, n_generate: int, schema: Type[BaseModel], existing_data: pd.DataFrame = None
+    ) -> pd.DataFrame:
         # basic problem specification
         base_prompt = (
             f"Give me a dataset of samples for the following ML problem:\n\n" f"PROBLEM DESCRIPTION:\n{intent}\n\n"
         )
 
         df_generated = pd.DataFrame(
-            columns=existing_data.columns if existing_data is not None else schema["column_names"]
+            columns=existing_data.columns if existing_data is not None else schema.model_fields.keys()
         )
 
         # prepare prompts for all batches
@@ -62,7 +66,7 @@ class SimpleLLMDataGenerator(BaseDataGenerator):
         async def generate_data(prompt):
             loop = asyncio.get_running_loop()
             try:
-                return await loop.run_in_executor(None, self.llm.query, self.system_instruction, prompt)
+                return await loop.run_in_executor(None, self.llm.query, self.system_instruction, prompt, schema)
             except Exception as err:
                 print(f"Error during generation: {err}")
                 return None  # Indicate failure

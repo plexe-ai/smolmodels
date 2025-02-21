@@ -12,9 +12,10 @@ import types
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Type, Dict
 
 import pandas as pd
+from pydantic import BaseModel
 
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
@@ -72,8 +73,8 @@ class ModelGenerator:
     >>> ...
     >>> generator = ModelGenerator(
     >>>     intent="classify",
-    >>>     input_schema={"age": int},
-    >>>     output_schema={"label": str},
+    >>>     input_schema=create_model("input", {"age": int}),
+    >>>     output_schema=create_model("output", {"label": str}),
     >>>     provider=Provider(),
     >>>     filedir=Path("./models"),
     >>> )
@@ -82,8 +83,8 @@ class ModelGenerator:
     def __init__(
         self,
         intent: str,
-        input_schema: dict,
-        output_schema: dict,
+        input_schema: Type[BaseModel],
+        output_schema: Type[BaseModel],
         provider: Provider,
         filedir: Path,
         constraints: List[Constraint] = None,
@@ -100,8 +101,8 @@ class ModelGenerator:
         """
         # Set up the basic configuration of the model generator
         self.intent: str = intent
-        self.input_schema: dict = input_schema
-        self.output_schema: dict = output_schema
+        self.input_schema: Type[BaseModel] = input_schema
+        self.output_schema: Type[BaseModel] = output_schema
         self.constraints: List[Constraint] = constraints or []
         self.provider: Provider = provider
         self.filedir: Path = filedir
@@ -239,7 +240,7 @@ class ModelGenerator:
                         node.training_code, task, node.solution_plan, str(validation)
                     )
                     node.training_code = self.train_generator.fix_training_code(
-                        node.training_code, node.solution_plan, review, str(validation)
+                        node.training_code, node.solution_plan, review, list(datasets.keys()), str(validation)
                     )
                     continue
 
@@ -291,7 +292,11 @@ class ModelGenerator:
         return max(valid_nodes, key=lambda n: n.performance)
 
     def _produce_inference_code(
-        self, node: Node, input_schema: dict, output_schema: dict, datasets: Dict[str, pd.DataFrame]
+        self,
+        node: Node,
+        input_schema: Type[BaseModel],
+        output_schema: Type[BaseModel],
+        datasets: Dict[str, pd.DataFrame],
     ) -> Node:
         """
         Generates inference code for the given node, and validates it.
@@ -318,7 +323,9 @@ class ModelGenerator:
         node.model_artifacts = [str(self.filedir)]
 
         # Extract input sample from the datasets
-        input_sample = pd.concat([df.head(10) for df in datasets.values()], axis=1)[list(input_schema.keys())]
+        input_sample = pd.concat([df.head(10) for df in datasets.values()], axis=1)[
+            list(input_schema.model_fields.keys())
+        ]
 
         validator = InferenceCodeValidator(
             provider=self.provider,

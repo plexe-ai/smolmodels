@@ -7,8 +7,10 @@ Classes:
 
 import types
 import warnings
-
+from typing import Type
 import pandas as pd
+
+from pydantic import BaseModel
 
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.validation.validator import Validator, ValidationResult
@@ -23,8 +25,8 @@ class PredictorValidator(Validator):
         self,
         provider: Provider,
         intent: str,
-        input_schema: dict,
-        output_schema: dict,
+        input_schema: Type[BaseModel],
+        output_schema: Type[BaseModel],
         sample: pd.DataFrame,
     ) -> None:
         """
@@ -39,8 +41,8 @@ class PredictorValidator(Validator):
         super().__init__("predictor")
         self.provider: Provider = provider
         self.intent: str = intent
-        self.input_schema: dict = input_schema
-        self.output_schema: dict = output_schema
+        self.input_schema: Type[BaseModel] = input_schema
+        self.output_schema: Type[BaseModel] = output_schema
         self.input_sample: pd.DataFrame = sample
 
     def validate(self, code: str) -> ValidationResult:

@@ -63,13 +63,16 @@ class TrainingCodeGenerator:
             )
         )
 
-    def fix_training_code(self, training_code: str, plan: str, review: str, problems: str = None) -> str:
+    def fix_training_code(
+        self, training_code: str, plan: str, review: str, dataset_names: list[str], problems: str = None
+    ) -> str:
         """
         Fixes the machine learning model training code based on the review and identified problems.
 
         :param [str] training_code: The previously generated training code.
         :param [str] plan: The proposed solution plan.
         :param [str] review: The review of the previous solution.
+        :param [str] dataset_names: The names of the datasets to use for training.
         :param [str] problems: Specific errors or bugs identified.
         :return str: The fixed training code.
         """
@@ -87,7 +90,7 @@ class TrainingCodeGenerator:
                         training_code=training_code,
                         review=review,
                         problems=problems,
-                        training_data_path=config.execution.data_dir,
+                        training_data_files=[Path(f"{file}.parquet").as_posix() for file in dataset_names],
                         allowed_packages=config.code_generation.allowed_packages,
                     ),
                     response_format=FixResponse,

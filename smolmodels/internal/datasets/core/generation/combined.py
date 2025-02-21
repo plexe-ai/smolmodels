@@ -7,9 +7,10 @@ import logging
 import math
 from concurrent.futures import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
-from typing import Optional
+from typing import Type
 
 import pandas as pd
+from pydantic import BaseModel
 from tqdm import tqdm
 
 from smolmodels.internal.common.provider import Provider
@@ -38,7 +39,9 @@ class CombinedDataGenerator(BaseDataGenerator):
         self.labeller = self.LabellerModel(provider, 20000, config.BASE_INSTRUCTION + config.LABELLER_INSTRUCTION)
         self.reviewer = self.ReviewerModel(provider, 20000, config.BASE_INSTRUCTION + config.REVIEWER_INSTRUCTION)
 
-    def generate(self, intent: str, n_generate: int, schema: dict, existing_data: pd.DataFrame = None) -> pd.DataFrame:
+    def generate(
+        self, intent: str, n_generate: int, schema: Type[BaseModel], existing_data: pd.DataFrame = None
+    ) -> pd.DataFrame:
         """
         Generate synthetic data based on problem description and schema
         """
@@ -49,11 +52,11 @@ class CombinedDataGenerator(BaseDataGenerator):
             raise
 
     def _generate_dataset(
-        self, n_to_generate: int, description: str, schema: dict, sample_df: Optional[pd.DataFrame] = None
+        self, n_to_generate: int, description: str, schema: Type[BaseModel], sample_df: pd.DataFrame = None
     ) -> pd.DataFrame:
         """Generate complete dataset"""
         # Initialize empty dataframe
-        columns = list(schema.keys())
+        columns = schema.model_fields.keys()
         df_generated = pd.DataFrame(columns=columns)
 
         num_batches = math.ceil(n_to_generate / self.batch_size)
@@ -89,7 +92,7 @@ class CombinedDataGenerator(BaseDataGenerator):
         return df_generated
 
     def _generate_batch(
-        self, batch_size: int, description: str, schema: dict, sample_df: Optional[pd.DataFrame] = None
+        self, batch_size: int, description: str, schema: Type[BaseModel], sample_df: pd.DataFrame = None
     ) -> pd.DataFrame:
         """Generate a batch of data"""
         try:
@@ -100,7 +103,7 @@ class CombinedDataGenerator(BaseDataGenerator):
 
         except Exception as e:
             logger.error(f"Batch generation failed: {str(e)}")
-            return pd.DataFrame(columns=schema["column_names"])
+            return pd.DataFrame(columns=schema.model_fields.keys())
 
     class Model(abc.ABC):
         def __init__(self, provider: Provider):
@@ -112,7 +115,7 @@ class CombinedDataGenerator(BaseDataGenerator):
             self.max_tokens = max_tokens
             self.instruction = instruction
 
-        def generate(self, n_to_generate, description, schema, reference_df=None) -> pd.DataFrame:
+        def generate(self, n_to_generate, description, schema: Type[BaseModel], reference_df=None) -> pd.DataFrame:
             # sample reference data, if available
             if reference_df is not None:
                 sample_data_str = f"SAMPLE DATA:\n{reference_df.to_string()}\n\n"
@@ -121,14 +124,14 @@ class CombinedDataGenerator(BaseDataGenerator):
             # generate the prompt
             prompt = (
                 f"Generate {n_to_generate} samples for the following ML problem:\n\n{description}\n\n"
-                f"SCHEMA:\n{schema}\n\n"
+                f"SCHEMA:\n{schema.model_fields}\n\n"
                 f"{sample_data_str}"
-                f"Ensure you generate exactly {n_to_generate} records as a JSON array of dicts. "
+                f"Ensure you generate exactly {n_to_generate} records in the specified format. "
                 f"Exclude the target variable column; only generate features."
             )
             logger.debug(prompt)
             # generate the content
-            response = self.llm.query(self.instruction, prompt)
+            response = self.llm.query(self.instruction, prompt, response_format=schema)
             logger.debug(response)
             # return as dataframe
             return json_to_df(response).dropna()
@@ -147,7 +150,7 @@ class CombinedDataGenerator(BaseDataGenerator):
                 "Return the dataset as raw JSON, without additional text."
             )
             logger.debug(prompt)
-            r = self.llm.query(self.instruction, prompt)
+            r = self.llm.query(self.instruction, prompt, schema)
             logger.debug(r)
             return json_to_df(r)
 
@@ -165,7 +168,7 @@ class CombinedDataGenerator(BaseDataGenerator):
                 "Add a column matching the target variable's name with the labels. Return as raw JSON."
             )
             logger.debug(prompt)
-            r = self.llm.query(self.instruction, prompt)
+            r = self.llm.query(self.instruction, prompt, schema)
             logger.debug(r)
             return json_to_df(r)
 
@@ -183,7 +186,7 @@ class CombinedDataGenerator(BaseDataGenerator):
                 "Return the dataset as raw JSON with 'removal' and 'removal_reason' columns."
             )
             logger.debug(prompt)
-            r = self.llm.query(self.instruction, prompt)
+            r = self.llm.query(self.instruction, prompt, schema)
             logger.debug(r)
             logger.debug(r)
             batch = json_to_df(self.llm.query(self.instruction, prompt))
