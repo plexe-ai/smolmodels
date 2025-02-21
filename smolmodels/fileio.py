@@ -109,8 +109,8 @@ def load_model(path: str) -> Model:
         # Create the model instance
         model = Model(
             intent=model_data["intent"],
-            input_schema=create_model_from_fields("input", model_data["input_schema"]),
-            output_schema=create_model_from_fields("output", model_data["output_schema"]),
+            input_schema=create_model_from_fields("InputSchema", model_data["input_schema"]),
+            output_schema=create_model_from_fields("OutputSchema", model_data["output_schema"]),
             constraints=model_data["constraints"],
         )
 
