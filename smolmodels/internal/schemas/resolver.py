@@ -7,14 +7,13 @@ import logging
 from enum import Enum
 from typing import Tuple, Dict, Type
 
-import numpy as np
 import pandas as pd
-import torch
 from pydantic import BaseModel, create_model
 
 from smolmodels.config import config
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
+from smolmodels.internal.common.utils.pandas_utils import convert_dtype_to_python
 
 logger = logging.getLogger(__name__)
 
@@ -83,19 +82,18 @@ class SchemaResolver:
                 match feature.split("."):
                     case [dataset, column]:
                         if isinstance(datasets[dataset], pd.DataFrame):
-                            types[column] = datasets[dataset][column].dtype
+                            types[column] = convert_dtype_to_python(datasets[dataset][column].dtype)
                         else:
                             raise ValueError(f"Dataset {dataset} has unsupported type: '{type(datasets[dataset])}'")
                     case [dataset]:
-                        if isinstance(datasets[dataset], np.ndarray | torch.Tensor):
-                            types[feature] = datasets[dataset].dtype
-                        else:
-                            raise ValueError(f"Dataset {dataset} has unsupported type: '{type(datasets[dataset])}'")
+                        raise ValueError(f"Dataset {dataset} has unsupported type: '{type(datasets[dataset])}'")
                     case _:
                         raise ValueError(f"Feature name '{feature}' is not in the expected format.")
 
+            output_col = output_col.split(".")[-1]
+
             # Split into input and output schemas
-            input_schema = {col: types[col] for col in feature_names if col != output_col}
+            input_schema = {col: types[col] for col in types if col != output_col}
             output_schema = {output_col: types[output_col]}
 
             return create_model("InputSchema", **input_schema), create_model("OutputSchema", **output_schema)

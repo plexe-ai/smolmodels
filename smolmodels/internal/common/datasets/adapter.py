@@ -52,7 +52,7 @@ class DatasetAdapter:
         for name, dataset in datasets.items():
             # Tabular data: extract column names
             if isinstance(dataset, pd.DataFrame):
-                features.extend(dataset.columns)
+                features.extend(f"{name}.{col}" for col in dataset.columns)
             # TODO: Add support for NumPy arrays, Torch tensors, and other types
             # Array data: treat entire array as a single feature
             # elif isinstance(dataset, (np.ndarray, torch.Tensor)):
