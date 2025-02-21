@@ -3,6 +3,7 @@ import pytest
 from pathlib import Path
 from tests.utils.utils import generate_heart_data, verify_prediction, cleanup_files
 import smolmodels as sm
+from pydantic import create_model
 
 
 @pytest.fixture
@@ -14,27 +15,30 @@ def sample_data():
 @pytest.fixture
 def input_schema():
     """Define input schema - using simple types as expected by the model"""
-    return {
-        "age": int,
-        "gender": int,
-        "cp": int,
-        "trtbps": int,
-        "chol": int,
-        "fbs": int,
-        "restecg": int,
-        "thalachh": int,
-        "exng": int,
-        "oldpeak": float,
-        "slp": int,
-        "caa": int,
-        "thall": int,
-    }
+    return create_model(
+        "in",
+        **{
+            "age": int,
+            "gender": int,
+            "cp": int,
+            "trtbps": int,
+            "chol": int,
+            "fbs": int,
+            "restecg": int,
+            "thalachh": int,
+            "exng": int,
+            "oldpeak": float,
+            "slp": int,
+            "caa": int,
+            "thall": int,
+        },
+    )
 
 
 @pytest.fixture
 def output_schema():
     """Define output schema - using simple types as expected by the model"""
-    return {"output": int}
+    return create_model("out", **{"output": int})
 
 
 @pytest.fixture

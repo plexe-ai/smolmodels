@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from pydantic import create_model
 
 import smolmodels as sm
 from tests.utils.utils import verify_prediction, cleanup_files
@@ -57,14 +58,14 @@ def test_sentiment_classification(sentiment_data):
     """Test sentiment classification model end-to-end"""
     model = sm.Model(
         intent="Classify text sentiment into positive or negative categories.",
-        input_schema={"text": "str"},
-        output_schema={"sentiment": "str"},
+        input_schema=create_model("in", **{"text": "str"}),
+        output_schema=create_model("out", **{"sentiment": "str"}),
     )
 
     dataset = sm.DatasetGenerator(
         description="A dataset of text reviews and their corresponding sentiment labels.",
         provider="openai/gpt-4o-mini",
-        schema={"text": "str", "sentiment": "str"},
+        schema=create_model("data", **{"text": "str", "sentiment": "str"}),
         data=sentiment_data,
     )
     dataset.generate(10)
