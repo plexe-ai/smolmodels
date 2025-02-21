@@ -36,8 +36,9 @@ class InferenceCodeGenerator:
         :param [str] filedir: The directory in which the predictor should expect model files.
         :return: The generated inference code.
         """
+        model_dir = Path(filedir).resolve()
         # Stage 1: Generate model loading code
-        model_loading_code = self._generate_model_loading(training_code, model_id)
+        model_loading_code = self._generate_model_loading(training_code, model_dir)
 
         # Stage 2: Generate preprocessing code
         preprocessing_code = self._generate_preprocessing(input_schema, training_code)
@@ -46,15 +47,15 @@ class InferenceCodeGenerator:
         prediction_code = self._generate_prediction(output_schema, training_code)
 
         # Combine the stages
-        return self._combine_code_stages(model_loading_code, preprocessing_code, prediction_code, model_id)
+        return self._combine_code_stages(model_loading_code, preprocessing_code, prediction_code, model_dir)
 
-    def _generate_model_loading(self, training_code: str, model_id: str) -> str:
+    def _generate_model_loading(self, training_code: str, model_dir: Path) -> str:
         """Generate code for loading the model files."""
         return extract_code(
             self.provider.query(
                 system_message=config.code_generation.prompt_inference_base.safe_substitute(),
                 user_message=config.code_generation.prompt_inference_model_loading.safe_substitute(
-                    training_code=training_code
+                    training_code=training_code, model_dir=model_dir.as_posix()
                 ),
             )
         )
@@ -82,7 +83,7 @@ class InferenceCodeGenerator:
         )
 
     def _combine_code_stages(
-        self, model_loading_code: str, preprocessing_code: str, prediction_code: str, model_id: str
+        self, model_loading_code: str, preprocessing_code: str, prediction_code: str, model_dir: Path
     ) -> str:
         """Combine code stages into a complete inference script."""
         return extract_code(
@@ -92,8 +93,8 @@ class InferenceCodeGenerator:
                     model_loading_code=model_loading_code,
                     preprocessing_code=preprocessing_code,
                     prediction_code=prediction_code,
-                    filedir=filedir.as_posix(),
-                    allowed_packages=config.code_generation.allowed_packages
+                    filedir=model_dir.as_posix(),
+                    allowed_packages=config.code_generation.allowed_packages,
                 ),
             )
         )
