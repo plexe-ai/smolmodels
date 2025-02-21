@@ -80,7 +80,7 @@ class DatasetGenerator:
 
     def _validate_schema(self, data: pd.DataFrame):
         """Ensures data matches the schema."""
-        for key in self.schema.keys():
+        for key in self.schema.model_fields.keys():
             if key not in data.columns:
                 raise ValueError(f"Dataset does not match schema, missing column in dataset: {key}")
 
