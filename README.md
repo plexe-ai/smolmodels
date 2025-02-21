@@ -36,13 +36,14 @@ pip install smolmodels
 Define, train and save a `Model`:
 
 ```python
+from pydantic import create_model
 import smolmodels as sm
 
 # Step 1: define the model
 model = sm.Model(
     intent="Predict sentiment on a news article such that [...]",
-    input_schema={"headline": str, "content": str},                     # [optional]
-    output_schema={"sentiment": str}                                    # [optional]
+    input_schema=create_model("in", **{"headline": str, "content": str}),   # [optional]
+    output_schema=create_model("out", **{"sentiment": str})                 # [optional]
 )
 
 # Step 2: build and train the model on data
@@ -79,8 +80,8 @@ A model is defined as a transformation from an **input schema** to an **output s
 # This defines the model's identity
 model = sm.Model(
     intent="Predict sentiment on a news article such that [...]",
-    input_schema={"headline": str, "content": str},
-    output_schema={"sentiment": str}
+    input_schema=create_model("in", **{"headline": str, "content": str}),
+    output_schema=create_model("out", **{"sentiment": str})
 )
 ```
 
@@ -115,7 +116,7 @@ want to augment existing data. You can do this with the `sm.DatasetGenerator` cl
 
 ```python
 dataset = sm.DatasetGenerator(
-    schema={"headline": str, "content": str, "sentiment": str},
+    schema=create_model("data", **{"headline": str, "content": str, "sentiment": str}),
     data=existing_data
 )
 dataset.generate(1000)
