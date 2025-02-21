@@ -52,7 +52,7 @@ class TestDataGeneration:
         dataset = DatasetGenerator(
             description="House features and prices, each row is a house",
             schema={**sample_schema["input_schema"], **sample_schema["output_schema"]},
-            provider="openai/gpt-4",
+            provider="openai/gpt-4o",
         )
         dataset.generate(50)
 
@@ -82,7 +82,7 @@ class TestDataGeneration:
         dataset = DatasetGenerator(
             description="House features and prices, each row is a house",
             schema={**sample_schema["input_schema"], **sample_schema["output_schema"]},
-            provider="openai/gpt-4",
+            provider="openai/gpt-4o",
             data=existing_data.copy(),
         )
         dataset.generate(50)
