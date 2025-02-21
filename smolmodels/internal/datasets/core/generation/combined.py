@@ -3,11 +3,12 @@ This module provides a data generator implementation that combines multiple gene
 """
 
 import abc
+import json
 import logging
 import math
 from concurrent.futures import as_completed
 from concurrent.futures.thread import ThreadPoolExecutor
-from typing import Type
+from typing import Type, List
 
 import pandas as pd
 from pydantic import BaseModel
@@ -127,14 +128,17 @@ class CombinedDataGenerator(BaseDataGenerator):
                 f"SCHEMA:\n{schema.model_fields}\n\n"
                 f"{sample_data_str}"
                 f"Ensure you generate exactly {n_to_generate} records in the specified format. "
-                f"Exclude the target variable column; only generate features."
             )
             logger.debug(prompt)
+
+            class DataResponseFormat(BaseModel):
+                records: List[schema]
+
             # generate the content
-            response = self.llm.query(self.instruction, prompt, response_format=schema)
+            response = json.loads(self.llm.query(self.instruction, prompt, response_format=DataResponseFormat))
             logger.debug(response)
             # return as dataframe
-            return json_to_df(response).dropna()
+            return pd.DataFrame().from_dict(response["records"]).dropna()
 
     class FilterModel(Model):
         def __init__(self, provider, max_tokens: int, instruction):

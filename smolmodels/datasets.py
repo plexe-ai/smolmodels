@@ -68,7 +68,7 @@ class DatasetGenerator:
         elif data is not None:
             self._data = DatasetAdapter.coerce(data)
             schemas = SchemaResolver(self.provider, self.description).resolve({"data": self._data})
-            self.schema = merge_models(list(schemas))
+            self.schema = merge_models("data", list(schemas))
         elif schema is not None:
             self.schema = schema
 
