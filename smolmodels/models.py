@@ -44,6 +44,7 @@ from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
+from smolmodels.internal.common.utils.pydantic_utils import map_to_basemodel
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.generators import ModelGenerator
 from smolmodels.internal.schemas.resolver import SchemaResolver
@@ -89,26 +90,26 @@ class Model:
     def __init__(
         self,
         intent: str,
-        input_schema: Type[BaseModel] = None,
-        output_schema: Type[BaseModel] = None,
+        input_schema: Type[BaseModel] | Dict[str, type] = None,
+        output_schema: Type[BaseModel] | Dict[str, type] = None,
         constraints: List[Constraint] = None,
     ):
         """
         Initialise a model with a natural language description of its intent, as well as
         structured definitions of its input schema, output schema, and any constraints.
 
-        :param [str] intent: A human-readable, natural language description of the model's expected intent.
-        :param [Type[BaseModel]] input_schema: A subclass of pydantic.BaseModel, defining input schema
-        :param [Type[BaseModel]] output_schema: A subclass of pydantic.BaseModel, defining output schema
-        :param List[Constraint] constraints: A list of Constraint objects that represent rules which must be
+        :param intent: A human-readable, natural language description of the model's expected intent.
+        :param input_schema: a pydantic model or dictionary defining the input schema
+        :param output_schema: a pydantic model or dictionary defining the output schema
+        :param constraints: A list of Constraint objects that represent rules which must be
             satisfied by every input/output pair for the model.
         """
         # todo: analyse natural language inputs and raise errors where applicable
 
         # The model's identity is defined by these fields
         self.intent: str = intent
-        self.output_schema: Type[BaseModel] = output_schema
-        self.input_schema: Type[BaseModel] = input_schema
+        self.input_schema: Type[BaseModel] = map_to_basemodel("in", input_schema) if input_schema else None
+        self.output_schema: Type[BaseModel] = map_to_basemodel("out", output_schema) if output_schema else None
         self.constraints: List[Constraint] = constraints or []
         self.training_data: Dict[str, pd.DataFrame] = dict()
 

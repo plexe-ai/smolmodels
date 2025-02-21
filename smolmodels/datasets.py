@@ -11,12 +11,12 @@ The Dataset class offers functionalities for:
 Users can either pass raw datasets directly to models or leverage this class for dataset management and augmentation.
 """
 
-from typing import Iterator, Type
+from typing import Iterator, Type, Dict
 import pandas as pd
 from pydantic import BaseModel
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
-from smolmodels.internal.common.utils.pydantic_utils import merge_models
+from smolmodels.internal.common.utils.pydantic_utils import merge_models, map_to_basemodel
 from smolmodels.internal.schemas.resolver import SchemaResolver
 from smolmodels.internal.datasets.generator import DatasetGenerator as DataGenerator
 
@@ -44,7 +44,7 @@ class DatasetGenerator:
         self,
         description: str,
         provider: str,
-        schema: Type[BaseModel] = None,
+        schema: Type[BaseModel] | Dict[str, type] = None,
         data: pd.DataFrame = None,
     ) -> None:
         """
@@ -62,7 +62,7 @@ class DatasetGenerator:
         self._index = 0
 
         if schema is not None and data is not None:
-            self.schema = schema
+            self.schema = map_to_basemodel("data", schema)
             self._validate_schema(data)
             self._data = DatasetAdapter.coerce(data)
         elif data is not None:
@@ -70,7 +70,7 @@ class DatasetGenerator:
             schemas = SchemaResolver(self.provider, self.description).resolve({"data": self._data})
             self.schema = merge_models("data", list(schemas))
         elif schema is not None:
-            self.schema = schema
+            self.schema = map_to_basemodel("data", schema)
 
         self.data_generator = DataGenerator(self.provider, self.description, self.schema)
 

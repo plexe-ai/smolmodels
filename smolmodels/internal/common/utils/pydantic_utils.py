@@ -2,7 +2,7 @@
 This module provides utility functions for manipulating Pydantic models.
 """
 
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, create_model, TypeAdapter
 from typing import Type, List
 
 
@@ -33,3 +33,26 @@ def create_model_from_fields(model_name: str, model_fields: dict) -> Type[BaseMo
     for name, properties in model_fields.items():
         model_fields[name] = (properties.annotation, ... if properties.is_required() else properties.default)
     return create_model(model_name, **model_fields)
+
+
+def map_to_basemodel(name: str, schema: dict | Type[BaseModel]) -> Type[BaseModel]:
+    """
+    Ensure that the schema is a Pydantic model or a dictionary, and return the model.
+
+    :param [str] name: the name to be given to the model class
+    :param [dict] schema: the schema to be converted to a Pydantic model
+    :return: the Pydantic model
+    """
+    # Dictionary: convert to Pydantic model, if possible
+    if isinstance(schema, dict):
+        try:
+            TypeAdapter(dict[str, type]).validate_python(schema)
+            return create_model(name, **schema)
+        except Exception as e:
+            raise ValueError(f"Invalid schema definition: {e}")
+    # Pydantic model: return as is
+    elif isinstance(schema, type) and issubclass(schema, BaseModel):
+        return schema
+    # All other schema types are invalid
+    else:
+        raise TypeError("Schema must be a Pydantic model or a dictionary.")
