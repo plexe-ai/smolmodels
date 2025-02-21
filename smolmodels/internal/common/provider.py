@@ -3,13 +3,15 @@ This module defines the base class for LLM providers and includes
 logging and retry mechanisms for querying the providers.
 """
 
+import logging
 import textwrap
 from typing import Type
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from pydantic import BaseModel
-import logging
-from litellm import completion
+
+import litellm
+from litellm import completion, supports_response_schema
 from litellm.exceptions import RateLimitError, ServiceUnavailableError
+from pydantic import BaseModel
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +27,19 @@ class Provider:
         if "/" not in self.model:
             self.model = default_model
             logger.warning(f"Model name should be in the format 'provider/model', using default model: {default_model}")
+        # Check if the model supports json mode
+        if "response_format" not in litellm.get_supported_openai_params(model=self.model):
+            raise ValueError(f"Model {self.model} does not support passing response_format")
+        if not supports_response_schema(model=self.model):
+            raise ValueError(f"Model {self.model} does not support response schema")
 
-    @retry(
-        stop=stop_after_attempt(5),
-        wait=wait_exponential(multiplier=2, min=4),
-        retry=retry_if_exception_type((RateLimitError, ServiceUnavailableError)),
-    )
     def _make_completion_call(self, messages, response_format):
         """Helper method to make the actual API call with built-in retries for rate limits"""
         response = completion(model=self.model, messages=messages, response_format=response_format)
+
+        if not response.choices[0].message.content:
+            raise ValueError("Empty response from provider")
+
         return response.choices[0].message.content
 
     def query(
@@ -62,13 +68,20 @@ class Provider:
             if backoff:
 
                 @retry(stop=stop_after_attempt(retries), wait=wait_exponential(multiplier=2))
-                def call_with_backoff():
-                    return self._make_completion_call(messages, response_format)
+                def call_with_backoff_retry_all_errors():
+                    @retry(
+                        stop=stop_after_attempt(5),
+                        wait=wait_exponential(multiplier=2, min=4),
+                        retry=retry_if_exception_type((RateLimitError, ServiceUnavailableError)),
+                    )
+                    def call_with_backoff_retry_service_errors():
+                        return self._make_completion_call(messages, response_format)
 
-                r = call_with_backoff()
+                    return call_with_backoff_retry_service_errors()
+
+                r = call_with_backoff_retry_all_errors()
             else:
-                response = completion(model=self.model, messages=messages, response_format=response_format)
-                r = response.choices[0].message.content
+                r = self._make_completion_call(messages, response_format)
 
             self._log_response(r, self.__class__.__name__)
             return r
