@@ -5,10 +5,12 @@ logging and retry mechanisms for querying the providers.
 
 import textwrap
 from typing import Type
+
+import litellm
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from pydantic import BaseModel
 import logging
-from litellm import completion
+from litellm import completion, supports_response_schema
 from litellm.exceptions import RateLimitError, ServiceUnavailableError
 
 logger = logging.getLogger(__name__)
@@ -25,6 +27,11 @@ class Provider:
         if "/" not in self.model:
             self.model = default_model
             logger.warning(f"Model name should be in the format 'provider/model', using default model: {default_model}")
+        # Check if the model supports json mode
+        if "response_format" not in litellm.get_supported_openai_params(model=self.model):
+            raise ValueError(f"Model {self.model} does not support passing response_format")
+        if not supports_response_schema(model=self.model):
+            raise ValueError(f"Model {self.model} does not support response schema")
 
     @retry(
         stop=stop_after_attempt(5),
