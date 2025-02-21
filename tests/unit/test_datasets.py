@@ -11,8 +11,8 @@ from smolmodels import DatasetGenerator
 def sample_schema():
     """Test schema for house price prediction"""
     return {
-        "input_schema": {"square_feet": "float", "bedrooms": "int", "location": "str"},
-        "output_schema": {"price": "float"},
+        "input_schema": {"square_feet": float, "bedrooms": int, "location": str},
+        "output_schema": {"price": float},
     }
 
 
