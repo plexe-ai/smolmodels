@@ -32,10 +32,9 @@ Example:
 import logging
 import types
 import uuid
-from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Union, List, Any, Type
+from typing import Dict, List, Type
 
 import pandas as pd
 import os
@@ -59,34 +58,6 @@ class ModelState(Enum):
 
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class GenerationConfig:  # todo: move to internal/datasets
-    """Configuration for data generation/augmentation"""
-
-    n_samples: int
-    augment_existing: bool = False
-    quality_threshold: float = 0.8
-
-    def __post_init__(self):
-        if self.n_samples <= 0:
-            raise ValueError("Number of samples must be positive")
-        if not 0 <= self.quality_threshold <= 1:
-            raise ValueError("Quality threshold must be between 0 and 1")
-
-    @classmethod
-    def from_input(cls, value: Union[int, Dict[str, Any]]) -> "GenerationConfig":
-        """Create config from either number or dictionary input"""
-        if isinstance(value, int):
-            return cls(n_samples=value)
-        elif isinstance(value, dict):
-            return cls(
-                n_samples=value["n_samples"],
-                augment_existing=value.get("augment_existing", False),
-                quality_threshold=value.get("quality_threshold", 0.8),
-            )
-        raise ValueError(f"Invalid generate_samples value: {value}")
 
 
 class Model:
