@@ -36,7 +36,7 @@ class InferenceCodeGenerator:
             self.provider.query(
                 system_message=config.code_generation.prompt_inference_base.safe_substitute(),
                 user_message=config.code_generation.prompt_inference_model_loading.safe_substitute(
-                    training_code=training_code
+                    training_code=training_code, filedir=model_dir.as_posix()
                 ),
             )
         )
