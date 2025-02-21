@@ -58,19 +58,26 @@ class InferenceCodeGenerator:
             )
         )
 
-    def _generate_prediction(self, output_schema: dict, training_code: str) -> str:
+    def _generate_prediction(
+        self, output_schema: dict, training_code: str, model_loading_code: str, preprocessing_code: str
+    ) -> str:
         """
         Generate code for making predictions with the loaded model.
 
         :param output_schema: Schema defining the expected output format
         :param training_code: Training code to analyze for prediction patterns
+        :param model_loading_code: Generated code for loading model files
+        :param preprocessing_code: Generated code for preprocessing input data
         :return: Code snippet for prediction
         """
         return extract_code(
             self.provider.query(
                 system_message=config.code_generation.prompt_inference_base.safe_substitute(),
                 user_message=config.code_generation.prompt_inference_prediction.safe_substitute(
-                    output_schema=output_schema, training_code=training_code
+                    output_schema=output_schema,
+                    training_code=training_code,
+                    model_loading_code=model_loading_code,
+                    preprocessing_code=preprocessing_code,
                 ),
             )
         )
@@ -119,8 +126,10 @@ class InferenceCodeGenerator:
         # Stage 2: Generate preprocessing code
         preprocessing_code = self._generate_preprocessing(input_schema, training_code)
 
-        # Stage 3: Generate prediction code
-        prediction_code = self._generate_prediction(output_schema, training_code)
+        # Stage 3: Generate prediction code with context from previous stages
+        prediction_code = self._generate_prediction(
+            output_schema, training_code, model_loading_code, preprocessing_code
+        )
 
         # Combine the stages
         return self._combine_code_stages(model_loading_code, preprocessing_code, prediction_code, model_dir)
