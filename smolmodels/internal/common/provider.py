@@ -36,6 +36,10 @@ class Provider:
     def _make_completion_call(self, messages, response_format):
         """Helper method to make the actual API call with built-in retries for rate limits"""
         response = completion(model=self.model, messages=messages, response_format=response_format)
+
+        if not response.choices[0].message.content:
+            raise ValueError("Empty response from provider")
+
         return response.choices[0].message.content
 
     def query(
