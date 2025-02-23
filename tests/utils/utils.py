@@ -69,8 +69,8 @@ def verify_prediction(prediction, expected_schema=None):
 
     if expected_schema:
         assert set(prediction.keys()) == set(
-            expected_schema.keys()
-        ), f"Prediction keys {prediction.keys()} don't match schema keys {expected_schema.keys()}"
+            expected_schema.model_fields.keys()
+        ), f"Prediction keys {prediction.keys()} don't match schema keys {expected_schema.model_fields.keys()}"
 
     output_value = list(prediction.values())[0]
     assert isinstance(

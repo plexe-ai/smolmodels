@@ -7,6 +7,7 @@ generates training and inference code, and returns callable functions for traini
 import logging
 import os
 import shutil
+from shutil import _samefile
 import time
 import types
 from dataclasses import dataclass
@@ -309,15 +310,19 @@ class ModelGenerator:
         # Create directory if it doesn't exist
         self.filedir.mkdir(parents=True, exist_ok=True)
 
-        # Copy model files to the model directory
+        # Copy model files to the model directory if they're not already there
         for artifact in node.model_artifacts:
             artifact_path = Path(artifact)
             if artifact_path.is_file():
-                shutil.copy2(artifact_path, self.filedir)
+                target_path = self.filedir / artifact_path.name
+                if not target_path.exists() or not _samefile(artifact_path, target_path):
+                    shutil.copy2(artifact_path, target_path)
             elif artifact_path.is_dir():
                 for item in artifact_path.glob("*"):
                     if item.is_file():
-                        shutil.copy2(item, self.filedir / item.name)
+                        target_path = self.filedir / item.name
+                        if not target_path.exists() or not _samefile(item, target_path):
+                            shutil.copy2(item, target_path)
 
         # Update node's model_artifacts to use the new path
         node.model_artifacts = [str(self.filedir)]
@@ -385,8 +390,12 @@ class ModelGenerator:
         # Make sure the model cache directory exists
         self.filedir.mkdir(parents=True, exist_ok=True)
 
-        # Create the model directory with model ID
-        model_dir = self.filedir / f"model-{hash(node.id)}-{node.id}"
+        # Create the model directory with model ID if it doesn't exist in the path
+        if not any(str(node.id) in str(artifact) for artifact in node.model_artifacts):
+            model_dir = self.filedir / f"model-{node.id}"
+        else:
+            # If model ID is already in the path, use the parent directory
+            model_dir = self.filedir
         model_dir.mkdir(parents=True, exist_ok=True)
 
         # Copy artifacts to cache and update the code to match
