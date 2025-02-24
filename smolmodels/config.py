@@ -153,7 +153,7 @@ class _Config:
                 "directly in the current directory with descriptive names. "
                 "Do not create any subdirectories. Use only ${allowed_packages}. Do NOT use any "
                 "packages that are not part of this list of the Python standard library. Assume the training "
-                "data is in the following files relative to the current directory ${training_data_files}."
+                "data is in the following files in the current working directory ${training_data_files}."
             )
         )
         prompt_training_review: Template = field(

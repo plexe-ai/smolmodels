@@ -47,7 +47,9 @@ def map_to_basemodel(name: str, schema: dict | Type[BaseModel]) -> Type[BaseMode
     if isinstance(schema, dict):
         try:
             TypeAdapter(dict[str, type]).validate_python(schema)
-            return create_model(name, **schema)
+            # Convert schema to proper type annotations
+            annotated_schema = {k: (v, ...) for k, v in schema.items()}
+            return create_model(name, **annotated_schema)
         except Exception as e:
             raise ValueError(f"Invalid schema definition: {e}")
     # Pydantic model: return as is
