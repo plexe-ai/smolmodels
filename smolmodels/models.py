@@ -126,8 +126,7 @@ class Model:
         self.schema_resolver: SchemaResolver | None = None
         self.model_generator: ModelGenerator | None = None
 
-        # Unique identifier for the model, used in directory paths etc
-        self.identifier: str = f"model-{abs(hash(self.intent))}-{str(uuid.uuid4())}"
+        self.identifier: str = str(uuid.uuid4())
         # Directory for any required model files
         base_dir = os.environ.get("MODEL_PATH", config.file_storage.model_cache_dir)
         self.files_path: Path = Path(base_dir) / self.identifier

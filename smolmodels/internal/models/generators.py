@@ -378,6 +378,7 @@ class ModelGenerator:
             raise RuntimeError(f"❌ Failed to generate valid inference code: {str(node.exception)}")
         return node
 
+    # TODO: get rid of this and use fileio
     def _cache_model_files(self, node: Node) -> None:
         """
         Copies the model artifacts to the model cache directory, and updates the paths in the code.
