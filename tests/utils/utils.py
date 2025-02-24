@@ -68,10 +68,15 @@ def verify_prediction(prediction, expected_schema=None):
     assert len(prediction) > 0, "Prediction should not be empty"
 
     if expected_schema:
-        assert set(prediction.keys()) == set(
-            expected_schema.model_fields.keys()
-        ), f"Prediction keys {prediction.keys()} don't match schema keys {expected_schema.model_fields.keys()}"
+        schema_keys = getattr(expected_schema, "model_fields", None)
+        if schema_keys is not None:
+            schema_keys = set(schema_keys.keys())
+        else:
+            schema_keys = set(expected_schema.keys())
 
+        assert (
+            set(prediction.keys()) == schema_keys
+        ), f"Prediction keys {prediction.keys()} don't match schema keys {schema_keys}"
     output_value = list(prediction.values())[0]
     assert isinstance(
         output_value, (int, float, str)
