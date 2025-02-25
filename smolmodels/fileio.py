@@ -103,7 +103,6 @@ def save_model(model: Model, path: str = None) -> str:
 
     try:
         with tarfile.open(path, "w:gz") as tar:
-            # Save metadata
             metrics_data = {}
             if model.metrics:
                 metrics_data = {
@@ -121,10 +120,9 @@ def save_model(model: Model, path: str = None) -> str:
                 "identifier": model.identifier,
             }
 
-            # Save each metadata item separately for easier access
+            # Save each metadata item separately
             for key, value in metadata.items():
                 if key in ["metrics", "metadata"]:
-                    # JSON for readable metadata
                     info = tarfile.TarInfo(f"metadata/{key}.json")
                     content = json.dumps(value, indent=2).encode("utf-8")
                 else:
@@ -133,7 +131,6 @@ def save_model(model: Model, path: str = None) -> str:
                 info.size = len(content)
                 tar.addfile(info, io.BytesIO(content))
 
-            # Save schemas as field dictionaries
             for name, schema in [("input_schema", model.input_schema), ("output_schema", model.output_schema)]:
                 schema_dict = {name: field.annotation.__name__ for name, field in schema.model_fields.items()}
                 info = tarfile.TarInfo(f"schemas/{name}.json")
@@ -155,18 +152,28 @@ def save_model(model: Model, path: str = None) -> str:
 
             for artifact in model.artifacts:
                 artifact_path = Path(artifact)
-                if artifact_path.is_file():
-                    with open(artifact_path, "rb") as f:
-                        content = f.read()
-                        # Preserve directory structure by using relative path
-                        arcname = f"artifacts/{artifact_path.parent.name}/{artifact_path.name}"
-                        info = tarfile.TarInfo(arcname)
-                        info.size = len(content)
-                        tar.addfile(info, io.BytesIO(content))
-                else:
-                    raise FileNotFoundError(f"Artifact not found or is not a file: {artifact}")
+                if artifact_path.is_dir():
+                    # Recursively include all files under this directory
+                    for file_path in artifact_path.rglob("*"):
+                        if file_path.is_file():
+                            # Build a relative path inside "artifacts/"
+                            rel_path = file_path.relative_to(artifact_path.parent)
+                            arcname = f"artifacts/{rel_path}"
+                            info = tarfile.TarInfo(str(arcname))
 
-            # Save constraints if any
+                            content = file_path.read_bytes()
+                            info.size = len(content)
+                            tar.addfile(info, io.BytesIO(content))
+
+                elif artifact_path.is_file():
+                    # Same logic for a single file
+                    arcname = f"artifacts/{artifact_path.parent.name}/{artifact_path.name}"
+                    info = tarfile.TarInfo(arcname)
+                    content = artifact_path.read_bytes()
+                    info.size = len(content)
+                    tar.addfile(info, io.BytesIO(content))
+                else:
+                    raise FileNotFoundError(f"Artifact not found or is not a file/directory: {artifact}")
             if model.constraints:
                 info = tarfile.TarInfo("metadata/constraints.pkl")
                 content = pickle.dumps(model.constraints)
