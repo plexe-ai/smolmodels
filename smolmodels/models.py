@@ -31,7 +31,6 @@ Example:
 
 import logging
 import types
-import uuid
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Type
@@ -126,7 +125,7 @@ class Model:
         self.schema_resolver: SchemaResolver | None = None
         self.model_generator: ModelGenerator | None = None
 
-        self.identifier: str = str(uuid.uuid4())
+        self.identifier: str = f"model-{abs(hash(self.intent))}"
         # Directory for any required model files
         base_dir = os.environ.get("MODEL_PATH", config.file_storage.model_cache_dir)
         self.files_path: Path = Path(base_dir) / self.identifier
