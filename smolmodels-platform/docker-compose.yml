@@ -27,6 +27,17 @@ services:
     networks:
       - smolmodels-platform-network
 
+  ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    networks:
+      - smolmodels-platform-network
+
   redis:
     image: redis:alpine
     ports:
