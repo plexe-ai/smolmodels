@@ -197,7 +197,24 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 Apache-2.0 License - see [LICENSE](LICENSE) for details.
 
-## 8. Product Roadmap
+## 8. Docker Deployment
+
+Run smolmodels as a platform with a RESTful API and web UI using Docker:
+
+```bash
+git clone https://github.com/plexe-ai/smolmodels.git
+cd smolmodels/docker
+cp .env.example .env  # Edit with your LLM provider API key
+docker-compose up -d
+```
+
+Access your deployment:
+- API: http://localhost:8000
+- Web UI: http://localhost:8501 
+
+The web interface provides an easy way to create models, view their status, and make predictions without writing code. See the [Docker README](docker/README.md) for more details.
+
+## 9. Product Roadmap
 
 - [X] Fine-tuning and transfer learning for small pre-trained models
 - [X] Support for non-tabular data types in model generation

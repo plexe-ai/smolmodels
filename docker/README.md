@@ -1,6 +1,6 @@
 # smolmodels
 
-A docker container for creating, managing, and serving machine learning models using the [smolmodels](https://github.com/plexe-ai/smolmodels) library.
+A docker container for creating and running machine learning models using the [smolmodels](https://github.com/plexe-ai/smolmodels) library.
 
 > **Warning**: This is an early alpha release. Expect bugs and limitations. More features are coming in future releases!
 
@@ -39,9 +39,18 @@ cp .env.example .env
 docker-compose up -d
 ```
 
-4. The API is now available at http://localhost:8000
+4. Access the platform:
+   - API: http://localhost:8000
+   - Web UI: http://localhost:8501
 
-### Create Your First Model
+### Web UI
+
+The included Streamlit-based web interface provides an easy way to:
+- Create models using a simple form interface
+- View all your models and their status
+- Make predictions using your trained models
+
+### Create Your First Model via API
 
 ```bash
 curl -X POST http://localhost:8000/models \
@@ -85,7 +94,7 @@ graph TD
 ### Components
 
 - **API Layer**: FastAPI-powered REST interface for model management and predictions
-- **Queue**: Redis-based job queue for distributed processing
+- **Queue**: Redis-based job queue for processing model build requests
 - **Workers**: Python workers for model training and evaluation
 - **Storage**: MongoDB for model metadata and job information
 - **Model Cache**: File-based storage for trained models
