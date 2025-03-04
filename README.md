@@ -217,7 +217,7 @@ The web interface provides an easy way to create models, view their status, and 
 ## 9. Product Roadmap
 
 - [X] Fine-tuning and transfer learning for small pre-trained models
-- [X] Support for non-tabular data types in model generation
 - [X] Use Pydantic for schemas and split data generation into a separate module
 - [X] Smolmodels self-hosted platform ⭐ (More details coming soon!)
-- [ ] File upload to platform
+- [ ] Support for non-tabular data types in model generation
+- [ ] File upload to docker containers
