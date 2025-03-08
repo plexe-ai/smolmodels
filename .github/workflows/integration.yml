@@ -39,6 +39,9 @@ jobs:
 
   run-tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
     env:
       GOOGLE_API_KEY: ${{ vars.GOOGLE_API_KEY }}
       OPENAI_API_KEY: ${{ vars.OPENAI_API_KEY }}
@@ -46,10 +49,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python-version }}
 
       - name: Install Dependencies
         run: |
