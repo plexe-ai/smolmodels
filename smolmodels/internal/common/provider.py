@@ -99,9 +99,11 @@ class Provider:
         """
         logger.debug(
             (
+                # String interpolation because Python <3.12 does not support backslashes inside f-strings curly braces
                 f"Requesting chat completion from {model} with messages: "
-                f"{textwrap.shorten(system_message.replace("\n", " "), 30)}, "
-                f"{textwrap.shorten(user_message.replace("\n", " "), 30)}"
+                + textwrap.shorten(system_message.replace("\n", " "), 30)
+                + ", "
+                + textwrap.shorten(user_message.replace("\n", " "), 30)
             )
         )
 

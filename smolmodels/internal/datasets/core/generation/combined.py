@@ -150,7 +150,7 @@ class CombinedDataGenerator(BaseDataGenerator):
             prompt = (
                 f"Filter samples for the following ML problem:\n\n{description}\n\n"
                 f"SCHEMA:\n{schema}\n\n"
-                f"DATASET TO FILTER:\n{df.to_json(orient="records")}\n\n"
+                f"DATASET TO FILTER:\n{df.to_json(orient='records')}\n\n"
                 "Return the dataset as raw JSON, without additional text."
             )
             logger.debug(prompt)
@@ -168,7 +168,7 @@ class CombinedDataGenerator(BaseDataGenerator):
             prompt = (
                 f"Label each sample for the ML problem:\n\n{description}\n\n"
                 f"SCHEMA:\n{schema}\n\n"
-                f"DATASET TO LABEL:\n{df.to_json(orient="records")}\n\n"
+                f"DATASET TO LABEL:\n{df.to_json(orient='records')}\n\n"
                 "Add a column matching the target variable's name with the labels. Return as raw JSON."
             )
             logger.debug(prompt)
@@ -186,7 +186,7 @@ class CombinedDataGenerator(BaseDataGenerator):
             prompt = (
                 f"Review the batch for the ML problem:\n\n{description}\n\n"
                 f"SCHEMA:\n{schema}\n\n"
-                f"DATASET TO REVIEW:\n{df.to_json(orient="records")}\n\n"
+                f"DATASET TO REVIEW:\n{df.to_json(orient='records')}\n\n"
                 "Return the dataset as raw JSON with 'removal' and 'removal_reason' columns."
             )
             logger.debug(prompt)

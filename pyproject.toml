@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "smolmodels"
-version = "0.9.3"
+version = "0.10.0"
 description = "A framework for building ML models from natural language"
 authors = [
     "marcellodebernardi <marcello.debernardi@outlook.com>",
@@ -24,7 +24,7 @@ classifiers = [
 keywords = ["custom ai", "llm", "machine learning model", "data generation"]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = ">=3.11,<3.13"
 pandas = "^2.2.0"
 google-generativeai = "^0.8.2"
 imbalanced-learn = "^0.12.4"
@@ -58,6 +58,7 @@ pytest = "^8.3.4"
 pre-commit = "^4.0.1"
 ruff = "^0.9.1"
 jupyterlab = "^4.2.5"
+tox = "^4.14.1"
 
 [tool.semantic_release]
 version_variables = ["pyproject.toml:version"]
