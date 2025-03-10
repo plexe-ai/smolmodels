@@ -2,6 +2,7 @@
 Configuration for the smolmodels library.
 """
 
+import importlib
 import logging
 import warnings
 from dataclasses import dataclass, field
@@ -13,6 +14,15 @@ import sys
 # configure warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+
+def is_package_available(package_name: str) -> bool:
+    """Check if a Python package is available/installed."""
+    try:
+        importlib.import_module(package_name)
+        return True
+    except ImportError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -42,7 +52,8 @@ class _Config:
 
     @dataclass(frozen=True)
     class _CodeGenerationConfig:
-        allowed_packages: List[str] = field(
+        # Base ML packages that are always available
+        _base_packages: List[str] = field(
             default_factory=lambda: [
                 "pandas",
                 "numpy",
@@ -51,14 +62,38 @@ class _Config:
                 "mlxtend",
                 "xgboost",
                 "pyarrow",
-                "torch",
                 "statsmodels",
+            ]
+        )
+
+        # Deep learning packages that are optional
+        _deep_learning_packages: List[str] = field(
+            default_factory=lambda: [
+                "torch",
                 "transformers",
                 "tokenizers",
                 "accelerate",
                 "safetensors",
             ]
         )
+
+        @property
+        def allowed_packages(self) -> List[str]:
+            """Dynamically determine which packages are available and can be used."""
+            available_packages = self._base_packages.copy()
+
+            # Check if deep learning packages are installed and add them if they are
+            for package in self._deep_learning_packages:
+                if is_package_available(package):
+                    available_packages.append(package)
+
+            return available_packages
+
+        @property
+        def deep_learning_available(self) -> bool:
+            """Check if deep learning packages are available."""
+            return any(is_package_available(pkg) for pkg in self._deep_learning_packages)
+
         k_fold_validation: int = field(default=5)
         # prompts used in generating plans or making decisions
         prompt_planning_base: Template = field(
@@ -83,11 +118,23 @@ class _Config:
                 "The task is:\n${problem_statement}\n\n"
             )
         )
-        prompt_planning_generate_plan: Template = field(
-            default=Template(
+
+        @property
+        def prompt_planning_generate_plan(self) -> Template:
+            """
+            Dynamically generate the plan generation template.
+            Conditionally includes fine-tuning suggestion if deep learning packages are available.
+            """
+            base_prompt = (
                 "Write a solution plan for the machine learning problem outlined below. The solution must produce "
                 "a model that achieves the best possible performance on ${metric}.\n\n"
-                "If appropriate, consider using pre-trained models under 20MB that can be fine-tuned with the provided data."
+            )
+
+            # Include fine-tuning suggestion only if deep learning packages are available
+            if self.deep_learning_available:
+                base_prompt += "If appropriate, consider using pre-trained models under 20MB that can be fine-tuned with the provided data."
+
+            base_prompt += (
                 "# TASK:\n${problem_statement}\n\n"
                 "# PREVIOUS ATTEMPTS, IF ANY:**\n${context}\n\n"
                 "The solution concept should be explained in 3-5 sentences. Do not include an implementation of the "
@@ -95,7 +142,9 @@ class _Config:
                 "Do not suggest doing EDA, ensembling, or hyperparameter tuning. "
                 "The solution should be feasible using only ${allowed_packages}, and no other non-standard libraries. "
             )
-        )
+
+            return Template(base_prompt)
+
         prompt_schema_base: Template = field(
             default=Template("You are an expert ML engineer identifying target variables.")
         )

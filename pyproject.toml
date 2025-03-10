@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "smolmodels"
-version = "0.10.0"
+version = "0.11.0"
 description = "A framework for building ML models from natural language"
 authors = [
     "marcellodebernardi <marcello.debernardi@outlook.com>",
@@ -41,17 +41,23 @@ xgboost = "^2.1.3"
 instructor = { extras = ["anthropic"], version = "^1.7.2" }
 tenacity = "^9.0.0"
 pyarrow = "^19.0.0"
-torch = ">=2.0.0,<2.3.0"
 litellm = "^1.60.0"
 statsmodels = "^0.14.4"
 hypothesis = "^6.125.1"
-tokenizers = "^0.15.1"
 numpy = ">=1.23.2,<2.0.0"
-transformers = "4.35.2"
-accelerate = "0.24.1"
-safetensors = "^0.4.1"
 black = "^24.10.0"
 
+# Deep learning dependencies
+torch = { version = ">=2.0.0,<2.3.0", optional = true }
+transformers = { version = "4.35.2", optional = true }
+tokenizers = { version = "^0.15.1", optional = true }
+accelerate = { version = "0.24.1", optional = true }
+safetensors = { version = "^0.4.1", optional = true }
+
+[tool.poetry.extras]
+all = ["torch", "transformers", "tokenizers", "accelerate", "safetensors"]
+deep-learning = ["torch", "transformers", "tokenizers", "accelerate", "safetensors"]
+lightweight = []
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"

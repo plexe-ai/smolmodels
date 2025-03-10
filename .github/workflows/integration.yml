@@ -42,6 +42,7 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.11', '3.12']
+        dependencies: ['lightweight', 'all']
     env:
       GOOGLE_API_KEY: ${{ vars.GOOGLE_API_KEY }}
       OPENAI_API_KEY: ${{ vars.OPENAI_API_KEY }}
@@ -58,7 +59,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install poetry
-          poetry install
+          if [ "${{ matrix.dependencies }}" == "all" ]; then
+            poetry install -E all
+          else
+            poetry install
+          fi
 
       - name: Run Tests
         run: poetry run pytest tests/unit/

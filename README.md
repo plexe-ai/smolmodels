@@ -156,13 +156,23 @@ model.build(provider="openai/gpt-4o-mini", ...)
 See the section on installation and setup for more details on supported providers and how to configure API keys.
 
 ## 3. Installation & Setup
-Install the library in the usual manner:
+### 3.1. Installation Options
+
+`smolmodels` offers different installation options to suit your needs:
 
 ```bash
-pip install smolmodels
+pip install smolmodels                  # default installation without deep learning dependencies
+pip install smolmodels[lightweight]     # explicitly lightweight, equivalent to 'smolmodels'
+
+pip install smolmodels[all]             # full installation including deep learning dependencies
+pip install smolmodels[deep-learning]   # specifically for deep-learning, equivalent to 'smolmodels[all]'
 ```
 
-Set your API key as an environment variable based on which provider you want to use. For example:
+The lightweight installation is suitable for most machine learning tasks and reduces the installation size 
+significantly. If you need deep learning capabilities, use the `[all]` or `[deep-learning]` option.
+
+### 3.2. API Keys Setup
+Set your API key as an environment variable based on which provider you want to use:
 
 ```bash
 # For OpenAI
@@ -219,5 +229,6 @@ The web interface provides an easy way to create models, view their status, and 
 - [X] Fine-tuning and transfer learning for small pre-trained models
 - [X] Use Pydantic for schemas and split data generation into a separate module
 - [X] Smolmodels self-hosted platform ⭐ (More details coming soon!)
+- [X] Lightweight installation option without heavy deep learning dependencies
 - [ ] Support for non-tabular data types in model generation
 - [ ] File upload to docker containers
