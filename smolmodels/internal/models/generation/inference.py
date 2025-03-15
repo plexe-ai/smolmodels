@@ -118,7 +118,7 @@ class InferenceCodeGenerator:
         :param filedir: The directory in which the predictor should expect model files.
         :return: The generated inference code.
         """
-        model_dir = Path(filedir).resolve()
+        model_dir = Path(filedir)
 
         # Stage 1: Generate model loading code
         model_loading_code = self._generate_model_loading(training_code, model_dir)
