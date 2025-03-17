@@ -1,5 +1,16 @@
 # CLAUDE.md: SmolModels Coding Reference
 
+## Project Structure
+- `smolmodels/`: Main package directory
+- `smolmodels/models.py`: Implemented the top-level `Model` class
+- `smolmodels/fileio.py`: Saving and loading models
+- `smolmodels/config.py`: Configuration for model building, including LLM prompts
+- `smolmodels/internal/common/`: Package containing common utilities and functions
+- `smolmodels/internal/models/`: Package containing model building and training logic
+- `smolmodels/internal/datasets`: Package containing synthetic data generation logic
+- `smolmodels/internal/schemas/`: Package containing schema validation and inference logic
+- `smolmodels/internal/models/generators.py`: Main implementation of the model building and training logic
+
 ## Build/Run Commands
 - Install deps: `poetry install`
 - Format code: `poetry run black .`
