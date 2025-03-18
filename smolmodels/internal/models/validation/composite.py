@@ -28,7 +28,7 @@ class CompositeValidator(Validator):
         super().__init__(name)
         self.validators = validators
 
-    def validate(self, code: str) -> ValidationResult:
+    def validate(self, code: str, **kwargs) -> ValidationResult:
         """
         Validates the given code by running it through each validator in the pipeline.
 
@@ -36,7 +36,7 @@ class CompositeValidator(Validator):
         :return: [ValidationResult] The result of the validation.
         """
         for validator in self.validators:
-            result = validator.validate(code)
+            result = validator.validate(code, **kwargs)
             if not result.passed:
                 return result
 

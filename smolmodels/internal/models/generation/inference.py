@@ -10,7 +10,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from smolmodels.config import config
+from smolmodels.config import config, templates
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.common.utils.response import extract_code
 
@@ -24,19 +24,120 @@ class InferenceCodeGenerator:
         self.provider: Provider = provider
         self.context: List[Dict[str, str]] = []
 
-    def _generate_model_loading(self, training_code: str, model_dir: Path) -> str:
+    def generate_inference_code(
+        self, input_schema: Type[BaseModel], output_schema: Type[BaseModel], training_code: str
+    ) -> str:
+        """
+        Generates inference code based on the problem statement, solution plan, and training code.
+
+        :param input_schema: The schema of the input data.
+        :param output_schema: The schema of the output data.
+        :param training_code: The training code that has already been generated.
+        :return: The generated inference code.
+        """
+        # Stage 1: Generate model loading code
+        model_loading_code = self._generate_model_loading(training_code)
+
+        # Stage 2: Generate preprocessing code
+        preprocessing_code = self._generate_preprocessing(input_schema, training_code)
+
+        # Stage 3: Generate prediction code with context from previous stages
+        prediction_code = self._generate_prediction(
+            output_schema, training_code, model_loading_code, preprocessing_code
+        )
+
+        # Combine the stages
+        return self._combine_code_stages(model_loading_code, preprocessing_code, prediction_code)
+
+    def fix_inference_code(self, inference_code: str, review: str, problems: str, filedir: Path) -> str:
+        """
+        Fixes the inference code based on the review and identified problems.
+
+        :param [str] inference_code: The previously generated inference code.
+        :param [str] review: The review of the previous solution.
+        :param [str] problems: Specific errors or bugs identified.
+        :param [str] filedir: The directory in which the predictor should expect model files.
+        :return str: The fixed inference code.
+        """
+
+        class FixResponse(BaseModel):
+            plan: str
+            code: str
+
+        response: FixResponse = FixResponse(
+            **json.loads(
+                self.provider.query(
+                    system_message=config.code_generation.prompt_inference_base.safe_substitute(),
+                    user_message=config.code_generation.prompt_inference_fix.safe_substitute(
+                        predictor_inference_source=templates.predictor_template,
+                        inference_code=inference_code,
+                        review=review,
+                        problems=problems,
+                    ),
+                    response_format=FixResponse,
+                )
+            )
+        )
+        return extract_code(response.code)
+
+    def review_inference_code(
+        self,
+        inference_code: str,
+        input_schema: Type[BaseModel],
+        output_schema: Type[BaseModel],
+        training_code: str,
+        problems: str = None,
+    ) -> str:
+        """
+        Reviews the inference code to identify improvements and fix issues.
+
+        :param [str] inference_code: The previously generated inference code.
+        :param [Type[BaseModel]] input_schema: The schema of the input data.
+        :param [Type[BaseModel]] output_schema: The schema of the output data.
+        :param [str] training_code: The training code that has already been generated.
+        :param [str] problems: Specific errors or bugs identified.
+        :param [str] filedir: The directory in which the predictor should expect model files.
+        :return: The review of the inference code with suggestions for improvements.
+        """
+        return self.provider.query(
+            system_message=config.code_generation.prompt_inference_base.safe_substitute(),
+            user_message=config.code_generation.prompt_inference_review.safe_substitute(
+                predictor_inference_source=templates.predictor_template,
+                inference_code=inference_code,
+                input_schema=input_schema.model_fields,
+                output_schema=output_schema.model_fields,
+                training_code=training_code,
+                problems=problems,
+                context="",  # todo: implement memory to provide as 'context'
+            ),
+        )
+
+    def generate_inference_tests(
+        self, problem_statement: str, plan: str, training_code: str, inference_code: str
+    ) -> str:
+        raise NotImplementedError("Generation of the inference tests is not yet implemented.")
+
+    def fix_inference_tests(self, inference_tests: str, inference_code: str, review: str, problems: str) -> str:
+        raise NotImplementedError("Fixing of the inference tests is not yet implemented.")
+
+    def review_inference_tests(
+        self, inference_tests: str, inference_code: str, problem_statement: str, plan: str
+    ) -> str:
+        raise NotImplementedError("Review of the inference tests is not yet implemented.")
+
+    def _generate_model_loading(self, training_code: str) -> str:
         """
         Generate code for loading the trained model files.
 
         :param training_code: The training code to analyze for model saving patterns
-        :param model_dir: Directory containing the model files
         :return: Code snippet for model loading
         """
         return extract_code(
             self.provider.query(
                 system_message=config.code_generation.prompt_inference_base.safe_substitute(),
                 user_message=config.code_generation.prompt_inference_model_loading.safe_substitute(
-                    training_code=training_code, filedir=model_dir.as_posix()
+                    predictor_template=templates.predictor_template,
+                    training_code=training_code,
                 ),
             )
         )
@@ -82,16 +183,13 @@ class InferenceCodeGenerator:
             )
         )
 
-    def _combine_code_stages(
-        self, model_loading_code: str, preprocessing_code: str, prediction_code: str, model_dir: Path
-    ) -> str:
+    def _combine_code_stages(self, model_loading_code: str, preprocessing_code: str, prediction_code: str) -> str:
         """
         Combine the separately generated code stages into a complete inference script.
 
         :param model_loading_code: Code for loading model files
         :param preprocessing_code: Code for preprocessing input data
         :param prediction_code: Code for making predictions
-        :param model_dir: Directory containing model files
         :return: Complete inference script
         """
         return extract_code(
@@ -101,112 +199,6 @@ class InferenceCodeGenerator:
                     model_loading_code=model_loading_code,
                     preprocessing_code=preprocessing_code,
                     prediction_code=prediction_code,
-                    model_dir=model_dir.as_posix(),
                 ),
             )
         )
-
-    def generate_inference_code(
-        self, input_schema: dict, output_schema: dict, training_code: str, filedir: Path
-    ) -> str:
-        """
-        Generates inference code based on the problem statement, solution plan, and training code.
-
-        :param input_schema: The schema of the input data.
-        :param output_schema: The schema of the output data.
-        :param training_code: The training code that has already been generated.
-        :param filedir: The directory in which the predictor should expect model files.
-        :return: The generated inference code.
-        """
-        model_dir = Path(filedir)
-
-        # Stage 1: Generate model loading code
-        model_loading_code = self._generate_model_loading(training_code, model_dir)
-
-        # Stage 2: Generate preprocessing code
-        preprocessing_code = self._generate_preprocessing(input_schema, training_code)
-
-        # Stage 3: Generate prediction code with context from previous stages
-        prediction_code = self._generate_prediction(
-            output_schema, training_code, model_loading_code, preprocessing_code
-        )
-
-        # Combine the stages
-        return self._combine_code_stages(model_loading_code, preprocessing_code, prediction_code, model_dir)
-
-    def fix_inference_code(self, inference_code: str, review: str, problems: str, filedir: Path) -> str:
-        """
-        Fixes the inference code based on the review and identified problems.
-
-        :param [str] inference_code: The previously generated inference code.
-        :param [str] review: The review of the previous solution.
-        :param [str] problems: Specific errors or bugs identified.
-        :param [str] filedir: The directory in which the predictor should expect model files.
-        :return str: The fixed inference code.
-        """
-
-        class FixResponse(BaseModel):
-            plan: str
-            code: str
-
-        response: FixResponse = FixResponse(
-            **json.loads(
-                self.provider.query(
-                    system_message=config.code_generation.prompt_inference_base.safe_substitute(),
-                    user_message=config.code_generation.prompt_inference_fix.safe_substitute(
-                        inference_code=inference_code,
-                        review=review,
-                        problems=problems,
-                        fildeir=filedir.as_posix(),
-                    ),
-                    response_format=FixResponse,
-                )
-            )
-        )
-        return extract_code(response.code)
-
-    def review_inference_code(
-        self,
-        inference_code: str,
-        input_schema: Type[BaseModel],
-        output_schema: Type[BaseModel],
-        training_code: str,
-        problems: str = None,
-        filedir: Path = None,
-    ) -> str:
-        """
-        Reviews the inference code to identify improvements and fix issues.
-
-        :param [str] inference_code: The previously generated inference code.
-        :param [Type[BaseModel]] input_schema: The schema of the input data.
-        :param [Type[BaseModel]] output_schema: The schema of the output data.
-        :param [str] training_code: The training code that has already been generated.
-        :param [str] problems: Specific errors or bugs identified.
-        :param [str] filedir: The directory in which the predictor should expect model files.
-        :return: The review of the inference code with suggestions for improvements.
-        """
-        return self.provider.query(
-            system_message=config.code_generation.prompt_inference_base.safe_substitute(),
-            user_message=config.code_generation.prompt_inference_review.safe_substitute(
-                inference_code=inference_code,
-                input_schema=input_schema.model_fields,
-                output_schema=output_schema.model_fields,
-                training_code=training_code,
-                problems=problems,
-                filedir=filedir.as_posix(),
-                context="",  # todo: implement memory to provide as 'context'
-            ),
-        )
-
-    def generate_inference_tests(
-        self, problem_statement: str, plan: str, training_code: str, inference_code: str
-    ) -> str:
-        raise NotImplementedError("Generation of the inference tests is not yet implemented.")
-
-    def fix_inference_tests(self, inference_tests: str, inference_code: str, review: str, problems: str) -> str:
-        raise NotImplementedError("Fixing of the inference tests is not yet implemented.")
-
-    def review_inference_tests(
-        self, inference_tests: str, inference_code: str, problem_statement: str, plan: str
-    ) -> str:
-        raise NotImplementedError("Review of the inference tests is not yet implemented.")

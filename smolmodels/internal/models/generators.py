@@ -5,8 +5,6 @@ generates training and inference code, and returns callable functions for traini
 """
 
 import logging
-import os
-import shutil
 import time
 import types
 from dataclasses import dataclass
@@ -23,8 +21,10 @@ from smolmodels.directives import Directive
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.entities.graph import Graph
 from smolmodels.internal.models.entities.metric import Metric
+from smolmodels.internal.models.entities.artifact import Artifact
 from smolmodels.internal.models.entities.node import Node
 from smolmodels.internal.models.entities.stopping_condition import StoppingCondition
+from smolmodels.internal.models.interfaces.predictor import Predictor
 from smolmodels.internal.models.execution.process_executor import ProcessExecutor
 from smolmodels.internal.models.generation.inference import InferenceCodeGenerator
 from smolmodels.internal.models.generation.planning import SolutionPlanGenerator
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 class GenerationResult:
     training_source_code: str
     inference_source_code: str
-    inference_module: types.ModuleType
+    predictor: Predictor
     model_artifacts: List[Path]
     performance: Metric
 
@@ -153,15 +153,16 @@ class ModelGenerator:
 
         # Explore the solution graph until the stopping condition is met
         best_node = self._produce_trained_model(task, run_id, datasets, target_metric, stop_condition)
-        self._cache_model_files(best_node)
         logger.info("🧠 Generating inference code for the best solution")
         best_node = self._produce_inference_code(best_node, self.input_schema, self.output_schema, datasets)
-        self._cache_model_files(best_node)
         logger.info(f"✅ Built predictor for model with performance: {best_node.performance}")
 
-        # compile the inference code into a module
-        predictor: types.ModuleType = types.ModuleType("predictor")
-        exec(best_node.inference_code, predictor.__dict__)
+        # Compile the inference code into a module
+        inference_module: types.ModuleType = types.ModuleType("predictor")
+        exec(best_node.inference_code, inference_module.__dict__)
+        # Instantiate the predictor class from the loaded module
+        predictor_class = getattr(inference_module, "PredictorImplementation")
+        predictor = predictor_class(best_node.model_artifacts)
 
         return GenerationResult(
             best_node.training_code,
@@ -306,25 +307,7 @@ class ModelGenerator:
         :param output_schema: the output schema that the predict function must match
         :return: the node with updated inference code
         """
-        # Create directory if it doesn't exist
-        self.filedir.mkdir(parents=True, exist_ok=True)
-
-        # Copy model files to the model directory if not already there
-        for artifact in node.model_artifacts:
-            artifact_path = Path(artifact)
-            if artifact_path.is_file():
-                dest = self.filedir / artifact_path.name
-                if not dest.exists() or not artifact_path.samefile(dest):
-                    shutil.copy2(artifact_path, dest)
-            elif artifact_path.is_dir():
-                for item in artifact_path.glob("*"):
-                    if item.is_file():
-                        dest = self.filedir / item.name
-                        if not dest.exists() or not item.samefile(dest):
-                            shutil.copy2(item, dest)
-
-        # Update node's model_artifacts to use the new path
-        node.model_artifacts = [str(self.filedir)]
+        node.model_artifacts = [Artifact.from_path(path) for path in node.model_artifacts]
 
         # Extract input sample from the datasets
         input_sample = pd.concat([df.head(10) for df in datasets.values()], axis=1)[
@@ -343,7 +326,6 @@ class ModelGenerator:
             input_schema=input_schema,
             output_schema=output_schema,
             training_code=node.training_code,
-            filedir=self.filedir,
         )
 
         # Iteratively validate and fix the inference code
@@ -353,7 +335,7 @@ class ModelGenerator:
             node.exception = None
 
             # Validate the inference code, stopping at the first failed validation
-            validation = validator.validate(node.inference_code)
+            validation = validator.validate(node.inference_code, model_artifacts=node.model_artifacts)
             if not validation.passed:
                 logger.info(f"⚠️ Inference solution {i + 1}/{fix_attempts} failed validation, fixing ...")
                 node.exception_was_raised = True
@@ -364,7 +346,6 @@ class ModelGenerator:
                     output_schema=output_schema,
                     training_code=node.training_code,
                     problems=str(validation),
-                    filedir=self.filedir,
                 )
                 node.inference_code = self.infer_generator.fix_inference_code(
                     node.inference_code,
@@ -377,50 +358,3 @@ class ModelGenerator:
         if node.exception_was_raised:
             raise RuntimeError(f"❌ Failed to generate valid inference code: {str(node.exception)}")
         return node
-
-    # TODO: get rid of this and use fileio
-    def _cache_model_files(self, node: Node) -> None:
-        """
-        Copies the model artifacts to the model cache directory, and updates the paths in the code.
-
-        :param node: graph node containing the model artifacts
-        :return: None
-        """
-        # Make sure the model cache directory exists
-        self.filedir.mkdir(parents=True, exist_ok=True)
-
-        # Copy artifacts directly to the root directory
-        for i in range(len(node.model_artifacts)):
-            path: Path = Path(node.model_artifacts[i])
-            name: str = Path(path).name
-            try:
-                if path.is_dir():
-                    # If it's a directory, copy its contents to root
-                    # Copy directory contents to root if not already there
-                    for item in path.glob("*"):
-                        if item.is_file():
-                            dest = self.filedir / item.name
-                            if not dest.exists() or not item.samefile(dest):
-                                shutil.copy2(item, dest)
-                    # Update code paths
-                    if node.training_code:
-                        node.training_code = node.training_code.replace(str(path), str(self.filedir.as_posix()))
-                    if node.inference_code:
-                        node.inference_code = node.inference_code.replace(str(path), str(self.filedir.as_posix()))
-                    node.model_artifacts[i] = self.filedir
-                else:
-                    # If it's a file, copy directly to root if not already there
-                    dest = self.filedir / name
-                    if not dest.exists() or not path.samefile(dest):
-                        shutil.copy2(path, dest)
-                    # Update code paths
-                    if node.training_code:
-                        node.training_code = node.training_code.replace(name, str((self.filedir / name).as_posix()))
-                    if node.inference_code:
-                        node.inference_code = node.inference_code.replace(name, str((self.filedir / name).as_posix()))
-                    node.model_artifacts[i] = self.filedir / name
-            except shutil.SameFileError:
-                pass
-        # Delete the working directory before returning
-        if os.path.exists("./workdir"):
-            shutil.rmtree("./workdir")

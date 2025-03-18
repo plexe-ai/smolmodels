@@ -22,7 +22,7 @@ class SecurityValidator(Validator):
         """
         super().__init__("security")
 
-    def validate(self, code: str) -> ValidationResult:
+    def validate(self, code: str, **kwargs) -> ValidationResult:
         """
         Validate the generated code for security vulnerabilities using the Bandit tool.
 

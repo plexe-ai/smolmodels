@@ -6,9 +6,12 @@ import importlib
 import logging
 import warnings
 from dataclasses import dataclass, field
+from importlib.resources import files
 from string import Template
 from typing import List
 import sys
+
+from smolmodels import templates as template_module
 
 
 # configure warnings
@@ -222,17 +225,21 @@ class _Config:
         )
         prompt_inference_model_loading: Template = field(
             default=Template(
-                "Given this training code that saves model files:\n"
+                "Here is an ML training code that saved its model files:\n"
                 "```python\n"
-                "from pathlib import Path\n\n"
-                "MODEL_DIR = Path('${filedir}')\n\n"
                 "${training_code}\n"
                 "```\n\n"
-                "Generate Python code to load the model files from MODEL_DIR. The code should:\n"
-                "1. Import required packages\n"
+                "Your task is to generate Python code to instantiate the ML model for inference, using the artifacts "
+                "created by the training script above. The instantiation code should be placed in the __init__ method "
+                "of the PredictorImplementation class in the following script:\n\n"
+                "```python\n"
+                "${predictor_template}\n"
+                "```\n\n"
+                "The code should:\n"
+                "1. Add any required imports at the top of the script\n"
                 "2. Load all model files (models, preprocessors, etc.) that were saved during training\n"
-                "3. Initialize any required variables or configurations\n\n"
-                "Only include the loading code, no prediction logic. Use MODEL_DIR as the path variable."
+                "3. Initialize any required variables or configurations inside __init__\n\n"
+                "Only include the loading code, no prediction logic. Do not change the contract of the class at all."
             )
         )
         prompt_inference_preprocessing: Template = field(
@@ -246,10 +253,12 @@ class _Config:
                 "```python\n"
                 "${training_code}\n"
                 "```\n\n"
-                "Generate Python code to prepare a single input sample for prediction. The code should:\n"
+                "Your task is to generate Python code to prepare a single input sample for prediction. "
+                "The code should:\n"
                 "1. Take an input matching the input schema\n"
                 "2. Return the data in the format expected by the model\n\n"
-                "Only include preprocessing logic, assume model loading is already done."
+                "Only include preprocessing logic, assume model loading is already done. Write the code as a "
+                "module-level function named 'preprocess_input'."
             )
         )
         prompt_inference_prediction: Template = field(
@@ -281,8 +290,8 @@ class _Config:
         )
         prompt_inference_combine: Template = field(
             default=Template(
-                "Combine these code sections into a complete inference script:\n\n"
-                "Model Loading:\n"
+                "Here are several code snippets related to producing predictions using an ML model:\n\n"
+                "Template for the code:\n"
                 "```python\n"
                 "${model_loading_code}\n"
                 "```\n\n"
@@ -295,11 +304,12 @@ class _Config:
                 "${prediction_code}\n"
                 "```\n\n"
                 "The script should:\n"
-                "1. Follow the required structure with imports and MODEL_DIR at the top\n"
-                "2. Have a predict() function that takes an input matching the input schema and returns an output matching the output schema\n"
-                "3. Organize the code logically with model loading outside the predict function\n"
-                "4. Handle any necessary error checking and validation\n\n"
-                "MODEL_DIR should be set to: ${model_dir}"
+                "1. Follow the required structure as set out by the given template\n"
+                "2. Implement the predict() function such that it returns a model prediction when given a sample with the given schema\n"
+                "3. Organize the code logically with model loading inside the __init__ method\n"
+                "4. Handle any necessary error checking and validation\n"
+                "5. Do not change the contract of the PredictorImplementation class\n"
+                "6. All code must be merged into the PredictorImplementation class provided"
             )
         )
         prompt_inference_fix: Template = field(
@@ -307,26 +317,15 @@ class _Config:
                 "Fix the provided Python machine learning inference script based on the information provided. The "
                 "script is expected to have the following structure:\n\n"
                 "```python\n"
-                "import os\n"
-                "from pathlib import Path\n"
-                "\n"
-                "# todo: add any additional imports you need here\n"
-                "\n"
-                "# Load model binaries from .smolcache directory\n"
-                "MODEL_DIR = Path('${model_id}')\n"
-                "\n"
-                "def predict(sample: dict) -> dict:\n"
-                "    # todo: prediction code goes here\n"
-                "    pass\n"
+                "${predictor_interface_source}\n"
                 "```\n\n"
                 "IMPORTANT: The error in the 'SPECIFIC ERRORS' indicate what went wrong when trying to load or use the model. "
                 "# INFERENCE CODE TO FIX:\n```python\n${inference_code}```\n"
                 "# IDENTIFIED ISSUES:\n${review}\n\n"
                 "# SPECIFIC ERRORS:\n${problems}\n\n"
-                "You must not change the signature of the predict() function, unless this was specifically called out "
-                "as one of the problems in the issues above. You also must not change the locations from which files "
-                "are loaded, or any of the packages being imported, unless explicitly called out as part of the fix "
-                "in the issues above. Return an explanation of the fix, followed by the fixed inference script."
+                "You must not change the contract of the PredictorImplementation class, or the signature of any of "
+                "its methods, unless this was specifically called out as one of the problems in the issues above. "
+                "Return an explanation of the fix, followed by the fixed inference script."
             )
         )
         prompt_inference_review: Template = field(
@@ -334,20 +333,10 @@ class _Config:
                 "Review the Python machine learning inference script below to fix any issues. The script should "
                 "adhere to the following structure:\n\n"
                 "```python\n"
-                "import os\n"
-                "from pathlib import Path\n"
-                "\n"
-                "# todo: add any additional imports you need here\n"
-                "\n"
-                "# Load model binaries from .smolcache directory\n"
-                "MODEL_DIR = Path('${filedir}')\n"
-                "\n"
-                "def predict(sample: dict) -> dict:\n"
-                "    # todo: prediction code goes here\n"
-                "    pass\n"
+                "${predictor_interface_source}\n"
                 "```\n\n"
                 "Here is the script that needs to be reviewed:\n"
-                "# INFERENCE CODE TO REVIEW:\n```python\n${inference_code}```\n\n"
+                "```python\n${inference_code}```\n\n"
                 "IMPORTANT: The error  in the 'SPECIFIC ERRORS' indicate what went wrong when trying to load or use the model. "
                 "The input schema for the 'sample' parameter is as follows:\n```python\n${input_schema}```\n\n"
                 "The output schema for the return value is as follows:\n```python\n${output_schema}```\n\n"
@@ -370,12 +359,25 @@ class _Config:
     data_generation: _DataGenerationConfig = field(default_factory=_DataGenerationConfig)
 
 
+@dataclass(frozen=True)
+class _Templates:
+    predictor_template: str = field(
+        default=files(template_module).joinpath("models").joinpath("predictor.tmpl.py").read_text()
+    )
+
+
 # Instantiate configuration
 def load_config() -> _Config:
     return _Config()
 
 
+# Instantiate templates
+def load_templates() -> _Templates:
+    return _Templates()
+
+
 config: _Config = load_config()
+templates: _Templates = load_templates()
 
 
 # Default logging configuration
@@ -383,6 +385,9 @@ def configure_logging(level: str | int = logging.INFO, file: str = None) -> None
     # Configure the library's root logger
     sm_root_logger = logging.getLogger("smolmodels")
     sm_root_logger.setLevel(level)
+
+    # Clear existing handlers to avoid duplicate logs
+    sm_root_logger.handlers = []
 
     # Define a common formatter
     formatter = logging.Formatter(config.logging.format)

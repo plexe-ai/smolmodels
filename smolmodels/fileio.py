@@ -8,91 +8,38 @@ import logging
 import pickle
 import tarfile
 import types
-import shutil
 from pathlib import Path
 
 from smolmodels.models import Model, ModelState
+from smolmodels.internal.models.entities.artifact import Artifact
 from smolmodels.internal.common.utils.pydantic_utils import map_to_basemodel
+from smolmodels.internal.models.entities.metric import Metric, MetricComparator, ComparisonMethod
 
 logger = logging.getLogger(__name__)
 
 
-def get_cache_dirs() -> tuple[Path, Path]:
-    """Get the paths for model storage and extraction cache.
-
-    Returns:
-        tuple[Path, Path]: (models_dir, extract_dir)
-            - models_dir: .smolcache/models/ for tar archives
-            - extract_dir: .smolcache/extracted/ for cached model files
+def save_model(model: Model, path: str | Path) -> str:
     """
-    cache_root = Path(".smolcache")
-    models_dir = cache_root / "models"
-    extract_dir = cache_root / "extracted"
+    Save a model to a tar archive.
 
-    # Ensure directories exist
-    models_dir.mkdir(parents=True, exist_ok=True)
-    extract_dir.mkdir(parents=True, exist_ok=True)
-
-    return models_dir, extract_dir
-
-
-def get_model_path(model: Model) -> Path:
-    """Get the default path for a model archive in smolcache.
-
-    The path will be: .smolcache/models/model-{identifier}[-{type}].tar.gz
+    :param model: The model to save
+    :param path: Optional custom path. If not provided, saves to smolcache/models/
+    :return: Path where the model was saved
     """
-    # Remove any existing "model-" prefix from identifier
-    identifier = model.identifier.replace("model-", "")
-    model_name = f"model-{identifier}"
-    if model.metadata.get("type"):
-        model_name += f"-{model.metadata['type']}"
-
-    models_dir, _ = get_cache_dirs()
-    return models_dir / f"{model_name}.tar.gz"
-
-
-def get_extract_path(model_id: str) -> Path:
-    """Get the extraction cache path for a model.
-
-    The path will be: .smolcache/extracted/{identifier}/
-
-    Args:
-        model_id: The model identifier (without 'model-' prefix)
-    """
-    _, extract_dir = get_cache_dirs()
-    return extract_dir / model_id.replace("model-", "")
-
-
-def save_model(model: Model, path: str = None) -> str:
-    """
-    Save a model to a single archive file in smolcache, including all components in memory.
-
-    Archive structure:
-    - metadata/
-        - intent.txt
-        - state.txt
-        - metrics.json
-        - metadata.json
-    - schemas/
-        - input_schema.json
-        - output_schema.json
-    - code/
-        - trainer.py
-        - predictor.py
-    - artifacts/
-        - [model files]
-
-    Args:
-        model: The model to save
-        path: Optional custom path. If not provided, saves to smolcache/models/
-
-    Returns:
-        str: Path where the model was saved
-    """
-    if path is None:
-        path = get_model_path(model)
-    elif not isinstance(path, Path):
-        path = Path(path)
+    #     Archive structure:
+    #     - metadata/
+    #         - intent.txt
+    #         - state.txt
+    #         - metrics.json
+    #         - metadata.json
+    #     - schemas/
+    #         - input_schema.json
+    #         - output_schema.json
+    #     - code/
+    #         - trainer.py
+    #         - predictor.py
+    #     - artifacts/
+    #         - [model files]
 
     # Ensure .tar.gz extension
     if not str(path).endswith(".tar.gz"):
@@ -151,29 +98,12 @@ def save_model(model: Model, path: str = None) -> str:
                 tar.addfile(info, io.BytesIO(content))
 
             for artifact in model.artifacts:
-                artifact_path = Path(artifact)
-                if artifact_path.is_dir():
-                    # Recursively include all files under this directory
-                    for file_path in artifact_path.rglob("*"):
-                        if file_path.is_file():
-                            # Build a relative path inside "artifacts/"
-                            rel_path = file_path.relative_to(artifact_path.parent)
-                            arcname = f"artifacts/{rel_path}"
-                            info = tarfile.TarInfo(str(arcname))
+                arc_name = f"artifacts/{Path(artifact.identifier).as_posix()}"
+                info = tarfile.TarInfo(arc_name)
+                content = artifact.artifact.read()
+                info.size = len(content)
+                tar.addfile(info, io.BytesIO(content))
 
-                            content = file_path.read_bytes()
-                            info.size = len(content)
-                            tar.addfile(info, io.BytesIO(content))
-
-                elif artifact_path.is_file():
-                    # Same logic for a single file
-                    arcname = f"artifacts/{artifact_path.parent.name}/{artifact_path.name}"
-                    info = tarfile.TarInfo(arcname)
-                    content = artifact_path.read_bytes()
-                    info.size = len(content)
-                    tar.addfile(info, io.BytesIO(content))
-                else:
-                    raise FileNotFoundError(f"Artifact not found or is not a file/directory: {artifact}")
             if model.constraints:
                 info = tarfile.TarInfo("metadata/constraints.pkl")
                 content = pickle.dumps(model.constraints)
@@ -190,65 +120,58 @@ def save_model(model: Model, path: str = None) -> str:
     return str(path)
 
 
-def load_model(path_or_id: str) -> Model:
+def load_model(path: str | Path) -> Model:
     """
-    Load a model from the archive, using cached extraction if available.
+    Instantiate a model from a tar archive.
 
-    The function will:
-    1. Find the model archive (by path or ID)
-    2. Check if it's already extracted in the cache
-    3. Extract to cache if needed
-    4. Load model from cached files
-
-    Args:
-        path_or_id: Full path to tar file or model identifier (without 'model-' prefix)
-
-    Returns:
-        Model: The loaded model
-
-    Raises:
-        ValueError: If model is not found
-        Exception: If there are errors during loading
+    :param path: path to tar archive
+    :return: the loaded model
+    :raises ValueError: If model is not found
+    :raises Exception: If there are errors during loading
     """
-    if not path_or_id.endswith(".tar.gz"):
-        # Remove any existing "model-" prefix
-        model_id = path_or_id.replace("model-", "")
-        # Look in smolcache for any file starting with this ID
-        models_dir, _ = get_cache_dirs()
-        matches = list(models_dir.glob(f"model-{model_id}*.tar.gz"))
-        if matches:
-            path = matches[0]
-        else:
-            path = models_dir / f"model-{model_id}.tar.gz"
-    else:
-        path = Path(path_or_id)
-        model_id = path.stem.replace("model-", "").split("-")[0]
-
-    if not path.exists():
+    if not Path(path).exists():
         raise ValueError(f"Model not found: {path}")
 
-    # Check if model is already extracted
-    extract_path = get_extract_path(model_id)
-    if not extract_path.exists():
-        logger.info(f"Extracting model from {path} to {extract_path}")
-        extract_path.mkdir(parents=True, exist_ok=True)
-        with tarfile.open(path, "r:gz") as tar:
-            tar.extractall(extract_path)
-    else:
-        logger.info(f"Using cached model files from {extract_path}")
-
-    logger.info(f"Loading model from {path}")
+    # TODO: the mapping between model internals and the archive structure should be defined once somewhere
+    # for example, in this module but outside the load/save functions
     try:
         with tarfile.open(path, "r:gz") as tar:
+            # Extract metadata
             intent = tar.extractfile("metadata/intent.txt").read().decode("utf-8")
             state = ModelState(tar.extractfile("metadata/state.txt").read().decode("utf-8"))
             metrics_data = json.loads(tar.extractfile("metadata/metrics.json").read().decode("utf-8"))
             metadata = json.loads(tar.extractfile("metadata/metadata.json").read().decode("utf-8"))
             identifier = tar.extractfile("metadata/identifier.txt").read().decode("utf-8")
 
-            # Reconstruct Metric object if metrics data exists
-            from smolmodels.internal.models.entities.metric import Metric, MetricComparator, ComparisonMethod
+            # Extract schema information
+            input_schema_dict = json.loads(tar.extractfile("schemas/input_schema.json").read().decode("utf-8"))
+            output_schema_dict = json.loads(tar.extractfile("schemas/output_schema.json").read().decode("utf-8"))
 
+            # Extract code if available
+            trainer_source = None
+            if "code/trainer.py" in [m.name for m in tar.getmembers()]:
+                trainer_source = tar.extractfile("code/trainer.py").read().decode("utf-8")
+
+            predictor_source = None
+            if "code/predictor.py" in [m.name for m in tar.getmembers()]:
+                predictor_source = tar.extractfile("code/predictor.py").read().decode("utf-8")
+
+            # Extract constraints if available
+            constraints = []
+            if "metadata/constraints.pkl" in [m.name for m in tar.getmembers()]:
+                constraints = pickle.loads(tar.extractfile("metadata/constraints.pkl").read())
+
+            # Get handles for all model artifacts
+            artifact_handles = []
+            for member in tar.getmembers():
+                if member.name.startswith("artifacts/") and not member.isdir():
+                    file_data = tar.extractfile(member)
+                    if file_data:
+                        artifact_handles.append(
+                            Artifact(identifier=Path(member.name).name, type="binary", artifact=file_data)
+                        )
+
+            # Reconstruct Metric object if metrics data exists
             metrics = None
             if metrics_data:
                 comparator = MetricComparator(
@@ -260,9 +183,7 @@ def load_model(path_or_id: str) -> Model:
                 type_map = {"str": str, "int": int, "float": float, "bool": bool}
                 return type_map[type_name]
 
-            input_schema_dict = json.loads(tar.extractfile("schemas/input_schema.json").read().decode("utf-8"))
-            output_schema_dict = json.loads(tar.extractfile("schemas/output_schema.json").read().decode("utf-8"))
-
+            # Create schemas from the schema dictionaries
             input_schema = map_to_basemodel(
                 "InputSchema", {name: type_from_name(type_name) for name, type_name in input_schema_dict.items()}
             )
@@ -270,10 +191,7 @@ def load_model(path_or_id: str) -> Model:
                 "OutputSchema", {name: type_from_name(type_name) for name, type_name in output_schema_dict.items()}
             )
 
-            # Load constraints if they exist
-            constraints = []
-            if "metadata/constraints.pkl" in [m.name for m in tar.getmembers()]:
-                constraints = pickle.loads(tar.extractfile("metadata/constraints.pkl").read())
+            # Create the model instance
             model = Model(
                 intent=intent, input_schema=input_schema, output_schema=output_schema, constraints=constraints
             )
@@ -281,28 +199,23 @@ def load_model(path_or_id: str) -> Model:
             model.metrics = metrics
             model.metadata = metadata
             model.identifier = identifier
+            model.trainer_source = trainer_source
+            model.predictor_source = predictor_source
 
-            if "code/trainer.py" in [m.name for m in tar.getmembers()]:
-                model.trainer_source = tar.extractfile("code/trainer.py").read().decode("utf-8")
+            if predictor_source:
+                predictor_module = types.ModuleType("predictor")
+                exec(predictor_source, predictor_module.__dict__)
+                model.predictor = predictor_module.PredictorImplementation(artifact_handles)
 
-            if "code/predictor.py" in [m.name for m in tar.getmembers()]:
-                model.predictor_source = tar.extractfile("code/predictor.py").read().decode("utf-8")
-                model.predictor = types.ModuleType("predictor")
-                exec(model.predictor_source, model.predictor.__dict__)
-
-            # Use the cached extraction directory
-            model.files_path = extract_path
-
-            # Add artifact paths from the extraction directory, including subdirectories
-            for file_path in extract_path.glob("artifacts/**/*"):
-                if file_path.is_file() and not file_path.name.startswith("."):
-                    model.artifacts.append(str(file_path))
+            # Add artifact handles to the model instead of filesystem paths
+            for name, file_data in artifact_handles:
+                # Store as in-memory content or process as needed
+                # This implementation depends on how Model handles artifacts
+                model.artifacts.append(file_data)  # This likely needs customization
 
             logger.info(f"Model successfully loaded from {path}")
             return model
 
     except Exception as e:
         logger.error(f"Error loading model: {e}")
-        if extract_path.exists():
-            shutil.rmtree(extract_path)
         raise
