@@ -65,6 +65,7 @@ pre-commit = "^4.0.1"
 ruff = "^0.9.1"
 jupyterlab = "^4.2.5"
 tox = "^4.14.1"
+kaggle = "1.6.17"
 
 [tool.semantic_release]
 version_variables = ["pyproject.toml:version"]
