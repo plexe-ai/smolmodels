@@ -5,6 +5,7 @@ import logging
 import black
 
 logging.getLogger("blib2to3.pgen2.driver").setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
 
 
 def wrap_code(code: str, lang="python") -> str:
@@ -99,19 +100,19 @@ def extract_performance(output: str) -> float:
 
         # Looking for format "MetricName: value"
         if ":" not in last_line:
-            logging.warning("No colon found in last line")
+            logger.warning("No colon found in last line")
             return 0.0
 
         value_str = last_line.split(":")[-1].strip()
 
         try:
             value = float(value_str)
-            logging.debug(f"Successfully parsed value: {value}")
+            logger.debug(f"Successfully parsed value: {value}")
             return value
         except ValueError as e:
-            logging.warning(f"Could not convert '{value_str}' to float: {e}")
+            logger.warning(f"Could not convert '{value_str}' to float: {e}")
             return 0.0
 
     except Exception as e:
-        logging.warning(f"Error extracting performance: {e}")
+        logger.warning(f"Error extracting performance: {e}")
         return 0.0
