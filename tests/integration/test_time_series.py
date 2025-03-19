@@ -80,7 +80,7 @@ def test_time_series_forecasting(sales_data_copy, sales_input_schema, sales_outp
     model.build(
         datasets=[sales_data_copy],
         provider="openai/gpt-4o",
-        max_iterations=2,  # Minimum iterations for reliable model generation
+        max_iterations=3,  # Minimum iterations for reliable model generation
         timeout=300,  # 5 minute timeout
     )
 

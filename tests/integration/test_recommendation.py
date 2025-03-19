@@ -73,7 +73,7 @@ def test_product_recommendation(product_data, recommendation_input_schema, recom
     model.build(
         datasets=[product_data],
         provider="openai/gpt-4o",
-        max_iterations=2,  # Minimum iterations for reliable model generation
+        max_iterations=3,  # Minimum iterations for reliable model generation
         timeout=300,  # 5 minute timeout
     )
 

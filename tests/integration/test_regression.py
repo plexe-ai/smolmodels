@@ -76,7 +76,7 @@ def test_house_price_regression(house_data, house_input_schema, house_output_sch
     model.build(
         datasets=[house_data],
         provider="openai/gpt-4o",
-        max_iterations=2,  # Minimum iterations for reliable model generation
+        max_iterations=3,  # Minimum iterations for reliable model generation
         timeout=300,  # 5 minute timeout
     )
 
@@ -128,7 +128,7 @@ def test_house_price_schema_inference(house_data):
     model.build(
         datasets=[house_data],
         provider="openai/gpt-4o",
-        max_iterations=2,  # Minimum iterations for reliable model generation
+        max_iterations=3,  # Minimum iterations for reliable model generation
         timeout=300,  # 5 minute timeout
     )
 

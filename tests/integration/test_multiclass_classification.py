@@ -64,7 +64,7 @@ def test_multiclass_classification(sentiment_data, sentiment_input_schema, senti
     model.build(
         datasets=[sentiment_data],
         provider="openai/gpt-4o",
-        max_iterations=2,  # Minimum iterations for reliable model generation
+        max_iterations=3,  # Minimum iterations for reliable model generation
         timeout=300,  # 5 minute timeout
     )
 
