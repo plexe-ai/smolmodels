@@ -1,0 +1,39 @@
+We are writing Python code to expose a ML model for inference. The model is wrapped in a class called
+"PredictorImplementation". Here is some context about the model:
+
+## Output Schema
+The "predict()" function in PredictorImplementation must conform with this output schema:
+```python
+{{ output_schema }}
+```
+
+## Input Schema
+The "predict()" function in PredictorImplementation receives an input matching the following schema:
+```python
+{{ input_schema }}
+```
+
+## Original Training Code
+The model was trained using the following code:
+```python
+{{ training_code }}
+```
+
+## Inference Script (Work in Progress)
+Here is the inference script that we are working on:
+```python
+{{ inference_code }}
+```
+
+## Task
+Your task is to complete the "predict()" function in the inference script. Note that the model loading is already
+done in the __init__ constructor, and input preprocessing logic has also been added already. Your job is to
+implement the prediction logic. The function should:
+
+1. Take preprocessed input data from the preprocessing step
+2. Use the loaded model to make predictions
+3. Format the predictions according to the output schema
+4. Return an output matching the output schema
+
+Do not modify the model loading code or other existing parts of the code, only implement the prediction logic. Return
+the full inference script, with the "predict()" function completed.
