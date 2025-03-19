@@ -10,7 +10,7 @@ class PredictorImplementation(Predictor):
     def __init__(self, artifacts: List[Artifact]):
         """
         Instantiates the predictor using the provided model artifacts.
-        :param artifacts: list of BytesIO or StringIO artifacts
+        :param artifacts: list of BinaryIO artifacts
         """
         # TODO: add model loading code here; use _get_artifact helper to select the artifact by name
         # Example:
@@ -20,12 +20,28 @@ class PredictorImplementation(Predictor):
         #     # self.model = load_model(binary_io)
 
     def predict(self, inputs: dict) -> dict:
+        """
+        Given an input conforming to the input schema, return the model's prediction
+        as a dict conforming to the output schema.
+        """
         # TODO: add inference code here
-        # Example: return self.model.predict(inputs)
+        # Example: return self._postprocess_output(self.model.predict(self._preprocess_input(inputs)))
+        pass
+
+    def _preprocess_input(self, inputs: dict):
+        """Map the input data from a dict to the input format of the underlying model."""
+        # TODO: add input preprocessing code here
+        pass
+
+    def _postprocess_output(self, outputs) -> dict:
+        """Map the output from the underlying model to a dict compliant with the output schema."""
+        # TODO: add output postprocessing code here
         pass
 
     @staticmethod
     def _get_artifact(name: str, artifacts: List[Artifact]) -> Artifact:
+        """Given the name of a binary artifact, return the corresponding artifact from the list."""
+        # Do not modify this method.
         for artifact in artifacts:
             if artifact.name == name:
                 return artifact

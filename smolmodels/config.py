@@ -279,6 +279,14 @@ class _PromptTemplates:
             training_code=training_code,
         )
 
+    def inference_postprocess(self, inference_code, output_schema, training_code) -> str:
+        return self._render(
+            "inference/postprocess.jinja",
+            inference_code=inference_code,
+            output_schema=output_schema,
+            training_code=training_code,
+        )
+
     def inference_predict(self, output_schema, input_schema, training_code, inference_code) -> str:
         return self._render(
             "inference/predict.jinja",

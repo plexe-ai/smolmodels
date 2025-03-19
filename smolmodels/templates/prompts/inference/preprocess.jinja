@@ -5,7 +5,7 @@ constructor is already handling the loading of the model.
 {{ inference_code }}
 ```
 
-Here is the input schema that the predict() function expects for the 'inputs' argument:
+Here is the input schema that the predict() function expects for dictionary in the 'inputs' argument:
 ```python
 {{ input_schema }}
 ```
@@ -15,13 +15,13 @@ Here is the training code that originally produced the model:
 {{ training_code }}
 ```
 
-Your task is to add a _preprocess_input method to the PredictorImplementation class. The purpose of this function is
-to prepare a single input sample for prediction, ensuring that the input to predict() is converted to the format
-expected by the underlying model. The function should:
+Your task is to implement the _preprocess_input method in the PredictorImplementation class. The purpose of this
+function is to prepare a single input sample for prediction, ensuring that the input to predict() is converted to
+the format expected by the underlying model. The function should:
 
 1. Take an input dictionary which is compliant with the input schema
 2. Return the data in the format expected by the underlying model
 
 Only include preprocessing logic. The model loading is already done, and you should not modify that part of the code.
 Also do not add any prediction or post-processing code to the script. Do not change the contract of the class. Return
-the full inference script, with the _preprocess_input method added to the PredictorImplementation class.
+the full inference script, with the _preprocess_input method now implemented.

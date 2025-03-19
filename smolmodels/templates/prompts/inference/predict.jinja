@@ -27,12 +27,14 @@ Here is the inference script that we are working on:
 
 ## Task
 Your task is to complete the "predict()" function in the inference script. Note that the model loading is already
-done in the __init__ constructor, and input preprocessing logic has also been added already. Your job is to
+done in the __init__ constructor, and input pre-processing and output post-processing functions have already been
+implemented in "_preprocess_input()" and "_postprocess_output()". These functions handle mapping the input/output
+schemas of PredictorImplementation to the input/output formats expected by the inner model. Your job is to
 implement the prediction logic. The function should:
 
-1. Take preprocessed input data from the preprocessing step
+1. Take the pre-processed input using the _preprocess_input method
 2. Use the loaded model to make predictions
-3. Format the predictions according to the output schema
+3. Format the predictions according to the output schema using the _postprocess_output method
 4. Return an output matching the output schema
 
 Do not modify the model loading code or other existing parts of the code, only implement the prediction logic. Return

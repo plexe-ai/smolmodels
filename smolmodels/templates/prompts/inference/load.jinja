@@ -18,6 +18,7 @@ Your code should:
 3. Initialize any required variables or configurations inside __init__
 4. Only use the libraries and frameworks that were used in the model training code
 
-Only add the model instantiation code to __init__. Do not add prediction or input processing code to the script. Do
-not change the contract of the PredictorImplementation class, or the signature of its methods. Return the full
-inference script, with the model loading code added to __init__.
+Only add the model instantiation code to __init__. Do not add prediction, input processing or output postprocessing
+code to the script. Do not change the contract of the PredictorImplementation class, or the signature of its methods.
+Do not remove the helper comments, except for those related to the model loading you are implementing. Return the full
+inference script, with the model loading code now added to __init__.

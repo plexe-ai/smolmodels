@@ -36,16 +36,19 @@ class InferenceCodeGenerator:
         :return: The generated inference code.
         """
         # Stage 1: Generate model loading code
-        model_loading_code = self._generate_model_loading(training_code)
+        inference_script = self._generate_model_loading(training_code)
 
         # Stage 2: Generate preprocessing code
-        preprocessing_code = self._generate_preprocessing(model_loading_code, input_schema, training_code)
+        inference_script = self._generate_preprocessing(inference_script, input_schema, training_code)
+
+        # Stage 3: Generate postprocessing code
+        inference_script = self._generate_postprocessing(inference_script, output_schema, training_code)
 
         # Stage 3: Generate prediction code with context from previous stages
-        prediction_code = self._generate_prediction(output_schema, training_code, input_schema, preprocessing_code)
+        inference_script = self._generate_prediction(output_schema, training_code, input_schema, inference_script)
 
         # Combine the stages
-        return self._combine_code_stages(prediction_code)
+        return self._combine_code_stages(inference_script)
 
     def fix_inference_code(self, inference_code: str, review: str, problems: str, filedir: Path) -> str:
         """
@@ -154,6 +157,24 @@ class InferenceCodeGenerator:
                 system_message=prompt_templates.inference_system(),
                 user_message=prompt_templates.inference_preprocess(
                     inference_code=inference_code, input_schema=input_schema.model_fields, training_code=training_code
+                ),
+            )
+        )
+
+    def _generate_postprocessing(self, inference_code: str, output_schema: Type[BaseModel], training_code: str) -> str:
+        """
+        Generate code for postprocessing the model's output after prediction.
+
+        :param inference_code: The previously generated inference code
+        :param output_schema: Schema defining the expected output format
+        :param training_code: Training code to analyze for postprocessing steps
+        :return: Code snippet for postprocessing
+        """
+        return extract_code(
+            self.provider.query(
+                system_message=prompt_templates.inference_system(),
+                user_message=prompt_templates.inference_postprocess(
+                    inference_code=inference_code, output_schema=output_schema.model_fields, training_code=training_code
                 ),
             )
         )
