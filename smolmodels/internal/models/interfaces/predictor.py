@@ -4,7 +4,6 @@ This module defines the Predictor interface, which all dynamically generated inf
 
 from abc import ABC, abstractmethod
 from typing import List
-from pydantic import BaseModel
 from smolmodels.internal.models.entities.artifact import Artifact
 
 
@@ -21,5 +20,5 @@ class Predictor(ABC):
         pass
 
     @abstractmethod
-    def predict(self, inputs: BaseModel) -> BaseModel:
+    def predict(self, inputs: dict) -> dict:
         pass

@@ -6,6 +6,7 @@ a blob containing the weights of a neural network. The Artifact class can be use
 a file on disk by its path, or to hold the raw text or binary data in memory itself.
 """
 
+import io
 from typing import BinaryIO, Union
 from pathlib import Path
 
@@ -46,6 +47,19 @@ class Artifact:
         True if the artifact is a string or bytes object loaded in memory.
         """
         return self.data is not None
+
+    def get_as_handle(self) -> BinaryIO:
+        """
+        Get the artifact as a file-like object.
+        """
+        if self.is_handle():
+            return self.handle
+        elif self.is_path():
+            return open(self.path, "rb")
+        elif self.is_data():
+            return io.BytesIO(self.data)
+        else:
+            raise ValueError("Artifact does not have a valid handle, path, or data.")
 
     @staticmethod
     def from_path(path: Union[str, Path]):

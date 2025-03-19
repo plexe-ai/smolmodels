@@ -5,7 +5,7 @@ constructor is already handling the loading of the model.
 {{ inference_code }}
 ```
 
-Here is the input schema that the predict() function is expecting:
+Here is the input schema that the predict() function expects for the 'inputs' argument:
 ```python
 {{ input_schema }}
 ```
@@ -19,7 +19,7 @@ Your task is to add a _preprocess_input method to the PredictorImplementation cl
 to prepare a single input sample for prediction, ensuring that the input to predict() is converted to the format
 expected by the underlying model. The function should:
 
-1. Take an input matching the input schema
+1. Take an input dictionary which is compliant with the input schema
 2. Return the data in the format expected by the underlying model
 
 Only include preprocessing logic. The model loading is already done, and you should not modify that part of the code.

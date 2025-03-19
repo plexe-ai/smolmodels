@@ -2,13 +2,13 @@ We are writing Python code to expose a ML model for inference. The model is wrap
 "PredictorImplementation". Here is some context about the model:
 
 ## Output Schema
-The "predict()" function in PredictorImplementation must conform with this output schema:
+The "predict()" function in PredictorImplementation must return a dictionary compliant with this schema:
 ```python
 {{ output_schema }}
 ```
 
 ## Input Schema
-The "predict()" function in PredictorImplementation receives an input matching the following schema:
+The "predict()" function in PredictorImplementation expects an input dictionary compliant with this schema:
 ```python
 {{ input_schema }}
 ```
