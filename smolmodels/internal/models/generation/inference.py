@@ -132,7 +132,7 @@ class InferenceCodeGenerator:
             self.provider.query(
                 system_message=prompt_templates.inference_system(),
                 user_message=prompt_templates.inference_load(
-                    predictor_template=code_templates.predictor_interface,
+                    predictor_template=code_templates.predictor_template,
                     training_code=training_code,
                 ),
             )
