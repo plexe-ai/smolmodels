@@ -43,10 +43,10 @@ def save_model(model: Model, path: str | Path) -> str:
 
     # Ensure .tar.gz extension
     if not str(path).endswith(".tar.gz"):
-        path = Path(str(path).rstrip(".tar")).with_suffix(".tar.gz")
+        raise ValueError("Path must end with .tar.gz")
 
     # Ensure parent directory exists
-    path.parent.mkdir(parents=True, exist_ok=True)
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
 
     try:
         with tarfile.open(path, "w:gz") as tar:
@@ -213,11 +213,7 @@ def load_model(path: str | Path) -> Model:
                 exec(predictor_source, predictor_module.__dict__)
                 model.predictor = predictor_module.PredictorImplementation(artifact_handles)
 
-            # Add artifact handles to the model instead of filesystem paths
-            for name, file_data in artifact_handles:
-                # Store as in-memory content or process as needed
-                # This implementation depends on how Model handles artifacts
-                model.artifacts.append(file_data)  # This likely needs customization
+            model.artifacts = artifact_handles
 
             logger.info(f"Model successfully loaded from {path}")
             return model
