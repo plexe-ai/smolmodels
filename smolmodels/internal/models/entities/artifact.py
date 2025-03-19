@@ -54,3 +54,10 @@ class Artifact:
         """
         path = Path(path)
         return Artifact(name=path.name, path=path)
+
+    @staticmethod
+    def from_data(name: str, data: bytes):
+        """
+        Create an Artifact instance from an in-memory sequence of bytes.
+        """
+        return Artifact(name=name, data=data)

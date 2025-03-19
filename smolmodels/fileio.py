@@ -98,9 +98,17 @@ def save_model(model: Model, path: str | Path) -> str:
                 tar.addfile(info, io.BytesIO(content))
 
             for artifact in model.artifacts:
-                arc_name = f"artifacts/{Path(artifact.identifier).as_posix()}"
+                arc_name = f"artifacts/{Path(artifact.name).as_posix()}"
                 info = tarfile.TarInfo(arc_name)
-                content = artifact.artifact.read()
+
+                if artifact.is_path():
+                    with open(artifact.path, "rb") as f:
+                        content = f.read()
+                elif artifact.is_handle():
+                    content = artifact.handle.read()
+                else:
+                    content = artifact.data
+
                 info.size = len(content)
                 tar.addfile(info, io.BytesIO(content))
 
@@ -167,9 +175,7 @@ def load_model(path: str | Path) -> Model:
                 if member.name.startswith("artifacts/") and not member.isdir():
                     file_data = tar.extractfile(member)
                     if file_data:
-                        artifact_handles.append(
-                            Artifact(identifier=Path(member.name).name, type="binary", artifact=file_data)
-                        )
+                        artifact_handles.append(Artifact.from_data(Path(member.name).name, file_data.read()))
 
             # Reconstruct Metric object if metrics data exists
             metrics = None
