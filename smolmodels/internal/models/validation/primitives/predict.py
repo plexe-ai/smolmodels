@@ -57,7 +57,7 @@ class PredictorValidator(Validator):
             predictor_module: types.ModuleType = self._load_module(code)
             predictor_class = getattr(predictor_module, "PredictorImplementation")
             predictor = predictor_class(model_artifacts)
-            self._is_subclass(predictor)
+            self._is_subclass(predictor_class)
             self._returns_output_when_called(predictor)
 
             return ValidationResult(self.name, True, "Prediction code is valid.")
