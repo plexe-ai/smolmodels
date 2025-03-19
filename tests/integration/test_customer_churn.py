@@ -145,7 +145,7 @@ def test_customer_churn_prediction(churn_data, churn_input_schema, churn_output_
     verify_model_description(description)
 
     # Test model saving and loading
-    model_path = sm.save_model(model, "churn_model")
+    model_path = sm.save_model(model, "churn_model.tar.gz")
     loaded_model = sm.load_model(model_path)
 
     # Verify loaded model predictions

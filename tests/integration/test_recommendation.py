@@ -102,7 +102,7 @@ def test_product_recommendation(product_data, recommendation_input_schema, recom
     verify_model_description(description)
 
     # Test model saving
-    model_path = sm.save_model(model, "recommendation_model")
+    model_path = sm.save_model(model, "recommendation_model.tar.gz")
     assert Path(model_path).exists(), f"Model file {model_path} not created"
 
     # Test model loading

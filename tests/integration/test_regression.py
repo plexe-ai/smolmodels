@@ -103,7 +103,7 @@ def test_house_price_regression(house_data, house_input_schema, house_output_sch
     verify_model_description(description)
 
     # Test model saving and loading
-    model_path = sm.save_model(model, "house_price_model")
+    model_path = sm.save_model(model, "house_price_model.tar.gz")
     loaded_model = sm.load_model(model_path)
     loaded_prediction = loaded_model.predict(test_input)
 

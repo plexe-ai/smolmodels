@@ -113,7 +113,7 @@ def test_heart_disease_classification(heart_data, heart_input_schema, heart_outp
     verify_model_description(description)
 
     # Test model saving
-    model_path = sm.save_model(model, "heart_disease_model")
+    model_path = sm.save_model(model, "heart_disease_model.tar.gz")
     assert Path(model_path).exists(), f"Model file {model_path} not created"
 
     # Test model loading
