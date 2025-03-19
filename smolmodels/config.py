@@ -295,21 +295,30 @@ class _PromptTemplates:
             predictor_interface_source=predictor_interface_source,
         )
 
-    def inference_fix(self, predictor_interface_source, inference_code, review, problems) -> str:
+    def inference_fix(self, predictor_interface_source, predictor_template, inference_code, review, problems) -> str:
         return self._render(
             "inference/fix.jinja",
             predictor_interface_source=predictor_interface_source,
+            predictor_template=predictor_template,
             inference_code=inference_code,
             review=review,
             problems=problems,
         )
 
     def inference_review(
-        self, predictor_interface_source, inference_code, input_schema, output_schema, training_code, problems
+        self,
+        predictor_interface_source,
+        predictor_template,
+        inference_code,
+        input_schema,
+        output_schema,
+        training_code,
+        problems,
     ) -> str:
         return self._render(
             "inference/review.jinja",
             predictor_interface_source=predictor_interface_source,
+            predictor_template=predictor_template,
             inference_code=inference_code,
             input_schema=input_schema,
             output_schema=output_schema,

@@ -67,7 +67,8 @@ class InferenceCodeGenerator:
                 self.provider.query(
                     system_message=prompt_templates.inference_system(),
                     user_message=prompt_templates.inference_fix(
-                        predictor_interface_source=code_templates.predictor_template,
+                        predictor_interface_source=code_templates.predictor_interface,
+                        predictor_template=code_templates.predictor_template,
                         inference_code=inference_code,
                         review=review,
                         problems=problems,
@@ -99,7 +100,8 @@ class InferenceCodeGenerator:
         return self.provider.query(
             system_message=prompt_templates.inference_system(),
             user_message=prompt_templates.inference_review(
-                predictor_interface_source=code_templates.predictor_template,
+                predictor_interface_source=code_templates.predictor_interface,
+                predictor_template=code_templates.predictor_template,
                 inference_code=inference_code,
                 input_schema=input_schema.model_fields,
                 output_schema=output_schema.model_fields,
