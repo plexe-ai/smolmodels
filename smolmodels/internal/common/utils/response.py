@@ -93,7 +93,7 @@ def format_code(code) -> str:
         return code
 
 
-def extract_performance(output: str) -> float:
+def extract_performance(output: str) -> float | None:
     """Extract the performance metric from the output."""
     try:
         last_line = output.strip().split("\n")[-1]
@@ -101,7 +101,7 @@ def extract_performance(output: str) -> float:
         # Looking for format "MetricName: value"
         if ":" not in last_line:
             logger.warning("No colon found in last line")
-            return 0.0
+            return None
 
         value_str = last_line.split(":")[-1].strip()
 
@@ -111,8 +111,8 @@ def extract_performance(output: str) -> float:
             return value
         except ValueError as e:
             logger.warning(f"Could not convert '{value_str}' to float: {e}")
-            return 0.0
+            return None
 
     except Exception as e:
         logger.warning(f"Error extracting performance: {e}")
-        return 0.0
+        return None
