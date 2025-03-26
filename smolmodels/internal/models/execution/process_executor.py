@@ -76,14 +76,7 @@ class ProcessExecutor(Executor):
 
         # Write code to file with module environment setup
         code_file: Path = self.working_dir / self.code_file_name
-        module_setup = (
-            "import os\n"
-            "import sys\n"
-            "from pathlib import Path\n\n"
-            "# Set up module environment\n"
-            "__file__ = os.path.abspath(__file__)\n"
-            "MODULE_DIR = Path(__file__).parent\n\n"
-        )
+        module_setup = "import os\n" "import sys\n" "from pathlib import Path\n\n"
         with open(code_file, "w", encoding="utf-8") as f:
             f.write(module_setup + self.code)
 
