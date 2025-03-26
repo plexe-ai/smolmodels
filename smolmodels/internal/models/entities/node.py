@@ -78,7 +78,8 @@ class Node:
     estimated_cost: float = field(default=None, kw_only=True)
 
     # Post-execution results: model performance, execution time, exceptions, etc.
-    performance: Metric = field(default=None, kw_only=True)
+    performance: Metric = field(default=None, kw_only=True)  # Validation performance
+    test_performance: Metric = field(default=None, kw_only=True)  # Test set performance
     execution_time: float = field(default=None, kw_only=True)
     execution_stdout: list[str] = field(default_factory=list, kw_only=True)
     exception_was_raised: bool = field(default=False, kw_only=True)
