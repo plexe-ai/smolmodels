@@ -8,7 +8,7 @@ across all dataset types.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Tuple, Type, TypeVar, Any, Literal, Dict
+from typing import Tuple, Type, TypeVar, Any, Literal, Dict, List
 
 # Type variable for the dataset interface
 T = TypeVar("T", bound="Dataset")
@@ -26,8 +26,9 @@ class DatasetStructure:
     """
 
     # todo: expand this when more dataset types are added
-    modality: Literal["table", "tensor", "other"] = field(default="other")
-    details: Dict[str, Any] = field(default_factory=dict)
+    modality: Literal["table", "tensor", "other"] = field()
+    features: List[str] = field()
+    details: Dict[str, Any] = field()
 
 
 class Dataset(ABC):
