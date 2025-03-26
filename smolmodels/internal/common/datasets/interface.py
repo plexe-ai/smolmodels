@@ -10,6 +10,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Tuple, Type, TypeVar, Any, Literal, Dict, List
 
+import numpy as np
+import pandas as pd
+
 # Type variable for the dataset interface
 T = TypeVar("T", bound="Dataset")
 
@@ -135,7 +138,7 @@ class TabularConvertible(ABC):
     """
 
     @abstractmethod
-    def to_pandas(self):
+    def to_pandas(self) -> pd.DataFrame:
         """
         Convert to pandas DataFrame.
 
@@ -144,7 +147,7 @@ class TabularConvertible(ABC):
         pass
 
     @abstractmethod
-    def to_numpy(self):
+    def to_numpy(self) -> np.ndarray:
         """
         Convert to numpy array.
 

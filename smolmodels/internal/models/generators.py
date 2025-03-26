@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
+from smolmodels.internal.common.datasets.interface import TabularConvertible
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.entities.graph import Graph
 from smolmodels.internal.models.entities.metric import Metric
@@ -117,7 +118,7 @@ class ModelGenerator:
 
     def generate(
         self,
-        datasets: Dict[str, pd.DataFrame],
+        datasets: Dict[str, TabularConvertible],  # TODO: support Dataset instead of just TabularConvertible
         timeout: int = None,
         max_iterations=None,
         directives: List[Directive] = None,
@@ -189,7 +190,7 @@ class ModelGenerator:
         self,
         task: str,
         run_name: str,
-        datasets: Dict[str, pd.DataFrame],
+        datasets: Dict[str, TabularConvertible],
         target_metric: Metric,
         stop_condition: StoppingCondition,
     ) -> Node:
@@ -297,7 +298,7 @@ class ModelGenerator:
         node: Node,
         input_schema: Type[BaseModel],
         output_schema: Type[BaseModel],
-        datasets: Dict[str, pd.DataFrame],
+        datasets: Dict[str, TabularConvertible],
     ) -> Node:
         """
         Generates inference code for the given node, and validates it.
@@ -310,7 +311,7 @@ class ModelGenerator:
         node.model_artifacts = [Artifact.from_path(path) for path in node.model_artifacts]
 
         # Extract input sample from the datasets
-        input_sample = pd.concat([df.head(10) for df in datasets.values()], axis=1)[
+        input_sample = pd.concat([df.to_pandas().head(10) for df in datasets.values()], axis=1)[
             list(input_schema.model_fields.keys())
         ]
 

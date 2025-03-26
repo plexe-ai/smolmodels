@@ -171,7 +171,7 @@ class TabularDataset(Dataset, TabularConvertible):
 
     def to_pandas(self) -> pd.DataFrame:
         """Return a copy of the dataset as a pandas DataFrame."""
-        return self._data.copy()
+        return self._data
 
     def to_numpy(self) -> np.ndarray:
         """Convert the dataset to a NumPy array."""

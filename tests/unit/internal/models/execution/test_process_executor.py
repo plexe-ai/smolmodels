@@ -23,6 +23,7 @@ import pandas as pd
 import pyarrow
 import pytest
 
+from smolmodels.internal.common.datasets.tabular import TabularDataset
 from smolmodels.internal.models.execution.executor import ExecutionResult
 from smolmodels.internal.models.execution.process_executor import ProcessExecutor
 
@@ -33,7 +34,7 @@ class TestProcessExecutor:
         self.code = "print('Hello, World!')"
         self.working_dir = Path(os.getcwd()) / self.execution_id
         self.timeout = 5
-        self.datasets = {"training_data": pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})}
+        self.datasets = {"training_data": TabularDataset(pd.DataFrame({"col1": [1, 2], "col2": [3, 4]}))}
         self.process_executor = ProcessExecutor(
             execution_id=self.execution_id,
             code=self.code,
@@ -61,7 +62,7 @@ class TestProcessExecutor:
 
         dataset_file = self.working_dir / "training_data.parquet"
         mock_write_table.assert_called_once_with(
-            pyarrow.Table.from_pandas(self.datasets["training_data"]), dataset_file
+            pyarrow.Table.from_pandas(self.datasets["training_data"].to_pandas()), dataset_file
         )
         mock_popen.assert_called_once_with(
             [sys.executable, str(self.working_dir / "run.py")],
@@ -104,7 +105,7 @@ class TestProcessExecutor:
         self.process_executor.run()
         dataset_file = self.working_dir / "training_data.parquet"
         mock_write_table.assert_called_once_with(
-            pyarrow.Table.from_pandas(self.datasets["training_data"]), dataset_file
+            pyarrow.Table.from_pandas(self.datasets["training_data"].to_pandas()), dataset_file
         )
 
 

@@ -22,12 +22,12 @@ import logging
 import subprocess
 import sys
 import time
-import pandas as pd
 import pyarrow.parquet as pq
 import pyarrow as pa
 from pathlib import Path
 from typing import Dict
 
+from smolmodels.internal.common.datasets.interface import TabularConvertible
 from smolmodels.internal.common.utils.response import extract_performance
 from smolmodels.internal.models.execution.executor import ExecutionResult, Executor
 from smolmodels.config import config
@@ -48,7 +48,7 @@ class ProcessExecutor(Executor):
         execution_id: str,
         code: str,
         working_dir: Path | str,
-        datasets: Dict[str, pd.DataFrame],
+        datasets: Dict[str, TabularConvertible],
         code_execution_file_name: str = config.execution.runfile_name,
         timeout: int = config.execution.timeout,
     ):
@@ -91,7 +91,7 @@ class ProcessExecutor(Executor):
         dataset_files = []
         for dataset_name, dataset in self.dataset.items():
             dataset_file: Path = self.working_dir / f"{dataset_name}.parquet"
-            pq.write_table(pa.Table.from_pandas(df=dataset), dataset_file)
+            pq.write_table(pa.Table.from_pandas(df=dataset.to_pandas()), dataset_file)
             dataset_files.append(dataset_file)
 
         try:

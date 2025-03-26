@@ -5,10 +5,9 @@ interoperability.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
-import numpy as np
 
 from smolmodels.internal.common.datasets.interface import Dataset
 from smolmodels.internal.common.datasets.tabular import TabularDataset
@@ -34,7 +33,7 @@ class DatasetAdapter:
     """
 
     @staticmethod
-    def coerce(dataset: Any) -> Union[Dataset, pd.DataFrame]:
+    def coerce(dataset: Any) -> Dataset:
         """
         Converts a dataset to a standardized format.
 
@@ -73,8 +72,6 @@ class DatasetAdapter:
         :returns: Name of the detected dataset implementation, or None if no appropriate type was found
         """
         if isinstance(data, pd.DataFrame):
-            return "tabular"
-        elif isinstance(data, np.ndarray):
             return "tabular"
 
         # TODO: Add more auto-detection logic for other data types

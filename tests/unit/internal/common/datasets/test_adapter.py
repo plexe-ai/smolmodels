@@ -10,7 +10,6 @@ This module verifies:
 
 import pytest
 import pandas as pd
-import numpy as np
 
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.datasets.interface import Dataset, DatasetStructure
@@ -83,10 +82,6 @@ def test_adapter_auto_detect():
     # Test with pandas DataFrame
     df = pd.DataFrame({"a": [1, 2, 3]})
     assert DatasetAdapter.auto_detect(df) == "tabular"
-
-    # Test with numpy array (should detect as tabular)
-    arr = np.array([[1, 2, 3], [4, 5, 6]])
-    assert DatasetAdapter.auto_detect(arr) == "tabular"
 
     # Test with unsupported type
     assert DatasetAdapter.auto_detect("not a dataset") is None

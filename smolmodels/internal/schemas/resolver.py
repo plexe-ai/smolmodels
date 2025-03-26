@@ -7,10 +7,10 @@ import logging
 from enum import Enum
 from typing import Tuple, Dict, Type
 
-import pandas as pd
 from pydantic import BaseModel, create_model
 
 from smolmodels.config import config
+from smolmodels.internal.common.datasets.interface import TabularConvertible
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.utils.pandas_utils import convert_dtype_to_python
@@ -35,7 +35,8 @@ class SchemaResolver:
         self.input_schema: Type[BaseModel] | None = input_schema
         self.output_schema: Type[BaseModel] | None = output_schema
 
-    def resolve(self, datasets: Dict[str, pd.DataFrame] = None) -> Tuple[Type[BaseModel], Type[BaseModel]]:
+    # TODO: support Dataset interface instead of just TabularConvertible
+    def resolve(self, datasets: Dict[str, TabularConvertible] = None) -> Tuple[Type[BaseModel], Type[BaseModel]]:
         """
         Resolve the input and output schemas for a given intent and dataset.
 
@@ -47,7 +48,10 @@ class SchemaResolver:
         else:
             return self._resolve_from_intent()
 
-    def _resolve_from_datasets(self, datasets: Dict[str, pd.DataFrame]) -> Tuple[Type[BaseModel], Type[BaseModel]]:
+    # TODO: support Dataset interface instead of just TabularConvertible
+    def _resolve_from_datasets(
+        self, datasets: Dict[str, TabularConvertible]
+    ) -> Tuple[Type[BaseModel], Type[BaseModel]]:
         """
         Generate a schema from a dataset.
         :param datasets:
@@ -81,8 +85,8 @@ class SchemaResolver:
             for feature in feature_names:
                 match feature.split("."):
                     case [dataset, column]:
-                        if isinstance(datasets[dataset], pd.DataFrame):
-                            types[column] = convert_dtype_to_python(datasets[dataset][column].dtype)
+                        if isinstance(datasets[dataset], TabularConvertible):
+                            types[column] = convert_dtype_to_python(datasets[dataset].to_pandas()[column].dtype)
                         else:
                             raise ValueError(f"Dataset {dataset} has unsupported type: '{type(datasets[dataset])}'")
                     case [dataset]:
