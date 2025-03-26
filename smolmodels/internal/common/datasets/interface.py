@@ -106,6 +106,25 @@ class Dataset(ABC):
         """
         pass
 
+    @abstractmethod
+    def __len__(self) -> int:
+        """
+        Return the number of items in the dataset.
+
+        :returns: Number of items in the dataset
+        """
+        pass
+
+    @abstractmethod
+    def __getitem__(self, index: int) -> Any:
+        """
+        Get an item from the dataset by index.
+
+        :param index: Index of the item to retrieve
+        :returns: The item at the specified index
+        """
+        pass
+
 
 class TabularConvertible(ABC):
     """
