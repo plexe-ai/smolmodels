@@ -16,6 +16,7 @@
 - **Typing**: Use type hints and Pydantic models
 - **Naming**: snake_case (functions/vars), CamelCase (classes)
 - **Imports**: Group stdlib, third-party, then local imports
+- **__init__.py**: No code in __init__.py files except in smolmodels/__init__.py for convenience
 - **Docstrings**: Required for public modules/classes/functions; Sphinx style without type hints
 - **Testing**: Write pytest tests for all new functionality
 
