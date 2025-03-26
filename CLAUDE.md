@@ -16,7 +16,7 @@
 - **Typing**: Use type hints and Pydantic models
 - **Naming**: snake_case (functions/vars), CamelCase (classes)
 - **Imports**: Group stdlib, third-party, then local imports
-- **Docstrings**: Required for public modules/classes/functions
+- **Docstrings**: Required for public modules/classes/functions; Sphinx style without type hints
 - **Testing**: Write pytest tests for all new functionality
 
 ## Commit Messages
