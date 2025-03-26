@@ -183,7 +183,7 @@ class Model:
             self.predictor_source = generated.inference_source_code
             self.predictor = generated.predictor
             self.artifacts = generated.model_artifacts
-            self.metrics = generated.performance
+            self.metrics = generated.test_performance  # TODO: expand this
             self.state = ModelState.READY
 
         except Exception as e:

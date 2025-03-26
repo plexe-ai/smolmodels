@@ -45,7 +45,8 @@ class GenerationResult:
     inference_source_code: str
     predictor: Predictor
     model_artifacts: List[Path]
-    performance: Metric
+    performance: Metric  # Validation performance
+    test_performance: Metric = None  # Test set performance
 
 
 class ModelGenerator:
@@ -140,6 +141,18 @@ class ModelGenerator:
         run_id = f"run-{datetime.now().isoformat()}".replace(":", "-").replace(".", "-")
         logger.info(f"🔨 Starting model generation with cache {self.filedir}")
 
+        # Split datasets into train, validation, and test sets
+        train_datasets = {}
+        validation_datasets = {}
+        test_datasets = {}
+
+        for name, dataset in datasets.items():
+            logger.info(f"🔪 Splitting dataset {name} into train, validation, and test sets")
+            train_ds, val_ds, test_ds = dataset.split(train_ratio=0.9, val_ratio=0.1, test_ratio=0.0)
+            train_datasets[f"{name}_train"] = train_ds
+            validation_datasets[f"{name}_val"] = val_ds
+            test_datasets[f"{name}_test"] = test_ds
+
         # Define the problem statement to be used; it can change at each call of generate()
         task = join_task_statement(self.intent, self.input_schema, self.output_schema, self.constraints, directives)
 
@@ -153,10 +166,12 @@ class ModelGenerator:
         logger.info(f"🔨 Initialised solution graph with {config.model_search.initial_nodes} nodes")
 
         # Explore the solution graph until the stopping condition is met
-        best_node = self._produce_trained_model(task, run_id, datasets, target_metric, stop_condition)
+        best_node = self._produce_trained_model(
+            task, run_id, train_datasets, validation_datasets, target_metric, stop_condition
+        )
         logger.info("🧠 Generating inference code for the best solution")
         best_node = self._produce_inference_code(best_node, self.input_schema, self.output_schema, datasets)
-        logger.info(f"✅ Built predictor for model with performance: {best_node.performance}")
+        logger.info(f"✅ Built predictor for model with validation performance: {best_node.performance}")
 
         # Compile the inference code into a module
         inference_module: types.ModuleType = types.ModuleType("predictor")
@@ -171,6 +186,7 @@ class ModelGenerator:
             predictor,
             best_node.model_artifacts,
             best_node.performance,
+            best_node.performance,  # TODO: distinguish validation and test performance
         )
 
     def _initialise_graph(self, n_nodes: int, task: str, metric: Metric) -> None:
@@ -190,7 +206,8 @@ class ModelGenerator:
         self,
         task: str,
         run_name: str,
-        datasets: Dict[str, TabularConvertible],
+        train_datasets: Dict[str, TabularConvertible],
+        validation_datasets: Dict[str, TabularConvertible],
         target_metric: Metric,
         stop_condition: StoppingCondition,
     ) -> Node:
@@ -199,7 +216,8 @@ class ModelGenerator:
 
         :param task: the problem statement for which to generate a solution
         :param run_name: name of this run, used for working directory
-        :param datasets: datasets to be used for training
+        :param train_datasets: datasets to be used for training
+        :param validation_datasets: datasets to be used for validation
         :param target_metric: metric to optimise for
         :param stop_condition: determines when the search should stop
         :return: graph node containing the best solution
@@ -219,10 +237,10 @@ class ModelGenerator:
             # Select a node to visit (i.e. evaluate)
             node: Node = self.search_policy.select_node_enter()[0]
 
-            # Generate training code for the selected node
+            # Generate training code for the selected node with separate train and validation sets
             logger.info(f"🔨 Solution {i} (graph depth {node.depth}): generating training module")
             node.training_code = self.train_generator.generate_training_code(
-                task, node.solution_plan, list(datasets.keys())
+                task, node.solution_plan, list(train_datasets.keys()), list(validation_datasets.keys())
             )
             node.visited = True
 
@@ -242,19 +260,29 @@ class ModelGenerator:
                         node.training_code, task, node.solution_plan, str(validation)
                     )
                     node.training_code = self.train_generator.fix_training_code(
-                        node.training_code, node.solution_plan, review, list(datasets.keys()), str(validation)
+                        node.training_code,
+                        node.solution_plan,
+                        review,
+                        list(train_datasets.keys()),
+                        list(validation_datasets.keys()),
+                        str(validation),
                     )
                     continue
 
                 # If the code passes all static validations, execute the code
                 # TODO: Training can happen in parallel to further exploration
+                # Combine datasets for execution but maintain separation for model training
+                combined_datasets = {}
+                combined_datasets.update(train_datasets)
+                combined_datasets.update(validation_datasets)
+
                 execute_node(
                     node=node,
                     executor=ProcessExecutor(
                         execution_id=f"{i}-{node.id}-{i_fix}",
                         code=node.training_code,
                         working_dir=f"./workdir/{run_name}/",
-                        datasets=datasets,
+                        datasets=combined_datasets,
                         timeout=config.execution.timeout,
                         code_execution_file_name=config.execution.runfile_name,
                     ),
@@ -267,7 +295,12 @@ class ModelGenerator:
                         node.training_code, task, node.solution_plan, str(node.exception)
                     )
                     node.training_code = self.train_generator.fix_training_code(
-                        node.training_code, node.solution_plan, review, str(node.exception)
+                        node.training_code,
+                        node.solution_plan,
+                        review,
+                        list(train_datasets.keys()),
+                        list(validation_datasets.keys()),
+                        str(node.exception),
                     )
                     continue
                 else:

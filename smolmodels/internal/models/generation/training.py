@@ -20,7 +20,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from smolmodels.config import config
+from smolmodels.config import config, prompt_templates
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.common.utils.response import extract_code
 
@@ -41,30 +41,46 @@ class TrainingCodeGenerator:
         self.provider = provider
         self.history: List[Dict[str, str]] = []
 
-    def generate_training_code(self, problem_statement: str, plan: str, dataset_names: list[str]) -> str:
+    def generate_training_code(
+        self,
+        problem_statement: str,
+        plan: str,
+        train_dataset_names: list[str],
+        validation_dataset_names: list[str] = None,
+    ) -> str:
         """
         Generates machine learning model training code based on the given problem statement and solution plan.
 
         :param [str] problem_statement: The description of the problem to be solved.
         :param [str] plan: The proposed solution plan.
-        :param [str] dataset_names: The names of the datasets to use for training.
+        :param [str] train_dataset_names: The names of the datasets to use for training.
+        :param [str] validation_dataset_names: The names of the datasets to use for validation.
         :return str: The generated training code.
         """
+        validation_dataset_names = validation_dataset_names or []
+
         return extract_code(
             self.provider.query(
-                system_message=config.code_generation.prompt_training_base.safe_substitute(),
-                user_message=config.code_generation.prompt_training_generate.safe_substitute(
+                system_message=prompt_templates.training_system(),
+                user_message=prompt_templates.training_generate(
                     problem_statement=problem_statement,
                     plan=plan,
                     history=self.history,
                     allowed_packages=config.code_generation.allowed_packages,
-                    training_data_files=[Path(f"{file}.parquet").as_posix() for file in dataset_names],
+                    training_data_files=[Path(f"{file}.parquet").as_posix() for file in train_dataset_names],
+                    validation_data_files=[Path(f"{file}.parquet").as_posix() for file in validation_dataset_names],
                 ),
             )
         )
 
     def fix_training_code(
-        self, training_code: str, plan: str, review: str, dataset_names: list[str], problems: str = None
+        self,
+        training_code: str,
+        plan: str,
+        review: str,
+        train_dataset_names: list[str],
+        validation_dataset_names: list[str] = None,
+        problems: str = None,
     ) -> str:
         """
         Fixes the machine learning model training code based on the review and identified problems.
@@ -72,7 +88,8 @@ class TrainingCodeGenerator:
         :param [str] training_code: The previously generated training code.
         :param [str] plan: The proposed solution plan.
         :param [str] review: The review of the previous solution.
-        :param [str] dataset_names: The names of the datasets to use for training.
+        :param [str] train_dataset_names: The names of the datasets to use for training.
+        :param [str] validation_dataset_names: The names of the datasets to use for validation.
         :param [str] problems: Specific errors or bugs identified.
         :return str: The fixed training code.
         """
@@ -84,13 +101,14 @@ class TrainingCodeGenerator:
         response: FixResponse = FixResponse(
             **json.loads(
                 self.provider.query(
-                    system_message=config.code_generation.prompt_training_base.safe_substitute(),
-                    user_message=config.code_generation.prompt_training_fix.safe_substitute(
+                    system_message=prompt_templates.training_system(),
+                    user_message=prompt_templates.training_fix(
                         plan=plan,
                         training_code=training_code,
                         review=review,
                         problems=problems,
-                        training_data_files=[Path(f"{file}.parquet").as_posix() for file in dataset_names],
+                        training_data_files=[Path(f"{file}.parquet").as_posix() for file in train_dataset_names],
+                        validation_data_files=[Path(f"{file}.parquet").as_posix() for file in validation_dataset_names],
                         allowed_packages=config.code_generation.allowed_packages,
                     ),
                     response_format=FixResponse,
@@ -110,8 +128,8 @@ class TrainingCodeGenerator:
         :return str: The review of the training code with suggestions for improvements.
         """
         return self.provider.query(
-            system_message=config.code_generation.prompt_training_base.safe_substitute(),
-            user_message=config.code_generation.prompt_training_review.safe_substitute(
+            system_message=prompt_templates.training_system(),
+            user_message=prompt_templates.training_review(
                 problem_statement=problem_statement,
                 plan=plan,
                 training_code=training_code,

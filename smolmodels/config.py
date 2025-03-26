@@ -176,55 +176,6 @@ class _Config:
                 'Use only these types: "int", "float", "str", "bool".'
             )
         )
-        # prompts used in generating, fixing or reviewing training code
-        prompt_training_base: Template = field(
-            default=Template(
-                "You are an experienced ML Engineer implementing a training script for a Kaggle competition."
-            )
-        )
-        prompt_training_generate: Template = field(
-            default=Template(
-                "Write a Python script to train a machine learning model that solves the TASK outlined below, "
-                "using the approach outlined in the plan below.\n\n"
-                "# TASK:\n${problem_statement}\n\n"
-                "# PLAN:\n${plan}\n"
-                "# PREVIOUS ATTEMPTS, IF ANY:\n${history}\n\n"
-                "Only return the code to train the model, no explanations outside the code. Any explanation should "
-                "be in the comments in the code itself, but your overall answer must only consist of the code script. "
-                "The script must assume that the data to be used for training and evaluation is in the following files "
-                "relative to the current directory: ${training_data_files}\n\n"
-                "The script must train the model, compute and print the final evaluation metric to standard output, "
-                "and **save all model files directly in the CURRENT directory** with descriptive names. "
-                "Do not create any subdirectories. Use only ${allowed_packages}. "
-                "Do NOT use any packages that are not part of this list of the Python standard library."
-                "Do not skip steps or combine preprocessors and models in the same joblib file."
-            )
-        )
-        prompt_training_fix: Template = field(
-            default=Template(
-                "Fix the previous solution based on the following information.\n\n"
-                "# PLAN:\n${plan}\n"
-                "# CODE:\n${training_code}\n"
-                "# ISSUES:\n${review}\n"
-                "# ERRORS:\n${problems}\n"
-                "Correct the code, train the model, compute and print the evaluation metric, and save all model files "
-                "directly in the current directory with descriptive names. "
-                "Do not create any subdirectories. Use only ${allowed_packages}. Do NOT use any "
-                "packages that are not part of this list of the Python standard library. Assume the training "
-                "data is in the following files in the current working directory ${training_data_files}."
-            )
-        )
-        prompt_training_review: Template = field(
-            default=Template(
-                "Review the solution to enhance test performance and fix issues.\n\n"
-                "# TASK: ${problem_statement}\n"
-                "# PLAN: ${plan}\n"
-                "# CODE: ${training_code}\n"
-                "# ERRORS: ${problems}\n"
-                "# PREVIOUS ATTEMPTS, IF ANY: ${history}\n\n"
-                "Suggest a single, actionable improvement considering previous reviews."
-            )
-        )
 
     @dataclass(frozen=True)
     class _DataGenerationConfig:
@@ -260,6 +211,49 @@ class _PromptTemplates:
     def _render(self, template_name: str, **kwargs) -> str:
         template = self.env.get_template(template_name)
         return template.render(**kwargs)
+
+    def training_system(self) -> str:
+        return self._render("training/system_prompt.jinja")
+
+    def training_generate(
+        self, problem_statement, plan, history, allowed_packages, training_data_files, validation_data_files
+    ) -> str:
+        return self._render(
+            "training/generate.jinja",
+            problem_statement=problem_statement,
+            plan=plan,
+            history=history,
+            allowed_packages=allowed_packages,
+            training_data_files=training_data_files,
+            validation_data_files=validation_data_files,
+            use_validation_files=len(validation_data_files) > 0,
+        )
+
+    def training_fix(
+        self, training_code, plan, review, problems, allowed_packages, training_data_files, validation_data_files
+    ) -> str:
+        return self._render(
+            "training/fix.jinja",
+            training_code=training_code,
+            plan=plan,
+            review=review,
+            problems=problems,
+            allowed_packages=allowed_packages,
+            training_data_files=training_data_files,
+            validation_data_files=validation_data_files,
+            use_validation_files=len(validation_data_files) > 0,
+        )
+
+    def training_review(self, problem_statement, plan, training_code, problems, history, allowed_packages) -> str:
+        return self._render(
+            "training/review.jinja",
+            problem_statement=problem_statement,
+            plan=plan,
+            training_code=training_code,
+            problems=problems,
+            history=history,
+            allowed_packages=allowed_packages,
+        )
 
     def inference_system(self) -> str:
         return self._render("inference/system_prompt.jinja")
