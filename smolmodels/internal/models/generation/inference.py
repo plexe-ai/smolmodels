@@ -6,7 +6,6 @@ This module provides functionality for generating inference code for machine lea
 
 import json
 from typing import List, Dict, Type
-from pathlib import Path
 
 from pydantic import BaseModel
 
@@ -50,14 +49,13 @@ class InferenceCodeGenerator:
         # Combine the stages
         return self._combine_code_stages(inference_script)
 
-    def fix_inference_code(self, inference_code: str, review: str, problems: str, filedir: Path) -> str:
+    def fix_inference_code(self, inference_code: str, review: str, problems: str) -> str:
         """
         Fixes the inference code based on the review and identified problems.
 
         :param [str] inference_code: The previously generated inference code.
         :param [str] review: The review of the previous solution.
         :param [str] problems: Specific errors or bugs identified.
-        :param [str] filedir: The directory in which the predictor should expect model files.
         :return str: The fixed inference code.
         """
 

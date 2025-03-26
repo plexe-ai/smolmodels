@@ -88,7 +88,6 @@ class ModelGenerator:
         input_schema: Type[BaseModel],
         output_schema: Type[BaseModel],
         provider: Provider,
-        filedir: Path,
         constraints: List[Constraint] = None,
     ) -> None:
         """
@@ -98,7 +97,6 @@ class ModelGenerator:
         :param input_schema: The input schema for the model.
         :param output_schema: The output schema for the model.
         :param provider: The provider to use for generating models.
-        :param filedir: The directory to store model artifacts.
         :param constraints: A list of constraints to apply to the model.
         """
         # Set up the basic configuration of the model generator
@@ -107,7 +105,6 @@ class ModelGenerator:
         self.output_schema: Type[BaseModel] = output_schema
         self.constraints: List[Constraint] = constraints or []
         self.provider: Provider = provider
-        self.filedir: Path = filedir
         self.isolation: str = "subprocess"  # todo: parameterise and support other isolation methods
         # Initialise the model solution graph, code generators, etc.
         self.graph: Graph = Graph()
@@ -139,7 +136,6 @@ class ModelGenerator:
 
         # Start the model generation run
         run_id = f"run-{datetime.now().isoformat()}".replace(":", "-").replace(".", "-")
-        logger.info(f"🔨 Starting model generation with cache {self.filedir}")
 
         # Split datasets into train, validation, and test sets
         train_datasets = {}
@@ -385,7 +381,6 @@ class ModelGenerator:
                     node.inference_code,
                     review,
                     str(validation),
-                    filedir=self.filedir,
                 )
                 continue
 

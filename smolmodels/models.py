@@ -174,7 +174,7 @@ class Model:
 
             # Step 3: generate model
             self.model_generator = ModelGenerator(
-                self.intent, self.input_schema, self.output_schema, provider, self.files_path, self.constraints
+                self.intent, self.input_schema, self.output_schema, provider, self.constraints
             )
             generated = self.model_generator.generate(self.training_data, timeout, max_iterations, directives)
 
