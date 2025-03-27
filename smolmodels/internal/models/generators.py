@@ -142,12 +142,15 @@ class ModelGenerator:
         validation_datasets = {}
         test_datasets = {}
 
+        logger.info("🔪 Splitting datasets into train, validation, and test sets")
         for name, dataset in datasets.items():
-            logger.info(f"🔪 Splitting dataset {name} into train, validation, and test sets")
             train_ds, val_ds, test_ds = dataset.split(train_ratio=0.9, val_ratio=0.1, test_ratio=0.0)
             train_datasets[f"{name}_train"] = train_ds
             validation_datasets[f"{name}_val"] = val_ds
             test_datasets[f"{name}_test"] = test_ds
+            logger.info(
+                f"✅  Split dataset {name} into train/validation/test with sizes {len(train_ds)}/{len(val_ds)}/{len(test_ds)}"
+            )
 
         # Define the problem statement to be used; it can change at each call of generate()
         task = join_task_statement(self.intent, self.input_schema, self.output_schema, self.constraints, directives)
