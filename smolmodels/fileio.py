@@ -175,8 +175,6 @@ def load_model(path: str | Path) -> Model:
                 if member.name.startswith("artifacts/") and not member.isdir():
                     file_data = tar.extractfile(member)
                     if file_data:
-                        print(f"Loading artifact: {member.name}")
-                        print(f"Name will be {Path(member.name).name}")
                         artifact_handles.append(Artifact.from_data(Path(member.name).name, file_data.read()))
 
             # Reconstruct Metric object if metrics data exists
