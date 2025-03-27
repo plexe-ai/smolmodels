@@ -136,16 +136,16 @@ class _Config:
             """
             base_prompt = (
                 "Write a solution plan for the machine learning problem outlined below. The solution must produce "
-                "a model that achieves the best possible performance on ${metric}.\n\n"
+                "a model that achieves the best possible performance on ${metric_to_optimise}.\n\n"
             )
 
             # Include fine-tuning suggestion only if deep learning packages are available
             if self.deep_learning_available:
-                base_prompt += "If appropriate, consider using pre-trained models under 20MB that can be fine-tuned with the provided data."
+                base_prompt += "If appropriate, consider using pre-trained models under 20MB that can be fine-tuned with the provided data.\n\n"
 
             base_prompt += (
                 "# TASK:\n${problem_statement}\n\n"
-                "# PREVIOUS ATTEMPTS, IF ANY:**\n${context}\n\n"
+                "# PREVIOUS ATTEMPTS, IF ANY:\n${context}\n\n"
                 "The solution concept should be explained in 3-5 sentences. Do not include an implementation of the "
                 "solution, though you can include small code snippets if relevant to explain the plan. "
                 "Do not suggest doing EDA, ensembling, or hyperparameter tuning. "
