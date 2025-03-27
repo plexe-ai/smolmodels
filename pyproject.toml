@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "smolmodels"
-version = "0.12.3"
+version = "0.12.4"
 description = "A framework for building ML models from natural language"
 authors = [
     "marcellodebernardi <marcello.debernardi@outlook.com>",
