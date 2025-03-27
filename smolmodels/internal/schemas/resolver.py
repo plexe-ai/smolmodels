@@ -14,6 +14,7 @@ from smolmodels.internal.common.datasets.interface import TabularConvertible
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.utils.pandas_utils import convert_dtype_to_python
+from smolmodels.internal.common.utils.pydantic_utils import map_to_basemodel
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ class SchemaResolver:
             input_schema = {col: types[col] for col in types if col != output_col}
             output_schema = {output_col: types[output_col]}
 
-            return create_model("InputSchema", **input_schema), create_model("OutputSchema", **output_schema)
+            return map_to_basemodel("InputSchema", input_schema), map_to_basemodel("OutputSchema", output_schema)
 
         except Exception as e:
             logger.error(f"Error inferring schema from data: {e}")
