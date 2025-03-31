@@ -153,7 +153,7 @@ class ModelGenerator:
             )
 
         # Define the problem statement to be used; it can change at each call of generate()
-        task = join_task_statement(self.intent, self.input_schema, self.output_schema, self.constraints, directives)
+        task = join_task_statement(self.intent, self.input_schema, self.output_schema)
 
         # Select the metric to optimise and the stopping condition for the search
         target_metric = self.plan_generator.select_target_metric(task)

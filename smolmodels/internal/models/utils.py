@@ -12,9 +12,7 @@ from smolmodels.internal.models.execution.executor import Executor
 logger = logging.getLogger(__name__)
 
 
-def join_task_statement(
-    intent: str, input_schema: Type[BaseModel], output_schema: Type[BaseModel], constraints, directives
-) -> str:
+def join_task_statement(intent: str, input_schema: Type[BaseModel], output_schema: Type[BaseModel]) -> str:
     """Join the problem statement into a single string."""
     problem_statement: str = (
         "# Problem Statement"
@@ -28,14 +26,14 @@ def join_task_statement(
         "# Output Schema"
         "\n\n"
         f"{json.dumps(output_schema.model_fields, indent=4, default=str)}"
-        "\n\n"
-        "# Constraints"
-        "\n\n"
-        f"{json.dumps(constraints, indent=4, default=str)}"
-        "\n\n"
-        "# Directives"
-        "\n\n"
-        f"{json.dumps(directives, indent=4, default=str)}"
+        # "\n\n"
+        # "# Constraints"
+        # "\n\n"
+        # f"{json.dumps(constraints, indent=4, default=str)}"
+        # "\n\n"
+        # "# Directives"
+        # "\n\n"
+        # f"{json.dumps(directives, indent=4, default=str)}"
     )
     logger.debug(f"Joined user inputs into problem statement: {textwrap.shorten(problem_statement, 40)}")
     return problem_statement
