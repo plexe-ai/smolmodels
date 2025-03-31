@@ -105,18 +105,6 @@ class _Config:
 
         k_fold_validation: int = field(default=5)
         # prompts used in generating plans or making decisions
-        prompt_planning_base: Template = field(
-            default=Template("You are an experienced ML Engineer planning a solution to a Kaggle competition.")
-        )
-        prompt_planning_select_metric: Template = field(
-            default=Template(
-                "Select what machine learning model metric is most appropriate to optimise for this task.\n\n"
-                "The task is:\n${problem_statement}\n\n"
-                "Tell me the name of the metric, and whether higher or lower values are better. If the metric has a "
-                "specific target value, please provide that too. Select a simple metric that is appropriate for the "
-                "task, but also widely known of and used in the machine learning community."
-            )
-        )
         prompt_planning_select_stop_condition: Template = field(
             default=Template(
                 "Define the stopping condition for when we should stop searching for new solutions, "
@@ -211,6 +199,21 @@ class _PromptTemplates:
     def _render(self, template_name: str, **kwargs) -> str:
         template = self.env.get_template(template_name)
         return template.render(**kwargs)
+
+    def planning_system(self) -> str:
+        return self._render("planning/system_prompt.jinja")
+
+    def planning_select_metric(self, problem_statement) -> str:
+        return self._render("planning/select_metric.jinja", problem_statement=problem_statement)
+
+    def planning_generate(self, problem_statement, metric_to_optimise) -> str:
+        return self._render(
+            "planning/generate.jinja",
+            problem_statement=problem_statement,
+            metric_to_optimise=metric_to_optimise,
+            allowed_packages=config.code_generation.allowed_packages,
+            deep_learning_available=config.code_generation.deep_learning_available,
+        )
 
     def training_system(self) -> str:
         return self._render("training/system_prompt.jinja")
