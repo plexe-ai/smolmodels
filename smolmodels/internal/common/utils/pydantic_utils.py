@@ -3,7 +3,7 @@ This module provides utility functions for manipulating Pydantic models.
 """
 
 from pydantic import BaseModel, create_model, TypeAdapter
-from typing import Type, List
+from typing import Type, List, Dict, Any
 
 
 def merge_models(model_name: str, models: List[Type[BaseModel]]) -> Type[BaseModel]:
@@ -58,3 +58,21 @@ def map_to_basemodel(name: str, schema: dict | Type[BaseModel]) -> Type[BaseMode
     # All other schema types are invalid
     else:
         raise TypeError("Schema must be a Pydantic model or a dictionary.")
+
+
+def format_schema(schema: Type[BaseModel]) -> Dict[str, Any]:
+    """
+    Format a schema model into a dictionary representation of field names and types.
+
+    :param schema: A pydantic model defining a schema
+    :return: A dictionary representing the schema structure with field names as keys and types as values
+    """
+    if not schema:
+        return {}
+
+    result = {}
+    for field_name, field_info in schema.__annotations__.items():
+        field_type = getattr(field_info, "__name__", str(field_info))
+        result[field_name] = field_type
+
+    return result

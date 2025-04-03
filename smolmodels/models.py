@@ -34,7 +34,7 @@ import os
 import uuid
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Type, Any
+from typing import Dict, List, Type, Any, Union
 
 import pandas as pd
 from pydantic import BaseModel
@@ -45,8 +45,16 @@ from smolmodels.datasets import DatasetGenerator
 from smolmodels.directives import Directive
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.provider import Provider
-from smolmodels.internal.common.utils.pydantic_utils import map_to_basemodel
+from smolmodels.internal.common.utils.model_utils import calculate_model_size, format_code_snippet
+from smolmodels.internal.common.utils.pydantic_utils import map_to_basemodel, format_schema
 from smolmodels.internal.models.entities.artifact import Artifact
+from smolmodels.internal.models.entities.description import (
+    ModelDescription,
+    SchemaInfo,
+    ImplementationInfo,
+    PerformanceInfo,
+    CodeInfo,
+)
 from smolmodels.internal.models.generators import ModelGenerator
 from smolmodels.internal.models.interfaces.predictor import Predictor
 from smolmodels.internal.schemas.resolver import SchemaResolver
@@ -232,27 +240,61 @@ class Model:
         """
         return self.metrics
 
-    def describe(self) -> dict:
+    def describe(self, format: str = "object") -> Union[ModelDescription, Dict[str, Any], str]:
         """
-        Return a human-readable description of the model.
-        :return: a human-readable description of the model
-        """
-        # TODO: flesh this out with a dataclass etc
-        return {
-            "intent": self.intent,
-            "output_schema": self.output_schema,
-            "input_schema": self.input_schema,
-            "constraints": [str(constraint) for constraint in self.constraints],
-            "state": self.state,
-            "metadata": self.metadata,
-            "metrics": self.metrics,
-        }
+        Return a structured description of the model.
 
-    def review(self) -> dict:
+        :param format: Output format ("object", "dict", "text", "markdown", "json")
+        :return: A structured description of the model in the requested format
         """
-        Return a review of the model, which is a structured object consisting of a natural language
-        summary, suggested directives to apply, and more.
-        :return: a review of the model
-        """
-        # TODO: implement this
-        raise NotImplementedError("Review functionality is not yet implemented.")
+        # Create schema info
+        schemas = SchemaInfo(
+            input=format_schema(self.input_schema),
+            output=format_schema(self.output_schema),
+            constraints=[str(constraint) for constraint in self.constraints],
+        )
+
+        # Create implementation info
+        implementation = ImplementationInfo(
+            framework=self.metadata.get("framework", "Unknown"),
+            model_type=self.metadata.get("model_type", "Unknown"),
+            artifacts=[a.name for a in self.artifacts],
+            size=calculate_model_size(self.artifacts),
+        )
+
+        # Create performance info
+        performance = PerformanceInfo(
+            metrics=self.metrics,
+            training_data_info={name: {"shape": df.shape} for name, df in self.training_data.items()},
+        )
+
+        # Create code info
+        code = CodeInfo(
+            training=format_code_snippet(self.trainer_source), prediction=format_code_snippet(self.predictor_source)
+        )
+
+        # Assemble the complete model description
+        description = ModelDescription(
+            id=self.identifier,
+            state=self.state.value,
+            intent=self.intent,
+            schemas=schemas,
+            implementation=implementation,
+            performance=performance,
+            code=code,
+            training_date=self.metadata.get("creation_date", "Unknown"),
+            rationale=self.metadata.get("selection_rationale", "Unknown"),
+        )
+
+        # Return in the requested format
+        if format == "dict":
+            return description.to_dict()
+        elif format == "text":
+            return description.as_text()
+        elif format == "markdown":
+            return description.as_markdown()
+        elif format == "json":
+            return description.to_json()
+
+        # Default to returning the object
+        return description
