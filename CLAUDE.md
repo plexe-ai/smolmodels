@@ -22,6 +22,8 @@
 - Run with coverage: `poetry run pytest --cov=smolmodels tests/`
 
 ## Code Style
+- **Paradigm**: object-oriented structure, functional implementations where appropriate
+- **Functions**: 50 lines max (not including docstrings)
 - **Formatting**: Black with 120 char line length
 - **Linting**: Ruff with E203/E501/E402 ignored
 - **Typing**: Use type hints and Pydantic models
