@@ -24,7 +24,7 @@ class SyntaxValidator(Validator):
         """
         super().__init__("syntax")
 
-    def validate(self, code: str) -> ValidationResult:
+    def validate(self, code: str, **kwargs) -> ValidationResult:
         """
         Validate Python code using AST.
 

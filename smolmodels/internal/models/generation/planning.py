@@ -9,10 +9,9 @@ import logging
 
 from pydantic import BaseModel
 
-from smolmodels.config import config
+from smolmodels.config import prompt_templates
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.entities.metric import Metric, MetricComparator, ComparisonMethod
-from smolmodels.internal.models.entities.stopping_condition import StoppingCondition
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +36,10 @@ class SolutionPlanGenerator:
         :return: the generated solution plan
         """
         return self.provider.query(
-            system_message=config.code_generation.prompt_planning_base.safe_substitute(),
-            user_message=config.code_generation.prompt_planning_generate_plan.safe_substitute(
+            system_message=prompt_templates.planning_system(),
+            user_message=prompt_templates.planning_generate(
                 problem_statement=problem_statement,
                 metric_to_optimise=metric_to_optimise,
-                context="",  # todo: implement memory to provide as 'context'
             ),
         )
 
@@ -61,8 +59,8 @@ class SolutionPlanGenerator:
         response: MetricResponse = MetricResponse(
             **json.loads(
                 self.provider.query(
-                    system_message=config.code_generation.prompt_planning_select_metric.safe_substitute(),
-                    user_message=config.code_generation.prompt_planning_select_metric.safe_substitute(
+                    system_message=prompt_templates.planning_system(),
+                    user_message=prompt_templates.planning_select_metric(
                         problem_statement=problem_statement,
                     ),
                     response_format=MetricResponse,
@@ -78,43 +76,3 @@ class SolutionPlanGenerator:
             )
         except Exception as e:
             raise ValueError(f"Could not determine optimization metric from problem statement: {response}") from e
-
-    def select_stopping_condition(
-        self, problem_statement: str, metric: Metric, max_iterations: int, max_time: int
-    ) -> StoppingCondition:
-        """
-        Selects the stopping condition for the given problem statement and dataset.
-
-        :param problem_statement: definition of the problem
-        :param metric: the metric to optimise
-        :param max_iterations: the maximum number of iterations
-        :param max_time: the maximum time allowed
-        :return: the stopping condition
-        """
-
-        class StoppingConditionResponse(BaseModel):
-            max_generations: int
-            max_time: int
-            metric_threshold: float
-
-        response: StoppingConditionResponse = StoppingConditionResponse(
-            **json.loads(
-                self.provider.query(
-                    system_message=config.code_generation.prompt_planning_select_stop_condition.safe_substitute(),
-                    user_message=config.code_generation.prompt_planning_select_stop_condition.safe_substitute(
-                        problem_statement=problem_statement,
-                        metric=metric.name,
-                    ),
-                    response_format=StoppingConditionResponse,
-                )
-            )
-        )
-
-        try:
-            return StoppingCondition(
-                max_generations=min(response.max_generations, max_iterations if max_iterations else float("inf")),
-                max_time=min(response.max_time, max_time if max_time else float("inf")),
-                metric=Metric(metric.name, response.metric_threshold, metric.comparator),
-            )
-        except Exception as e:
-            raise ValueError(f"Could not determine stopping condition from problem statement: {response}") from e

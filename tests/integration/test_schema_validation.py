@@ -84,7 +84,7 @@ def test_input_validation(house_data_copy, validated_input_schema, validated_out
     model.build(
         datasets=[house_data_copy],
         provider="openai/gpt-4o",
-        max_iterations=2,  # Minimum iterations for reliable model generation
+        max_iterations=3,  # Minimum iterations for reliable model generation
         timeout=300,  # 5 minute timeout
     )
 
@@ -222,7 +222,7 @@ def test_output_validation(house_data_copy, validated_input_schema):
     model.build(
         datasets=[house_data_copy],
         provider="openai/gpt-4o",
-        max_iterations=2,  # Minimum iterations for reliable model generation
+        max_iterations=3,  # Minimum iterations for reliable model generation
         timeout=300,
     )
 

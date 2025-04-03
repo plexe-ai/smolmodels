@@ -6,9 +6,18 @@ import importlib
 import logging
 import warnings
 from dataclasses import dataclass, field
+from importlib.resources import files
 from string import Template
 from typing import List
+from functools import cached_property
+from jinja2 import Environment, FileSystemLoader
 import sys
+from pathlib import Path
+
+from smolmodels import templates as template_module
+
+
+TEMPLATE_DIR = files("smolmodels").joinpath("templates/prompts")
 
 
 # configure warnings
@@ -96,18 +105,6 @@ class _Config:
 
         k_fold_validation: int = field(default=5)
         # prompts used in generating plans or making decisions
-        prompt_planning_base: Template = field(
-            default=Template("You are an experienced ML Engineer planning a solution to a Kaggle competition.")
-        )
-        prompt_planning_select_metric: Template = field(
-            default=Template(
-                "Select what machine learning model metric is most appropriate to optimise for this task.\n\n"
-                "The task is:\n${problem_statement}\n\n"
-                "Tell me the name of the metric, and whether higher or lower values are better. If the metric has a "
-                "specific target value, please provide that too. Select a simple metric that is appropriate for the "
-                "task, but also widely known of and used in the machine learning community."
-            )
-        )
         prompt_planning_select_stop_condition: Template = field(
             default=Template(
                 "Define the stopping condition for when we should stop searching for new solutions, "
@@ -127,16 +124,16 @@ class _Config:
             """
             base_prompt = (
                 "Write a solution plan for the machine learning problem outlined below. The solution must produce "
-                "a model that achieves the best possible performance on ${metric}.\n\n"
+                "a model that achieves the best possible performance on ${metric_to_optimise}.\n\n"
             )
 
             # Include fine-tuning suggestion only if deep learning packages are available
             if self.deep_learning_available:
-                base_prompt += "If appropriate, consider using pre-trained models under 20MB that can be fine-tuned with the provided data."
+                base_prompt += "If appropriate, consider using pre-trained models under 20MB that can be fine-tuned with the provided data.\n\n"
 
             base_prompt += (
                 "# TASK:\n${problem_statement}\n\n"
-                "# PREVIOUS ATTEMPTS, IF ANY:**\n${context}\n\n"
+                "# PREVIOUS ATTEMPTS, IF ANY:\n${context}\n\n"
                 "The solution concept should be explained in 3-5 sentences. Do not include an implementation of the "
                 "solution, though you can include small code snippets if relevant to explain the plan. "
                 "Do not suggest doing EDA, ensembling, or hyperparameter tuning. "
@@ -167,195 +164,6 @@ class _Config:
                 'Use only these types: "int", "float", "str", "bool".'
             )
         )
-        # prompts used in generating, fixing or reviewing training code
-        prompt_training_base: Template = field(
-            default=Template(
-                "You are an experienced ML Engineer implementing a training script for a Kaggle competition."
-            )
-        )
-        prompt_training_generate: Template = field(
-            default=Template(
-                "Write a Python script to train a machine learning model that solves the TASK outlined below, "
-                "using the approach outlined in the plan below.\n\n"
-                "# TASK:\n${problem_statement}\n\n"
-                "# PLAN:\n${plan}\n"
-                "# PREVIOUS ATTEMPTS, IF ANY:\n${history}\n\n"
-                "Only return the code to train the model, no explanations outside the code. Any explanation should "
-                "be in the comments in the code itself, but your overall answer must only consist of the code script. "
-                "The script must assume that the data to be used for training and evaluation is in the following files "
-                "relative to the current directory: ${training_data_files}\n\n"
-                "The script must train the model, compute and print the final evaluation metric to standard output, "
-                "and **save all model files directly in the CURRENT directory** with descriptive names. "
-                "Do not create any subdirectories. Use only ${allowed_packages}. "
-                "Do NOT use any packages that are not part of this list of the Python standard library."
-                "Do not skip steps or combine preprocessors and models in the same joblib file."
-            )
-        )
-        prompt_training_fix: Template = field(
-            default=Template(
-                "Fix the previous solution based on the following information.\n\n"
-                "# PLAN:\n${plan}\n"
-                "# CODE:\n${training_code}\n"
-                "# ISSUES:\n${review}\n"
-                "# ERRORS:\n${problems}\n"
-                "Correct the code, train the model, compute and print the evaluation metric, and save all model files "
-                "directly in the current directory with descriptive names. "
-                "Do not create any subdirectories. Use only ${allowed_packages}. Do NOT use any "
-                "packages that are not part of this list of the Python standard library. Assume the training "
-                "data is in the following files in the current working directory ${training_data_files}."
-            )
-        )
-        prompt_training_review: Template = field(
-            default=Template(
-                "Review the solution to enhance test performance and fix issues.\n\n"
-                "# TASK: ${problem_statement}\n"
-                "# PLAN: ${plan}\n"
-                "# CODE: ${training_code}\n"
-                "# ERRORS: ${problems}\n"
-                "# PREVIOUS ATTEMPTS, IF ANY: ${history}\n\n"
-                "Suggest a single, actionable improvement considering previous reviews."
-            )
-        )
-        # prompts used in generating, fixing or reviewing prediction code
-        prompt_inference_base: Template = field(
-            default=Template("You are an experienced ML Engineer deploying a trained model.")
-        )
-        prompt_inference_model_loading: Template = field(
-            default=Template(
-                "Given this training code that saves model files:\n"
-                "```python\n"
-                "from pathlib import Path\n\n"
-                "MODEL_DIR = Path('${filedir}')\n\n"
-                "${training_code}\n"
-                "```\n\n"
-                "Generate Python code to load the model files from MODEL_DIR. The code should:\n"
-                "1. Import required packages\n"
-                "2. Load all model files (models, preprocessors, etc.) that were saved during training\n"
-                "3. Initialize any required variables or configurations\n\n"
-                "Only include the loading code, no prediction logic. Use MODEL_DIR as the path variable."
-            )
-        )
-        prompt_inference_preprocessing: Template = field(
-            default=Template(
-                "Given this input schema and training code:\n\n"
-                "Input Schema:\n"
-                "```python\n"
-                "${input_schema}\n"
-                "```\n\n"
-                "Training Code:\n"
-                "```python\n"
-                "${training_code}\n"
-                "```\n\n"
-                "Generate Python code to prepare a single input sample for prediction. The code should:\n"
-                "1. Take an input matching the input schema\n"
-                "2. Return the data in the format expected by the model\n\n"
-                "Only include preprocessing logic, assume model loading is already done."
-            )
-        )
-        prompt_inference_prediction: Template = field(
-            default=Template(
-                "Given this context:\n\n"
-                "Output Schema:\n"
-                "```python\n"
-                "${output_schema}\n"
-                "```\n\n"
-                "Training Code:\n"
-                "```python\n"
-                "${training_code}\n"
-                "```\n\n"
-                "Model Loading Code:\n"
-                "```python\n"
-                "${model_loading_code}\n"
-                "```\n\n"
-                "Preprocessing Code:\n"
-                "```python\n"
-                "${preprocessing_code}\n"
-                "```\n\n"
-                "Generate Python code to make predictions. The code should:\n"
-                "1. Take preprocessed input data from the preprocessing step\n"
-                "2. Use the loaded model to make predictions\n"
-                "3. Format the predictions according to the output schema\n"
-                "4. Return an output matching the output schema\n\n"
-                "Only include prediction logic, assume model loading and preprocessing are already done."
-            )
-        )
-        prompt_inference_combine: Template = field(
-            default=Template(
-                "Combine these code sections into a complete inference script:\n\n"
-                "Model Loading:\n"
-                "```python\n"
-                "${model_loading_code}\n"
-                "```\n\n"
-                "Preprocessing:\n"
-                "```python\n"
-                "${preprocessing_code}\n"
-                "```\n\n"
-                "Prediction:\n"
-                "```python\n"
-                "${prediction_code}\n"
-                "```\n\n"
-                "The script should:\n"
-                "1. Follow the required structure with imports and MODEL_DIR at the top\n"
-                "2. Have a predict() function that takes an input matching the input schema and returns an output matching the output schema\n"
-                "3. Organize the code logically with model loading outside the predict function\n"
-                "4. Handle any necessary error checking and validation\n\n"
-                "MODEL_DIR should be set to: ${model_dir}"
-            )
-        )
-        prompt_inference_fix: Template = field(
-            default=Template(
-                "Fix the provided Python machine learning inference script based on the information provided. The "
-                "script is expected to have the following structure:\n\n"
-                "```python\n"
-                "import os\n"
-                "from pathlib import Path\n"
-                "\n"
-                "# todo: add any additional imports you need here\n"
-                "\n"
-                "# Load model binaries from .smolcache directory\n"
-                "MODEL_DIR = Path('${model_id}')\n"
-                "\n"
-                "def predict(sample: dict) -> dict:\n"
-                "    # todo: prediction code goes here\n"
-                "    pass\n"
-                "```\n\n"
-                "IMPORTANT: The error in the 'SPECIFIC ERRORS' indicate what went wrong when trying to load or use the model. "
-                "# INFERENCE CODE TO FIX:\n```python\n${inference_code}```\n"
-                "# IDENTIFIED ISSUES:\n${review}\n\n"
-                "# SPECIFIC ERRORS:\n${problems}\n\n"
-                "You must not change the signature of the predict() function, unless this was specifically called out "
-                "as one of the problems in the issues above. You also must not change the locations from which files "
-                "are loaded, or any of the packages being imported, unless explicitly called out as part of the fix "
-                "in the issues above. Return an explanation of the fix, followed by the fixed inference script."
-            )
-        )
-        prompt_inference_review: Template = field(
-            default=Template(
-                "Review the Python machine learning inference script below to fix any issues. The script should "
-                "adhere to the following structure:\n\n"
-                "```python\n"
-                "import os\n"
-                "from pathlib import Path\n"
-                "\n"
-                "# todo: add any additional imports you need here\n"
-                "\n"
-                "# Load model binaries from .smolcache directory\n"
-                "MODEL_DIR = Path('${filedir}')\n"
-                "\n"
-                "def predict(sample: dict) -> dict:\n"
-                "    # todo: prediction code goes here\n"
-                "    pass\n"
-                "```\n\n"
-                "Here is the script that needs to be reviewed:\n"
-                "# INFERENCE CODE TO REVIEW:\n```python\n${inference_code}```\n\n"
-                "IMPORTANT: The error  in the 'SPECIFIC ERRORS' indicate what went wrong when trying to load or use the model. "
-                "The input schema for the 'sample' parameter is as follows:\n```python\n${input_schema}```\n\n"
-                "The output schema for the return value is as follows:\n```python\n${output_schema}```\n\n"
-                "The model itself was generated by the following training code:\n```python\n${training_code}```\n\n"
-                "When doing a static analysis of the code, the following issues were spotted:\n${problems}\n\n"
-                "Suggest a single, actionable improvement for fixing the issues."
-            )
-        )
 
     @dataclass(frozen=True)
     class _DataGenerationConfig:
@@ -370,12 +178,164 @@ class _Config:
     data_generation: _DataGenerationConfig = field(default_factory=_DataGenerationConfig)
 
 
-# Instantiate configuration
-def load_config() -> _Config:
-    return _Config()
+@dataclass(frozen=True)
+class _CodeTemplates:
+    predictor_interface: str = field(
+        default=Path(importlib.import_module("smolmodels.internal.models.interfaces.predictor").__file__).read_text()
+    )
+    predictor_template: str = field(
+        default=files(template_module).joinpath("models").joinpath("predictor.tmpl.py").read_text()
+    )
 
 
-config: _Config = load_config()
+@dataclass(frozen=True)
+class _PromptTemplates:
+    template_dir: str = field(default=TEMPLATE_DIR)
+
+    @cached_property
+    def env(self) -> Environment:
+        return Environment(loader=FileSystemLoader(str(self.template_dir)))
+
+    def _render(self, template_name: str, **kwargs) -> str:
+        template = self.env.get_template(template_name)
+        return template.render(**kwargs)
+
+    def planning_system(self) -> str:
+        return self._render("planning/system_prompt.jinja")
+
+    def planning_select_metric(self, problem_statement) -> str:
+        return self._render("planning/select_metric.jinja", problem_statement=problem_statement)
+
+    def planning_generate(self, problem_statement, metric_to_optimise) -> str:
+        return self._render(
+            "planning/generate.jinja",
+            problem_statement=problem_statement,
+            metric_to_optimise=metric_to_optimise,
+            allowed_packages=config.code_generation.allowed_packages,
+            deep_learning_available=config.code_generation.deep_learning_available,
+        )
+
+    def training_system(self) -> str:
+        return self._render("training/system_prompt.jinja")
+
+    def training_generate(
+        self, problem_statement, plan, history, allowed_packages, training_data_files, validation_data_files
+    ) -> str:
+        return self._render(
+            "training/generate.jinja",
+            problem_statement=problem_statement,
+            plan=plan,
+            history=history,
+            allowed_packages=allowed_packages,
+            training_data_files=training_data_files,
+            validation_data_files=validation_data_files,
+            use_validation_files=len(validation_data_files) > 0,
+        )
+
+    def training_fix(
+        self, training_code, plan, review, problems, allowed_packages, training_data_files, validation_data_files
+    ) -> str:
+        return self._render(
+            "training/fix.jinja",
+            training_code=training_code,
+            plan=plan,
+            review=review,
+            problems=problems,
+            allowed_packages=allowed_packages,
+            training_data_files=training_data_files,
+            validation_data_files=validation_data_files,
+            use_validation_files=len(validation_data_files) > 0,
+        )
+
+    def training_review(self, problem_statement, plan, training_code, problems, history, allowed_packages) -> str:
+        return self._render(
+            "training/review.jinja",
+            problem_statement=problem_statement,
+            plan=plan,
+            training_code=training_code,
+            problems=problems,
+            history=history,
+            allowed_packages=allowed_packages,
+        )
+
+    def inference_system(self) -> str:
+        return self._render("inference/system_prompt.jinja")
+
+    def inference_load(self, predictor_template, training_code) -> str:
+        return self._render(
+            "inference/load.jinja",
+            predictor_template=predictor_template,
+            training_code=training_code,
+        )
+
+    def inference_preprocess(self, inference_code, input_schema, training_code) -> str:
+        return self._render(
+            "inference/preprocess.jinja",
+            inference_code=inference_code,
+            input_schema=input_schema,
+            training_code=training_code,
+        )
+
+    def inference_postprocess(self, inference_code, output_schema, training_code) -> str:
+        return self._render(
+            "inference/postprocess.jinja",
+            inference_code=inference_code,
+            output_schema=output_schema,
+            training_code=training_code,
+        )
+
+    def inference_predict(self, output_schema, input_schema, training_code, inference_code) -> str:
+        return self._render(
+            "inference/predict.jinja",
+            output_schema=output_schema,
+            input_schema=input_schema,
+            training_code=training_code,
+            inference_code=inference_code,
+        )
+
+    def inference_combine(self, inference_code, predictor_interface_source) -> str:
+        return self._render(
+            "inference/combine.jinja",
+            inference_code=inference_code,
+            predictor_interface_source=predictor_interface_source,
+        )
+
+    def inference_fix(self, predictor_interface_source, predictor_template, inference_code, review, problems) -> str:
+        return self._render(
+            "inference/fix.jinja",
+            predictor_interface_source=predictor_interface_source,
+            predictor_template=predictor_template,
+            inference_code=inference_code,
+            review=review,
+            problems=problems,
+        )
+
+    def inference_review(
+        self,
+        predictor_interface_source,
+        predictor_template,
+        inference_code,
+        input_schema,
+        output_schema,
+        training_code,
+        problems,
+    ) -> str:
+        return self._render(
+            "inference/review.jinja",
+            predictor_interface_source=predictor_interface_source,
+            predictor_template=predictor_template,
+            inference_code=inference_code,
+            input_schema=input_schema,
+            output_schema=output_schema,
+            training_code=training_code,
+            problems=problems,
+        )
+
+
+# Instantiate configuration and templates
+config: _Config = _Config()
+code_templates: _CodeTemplates = _CodeTemplates()
+prompt_templates: _PromptTemplates = _PromptTemplates()
 
 
 # Default logging configuration
@@ -383,6 +343,9 @@ def configure_logging(level: str | int = logging.INFO, file: str = None) -> None
     # Configure the library's root logger
     sm_root_logger = logging.getLogger("smolmodels")
     sm_root_logger.setLevel(level)
+
+    # Clear existing handlers to avoid duplicate logs
+    sm_root_logger.handlers = []
 
     # Define a common formatter
     formatter = logging.Formatter(config.logging.format)

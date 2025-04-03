@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.validation.validator import Validator, ValidationResult
+from smolmodels.internal.models.interfaces.predictor import Predictor
 
 
 class PredictorValidator(Validator):
@@ -45,15 +46,18 @@ class PredictorValidator(Validator):
         self.output_schema: Type[BaseModel] = output_schema
         self.input_sample: pd.DataFrame = sample
 
-    def validate(self, code: str) -> ValidationResult:
+    def validate(self, code: str, model_artifacts=None) -> ValidationResult:
         """
         Validates that the given code for a predictor behaves as expected.
         :param code: prediction code to be validated
+        :param model_artifacts: model artifacts to be used for validation
         :return: True if valid, False otherwise
         """
         try:
-            predictor: types.ModuleType = self._load_predictor(code)
-            self._has_predict_function(predictor)
+            predictor_module: types.ModuleType = self._load_module(code)
+            predictor_class = getattr(predictor_module, "PredictorImplementation")
+            predictor = predictor_class(model_artifacts)
+            self._is_subclass(predictor_class)
             self._returns_output_when_called(predictor)
 
             return ValidationResult(self.name, True, "Prediction code is valid.")
@@ -67,30 +71,25 @@ class PredictorValidator(Validator):
             )
 
     @staticmethod
-    def _load_predictor(code: str) -> types.ModuleType:
+    def _load_module(code: str) -> types.ModuleType:
         """
         Compiles and loads the predictor module from the given code.
         """
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            predictor = types.ModuleType("test_predictor")
+            module = types.ModuleType("test_predictor")
             try:
-                exec(code, predictor.__dict__)
+                exec(code, module.__dict__)
             except Exception as e:
                 raise RuntimeError(f"Failed to load predictor: {str(e)}")
-        return predictor
+        return module
 
     @staticmethod
-    def _has_predict_function(predictor: types.ModuleType) -> None:
-        """
-        Ensures that the predictor module has a valid `predict` function.
-        """
-        if not hasattr(predictor, "predict"):
-            raise AttributeError("The module does not have a 'predict' function.")
-        if not callable(predictor.predict):
-            raise TypeError("'predict' is not a callable function.")
+    def _is_subclass(predictor) -> None:
+        if not issubclass(predictor, Predictor):
+            raise TypeError("The predictor class is not a subclass of Predictor.")
 
-    def _returns_output_when_called(self, predictor: types.ModuleType) -> None:
+    def _returns_output_when_called(self, predictor) -> None:
         """
         Tests the `predict` function by calling it with sample inputs.
         """

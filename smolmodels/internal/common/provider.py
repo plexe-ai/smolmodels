@@ -61,6 +61,7 @@ class Provider:
         :return [str]: The response from the provider.
         """
         self._log_request(system_message, user_message, self.__class__.__name__)
+
         messages = [{"role": "system", "content": system_message}, {"role": "user", "content": user_message}]
 
         try:

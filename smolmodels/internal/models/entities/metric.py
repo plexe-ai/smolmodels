@@ -75,7 +75,13 @@ class MetricComparator:
         :return: -1 if value1 is better, 1 if value2 is better, 0 if they are equal.
         :raises ValueError: If an invalid comparison method is used.
         """
-        if self.comparison_method == ComparisonMethod.HIGHER_IS_BETTER:
+        if value1 is None and value2 is None:
+            return 0
+        elif value1 is None:
+            return 1
+        elif value2 is None:
+            return -1
+        elif self.comparison_method == ComparisonMethod.HIGHER_IS_BETTER:
             return (value2 > value1 + self.epsilon) - (value1 > value2 + self.epsilon)
         elif self.comparison_method == ComparisonMethod.LOWER_IS_BETTER:
             return (value1 > value2 + self.epsilon) - (value2 > value1 + self.epsilon)
@@ -116,7 +122,7 @@ class Metric:
         self.name = name
         self.value = value
         self.comparator = comparator
-        self.is_worst = is_worst
+        self.is_worst = is_worst or value is None
 
     def __gt__(self, other) -> bool:
         """

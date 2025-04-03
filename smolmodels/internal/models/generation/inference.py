@@ -6,11 +6,10 @@ This module provides functionality for generating inference code for machine lea
 
 import json
 from typing import List, Dict, Type
-from pathlib import Path
 
 from pydantic import BaseModel
 
-from smolmodels.config import config
+from smolmodels.config import code_templates, prompt_templates
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.common.utils.response import extract_code
 
@@ -24,90 +23,8 @@ class InferenceCodeGenerator:
         self.provider: Provider = provider
         self.context: List[Dict[str, str]] = []
 
-    def _generate_model_loading(self, training_code: str, model_dir: Path) -> str:
-        """
-        Generate code for loading the trained model files.
-
-        :param training_code: The training code to analyze for model saving patterns
-        :param model_dir: Directory containing the model files
-        :return: Code snippet for model loading
-        """
-        return extract_code(
-            self.provider.query(
-                system_message=config.code_generation.prompt_inference_base.safe_substitute(),
-                user_message=config.code_generation.prompt_inference_model_loading.safe_substitute(
-                    training_code=training_code, filedir=model_dir.as_posix()
-                ),
-            )
-        )
-
-    def _generate_preprocessing(self, input_schema: Type[BaseModel], training_code: str) -> str:
-        """
-        Generate code for preprocessing input data before prediction.
-
-        :param input_schema: Schema defining the input data format
-        :param training_code: Training code to analyze for preprocessing steps
-        :return: Code snippet for preprocessing
-        """
-        return extract_code(
-            self.provider.query(
-                system_message=config.code_generation.prompt_inference_base.safe_substitute(),
-                user_message=config.code_generation.prompt_inference_preprocessing.safe_substitute(
-                    input_schema=input_schema.model_fields, training_code=training_code
-                ),
-            )
-        )
-
-    def _generate_prediction(
-        self, output_schema: Type[BaseModel], training_code: str, model_loading_code: str, preprocessing_code: str
-    ) -> str:
-        """
-        Generate code for making predictions with the loaded model.
-
-        :param [Type[BaseModel]] output_schema: Schema defining the expected output format
-        :param [str] training_code: Training code to analyze for prediction patterns
-        :param [str] model_loading_code: Generated code for loading model files
-        :param [str] preprocessing_code: Generated code for preprocessing input data
-        :return: Code snippet for prediction
-        """
-        return extract_code(
-            self.provider.query(
-                system_message=config.code_generation.prompt_inference_base.safe_substitute(),
-                user_message=config.code_generation.prompt_inference_prediction.safe_substitute(
-                    output_schema=output_schema.model_fields,
-                    training_code=training_code,
-                    model_loading_code=model_loading_code,
-                    preprocessing_code=preprocessing_code,
-                ),
-            )
-        )
-
-    def _combine_code_stages(
-        self, model_loading_code: str, preprocessing_code: str, prediction_code: str, model_dir: Path
-    ) -> str:
-        """
-        Combine the separately generated code stages into a complete inference script.
-
-        :param model_loading_code: Code for loading model files
-        :param preprocessing_code: Code for preprocessing input data
-        :param prediction_code: Code for making predictions
-        :param model_dir: Directory containing model files
-        :return: Complete inference script
-        """
-        return extract_code(
-            self.provider.query(
-                system_message=config.code_generation.prompt_inference_base.safe_substitute(),
-                user_message=config.code_generation.prompt_inference_combine.safe_substitute(
-                    model_loading_code=model_loading_code,
-                    preprocessing_code=preprocessing_code,
-                    prediction_code=prediction_code,
-                    model_dir=model_dir.as_posix(),
-                ),
-            )
-        )
-
     def generate_inference_code(
-        self, input_schema: dict, output_schema: dict, training_code: str, filedir: Path
+        self, input_schema: Type[BaseModel], output_schema: Type[BaseModel], training_code: str
     ) -> str:
         """
         Generates inference code based on the problem statement, solution plan, and training code.
@@ -115,33 +32,30 @@ class InferenceCodeGenerator:
         :param input_schema: The schema of the input data.
         :param output_schema: The schema of the output data.
         :param training_code: The training code that has already been generated.
-        :param filedir: The directory in which the predictor should expect model files.
         :return: The generated inference code.
         """
-        model_dir = Path(filedir)
-
         # Stage 1: Generate model loading code
-        model_loading_code = self._generate_model_loading(training_code, model_dir)
+        inference_script = self._generate_model_loading(training_code)
 
         # Stage 2: Generate preprocessing code
-        preprocessing_code = self._generate_preprocessing(input_schema, training_code)
+        inference_script = self._generate_preprocessing(inference_script, input_schema, training_code)
+
+        # Stage 3: Generate postprocessing code
+        inference_script = self._generate_postprocessing(inference_script, output_schema, training_code)
 
         # Stage 3: Generate prediction code with context from previous stages
-        prediction_code = self._generate_prediction(
-            output_schema, training_code, model_loading_code, preprocessing_code
-        )
+        inference_script = self._generate_prediction(output_schema, training_code, input_schema, inference_script)
 
         # Combine the stages
-        return self._combine_code_stages(model_loading_code, preprocessing_code, prediction_code, model_dir)
+        return self._combine_code_stages(inference_script)
 
-    def fix_inference_code(self, inference_code: str, review: str, problems: str, filedir: Path) -> str:
+    def fix_inference_code(self, inference_code: str, review: str, problems: str) -> str:
         """
         Fixes the inference code based on the review and identified problems.
 
         :param [str] inference_code: The previously generated inference code.
         :param [str] review: The review of the previous solution.
         :param [str] problems: Specific errors or bugs identified.
-        :param [str] filedir: The directory in which the predictor should expect model files.
         :return str: The fixed inference code.
         """
 
@@ -152,12 +66,13 @@ class InferenceCodeGenerator:
         response: FixResponse = FixResponse(
             **json.loads(
                 self.provider.query(
-                    system_message=config.code_generation.prompt_inference_base.safe_substitute(),
-                    user_message=config.code_generation.prompt_inference_fix.safe_substitute(
+                    system_message=prompt_templates.inference_system(),
+                    user_message=prompt_templates.inference_fix(
+                        predictor_interface_source=code_templates.predictor_interface,
+                        predictor_template=code_templates.predictor_template,
                         inference_code=inference_code,
                         review=review,
                         problems=problems,
-                        fildeir=filedir.as_posix(),
                     ),
                     response_format=FixResponse,
                 )
@@ -172,7 +87,6 @@ class InferenceCodeGenerator:
         output_schema: Type[BaseModel],
         training_code: str,
         problems: str = None,
-        filedir: Path = None,
     ) -> str:
         """
         Reviews the inference code to identify improvements and fix issues.
@@ -182,19 +96,18 @@ class InferenceCodeGenerator:
         :param [Type[BaseModel]] output_schema: The schema of the output data.
         :param [str] training_code: The training code that has already been generated.
         :param [str] problems: Specific errors or bugs identified.
-        :param [str] filedir: The directory in which the predictor should expect model files.
         :return: The review of the inference code with suggestions for improvements.
         """
         return self.provider.query(
-            system_message=config.code_generation.prompt_inference_base.safe_substitute(),
-            user_message=config.code_generation.prompt_inference_review.safe_substitute(
+            system_message=prompt_templates.inference_system(),
+            user_message=prompt_templates.inference_review(
+                predictor_interface_source=code_templates.predictor_interface,
+                predictor_template=code_templates.predictor_template,
                 inference_code=inference_code,
                 input_schema=input_schema.model_fields,
                 output_schema=output_schema.model_fields,
                 training_code=training_code,
                 problems=problems,
-                filedir=filedir.as_posix(),
-                context="",  # todo: implement memory to provide as 'context'
             ),
         )
 
@@ -210,3 +123,97 @@ class InferenceCodeGenerator:
         self, inference_tests: str, inference_code: str, problem_statement: str, plan: str
     ) -> str:
         raise NotImplementedError("Review of the inference tests is not yet implemented.")
+
+    def _generate_model_loading(self, training_code: str) -> str:
+        """
+        Generate code for loading the trained model files.
+
+        :param training_code: The training code to analyze for model saving patterns
+        :return: Code snippet for model loading
+        """
+        return extract_code(
+            self.provider.query(
+                system_message=prompt_templates.inference_system(),
+                user_message=prompt_templates.inference_load(
+                    predictor_template=code_templates.predictor_template,
+                    training_code=training_code,
+                ),
+            )
+        )
+
+    def _generate_preprocessing(self, inference_code: str, input_schema: Type[BaseModel], training_code: str) -> str:
+        """
+        Generate code for preprocessing input data before prediction.
+
+        :param inference_code: The previously generated inference code
+        :param input_schema: Schema defining the input data format
+        :param training_code: Training code to analyze for preprocessing steps
+        :return: Code snippet for preprocessing
+        """
+        return extract_code(
+            self.provider.query(
+                system_message=prompt_templates.inference_system(),
+                user_message=prompt_templates.inference_preprocess(
+                    inference_code=inference_code, input_schema=input_schema.model_fields, training_code=training_code
+                ),
+            )
+        )
+
+    def _generate_postprocessing(self, inference_code: str, output_schema: Type[BaseModel], training_code: str) -> str:
+        """
+        Generate code for postprocessing the model's output after prediction.
+
+        :param inference_code: The previously generated inference code
+        :param output_schema: Schema defining the expected output format
+        :param training_code: Training code to analyze for postprocessing steps
+        :return: Code snippet for postprocessing
+        """
+        return extract_code(
+            self.provider.query(
+                system_message=prompt_templates.inference_system(),
+                user_message=prompt_templates.inference_postprocess(
+                    inference_code=inference_code, output_schema=output_schema.model_fields, training_code=training_code
+                ),
+            )
+        )
+
+    def _generate_prediction(
+        self, output_schema: Type[BaseModel], training_code: str, input_schema: Type[BaseModel], inference_code: str
+    ) -> str:
+        """
+        Generate code for making predictions with the loaded model.
+
+        :param [Type[BaseModel]] output_schema: Schema defining the expected output format
+        :param [str] training_code: Training code to analyze for prediction patterns
+        :param [Type[BaseModel]] input_schema: Schema defining the input data format
+        :param [str] inference_code: The previously generated inference code
+        :return: Code snippet for prediction
+        """
+        return extract_code(
+            self.provider.query(
+                system_message=prompt_templates.inference_system(),
+                user_message=prompt_templates.inference_predict(
+                    output_schema=output_schema.model_fields,
+                    input_schema=input_schema.model_fields,
+                    training_code=training_code,
+                    inference_code=inference_code,
+                ),
+            )
+        )
+
+    def _combine_code_stages(self, inference_code: str) -> str:
+        """
+        Combine the separately generated code stages into a complete inference script.
+
+        :param inference_code: The previously generated inference code
+        :return: Complete inference script
+        """
+        return extract_code(
+            self.provider.query(
+                system_message=prompt_templates.inference_system(),
+                user_message=prompt_templates.inference_combine(
+                    inference_code=inference_code,
+                    predictor_interface_source=code_templates.predictor_interface,
+                ),
+            )
+        )

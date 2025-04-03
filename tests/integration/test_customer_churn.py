@@ -92,7 +92,7 @@ def test_customer_churn_prediction(churn_data, churn_input_schema, churn_output_
     model.build(
         datasets=[churn_data],
         provider="openai/gpt-4o",
-        max_iterations=3,  # Minimum iterations for reliable model generation
+        max_iterations=4,  # Minimum iterations for reliable model generation
         timeout=300,  # 5 minute timeout
     )
 
@@ -145,7 +145,7 @@ def test_customer_churn_prediction(churn_data, churn_input_schema, churn_output_
     verify_model_description(description)
 
     # Test model saving and loading
-    model_path = sm.save_model(model, "churn_model")
+    model_path = sm.save_model(model, "churn_model.tar.gz")
     loaded_model = sm.load_model(model_path)
 
     # Verify loaded model predictions
@@ -168,7 +168,7 @@ def test_customer_churn_schema_inference(churn_data):
     model.build(
         datasets=[churn_data],
         provider="openai/gpt-4o",
-        max_iterations=2,  # Minimum iterations for reliable model generation
+        max_iterations=4,  # Minimum iterations for reliable model generation
         timeout=300,  # 5 minute timeout
     )
 

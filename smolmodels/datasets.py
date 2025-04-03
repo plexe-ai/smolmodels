@@ -14,6 +14,8 @@ Users can either pass raw datasets directly to models or leverage this class for
 from typing import Iterator, Type, Dict
 import pandas as pd
 from pydantic import BaseModel
+
+from smolmodels.internal.common.datasets.interface import TabularConvertible
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.utils.pydantic_utils import merge_models, map_to_basemodel
@@ -61,12 +63,22 @@ class DatasetGenerator:
         self._data: pd.DataFrame = data
         self._index = 0
 
+        # TODO: simplify this logic and use DatasetAdapter to support more dataset types
         if schema is not None and data is not None:
             self.schema = map_to_basemodel("data", schema)
             self._validate_schema(data)
-            self._data = DatasetAdapter.coerce(data)
+            data_wrapper = DatasetAdapter.coerce(data)
+            if isinstance(data_wrapper, TabularConvertible):
+                self._data = data_wrapper.to_pandas()
+            else:
+                raise ValueError("Dataset must be convertible to pandas DataFrame.")
         elif data is not None:
-            self._data = DatasetAdapter.coerce(data)
+            data_wrapper = DatasetAdapter.coerce(data)
+            if isinstance(data_wrapper, TabularConvertible):
+                self._data = data_wrapper.to_pandas()
+            else:
+                raise ValueError("Dataset must be convertible to pandas DataFrame.")
+
             schemas = SchemaResolver(self.provider, self.description).resolve({"data": self._data})
             self.schema = merge_models("data", list(schemas))
         elif schema is not None:

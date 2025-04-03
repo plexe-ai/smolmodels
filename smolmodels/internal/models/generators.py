@@ -5,8 +5,6 @@ generates training and inference code, and returns callable functions for traini
 """
 
 import logging
-import os
-import shutil
 import time
 import types
 from dataclasses import dataclass
@@ -20,11 +18,14 @@ from pydantic import BaseModel
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.directives import Directive
+from smolmodels.internal.common.datasets.interface import TabularConvertible
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.entities.graph import Graph
 from smolmodels.internal.models.entities.metric import Metric
+from smolmodels.internal.models.entities.artifact import Artifact
 from smolmodels.internal.models.entities.node import Node
 from smolmodels.internal.models.entities.stopping_condition import StoppingCondition
+from smolmodels.internal.models.interfaces.predictor import Predictor
 from smolmodels.internal.models.execution.process_executor import ProcessExecutor
 from smolmodels.internal.models.generation.inference import InferenceCodeGenerator
 from smolmodels.internal.models.generation.planning import SolutionPlanGenerator
@@ -42,9 +43,10 @@ logger = logging.getLogger(__name__)
 class GenerationResult:
     training_source_code: str
     inference_source_code: str
-    inference_module: types.ModuleType
+    predictor: Predictor
     model_artifacts: List[Path]
-    performance: Metric
+    performance: Metric  # Validation performance
+    test_performance: Metric = None  # Test set performance
 
 
 class ModelGenerator:
@@ -86,7 +88,6 @@ class ModelGenerator:
         input_schema: Type[BaseModel],
         output_schema: Type[BaseModel],
         provider: Provider,
-        filedir: Path,
         constraints: List[Constraint] = None,
     ) -> None:
         """
@@ -96,7 +97,6 @@ class ModelGenerator:
         :param input_schema: The input schema for the model.
         :param output_schema: The output schema for the model.
         :param provider: The provider to use for generating models.
-        :param filedir: The directory to store model artifacts.
         :param constraints: A list of constraints to apply to the model.
         """
         # Set up the basic configuration of the model generator
@@ -105,7 +105,6 @@ class ModelGenerator:
         self.output_schema: Type[BaseModel] = output_schema
         self.constraints: List[Constraint] = constraints or []
         self.provider: Provider = provider
-        self.filedir: Path = filedir
         self.isolation: str = "subprocess"  # todo: parameterise and support other isolation methods
         # Initialise the model solution graph, code generators, etc.
         self.graph: Graph = Graph()
@@ -117,7 +116,7 @@ class ModelGenerator:
 
     def generate(
         self,
-        datasets: Dict[str, pd.DataFrame],
+        datasets: Dict[str, TabularConvertible],  # TODO: support Dataset instead of just TabularConvertible
         timeout: int = None,
         max_iterations=None,
         directives: List[Directive] = None,
@@ -137,10 +136,24 @@ class ModelGenerator:
 
         # Start the model generation run
         run_id = f"run-{datetime.now().isoformat()}".replace(":", "-").replace(".", "-")
-        logger.info(f"🔨 Starting model generation with cache {self.filedir}")
+
+        # Split datasets into train, validation, and test sets
+        train_datasets = {}
+        validation_datasets = {}
+        test_datasets = {}
+
+        logger.info("🔪 Splitting datasets into train, validation, and test sets")
+        for name, dataset in datasets.items():
+            train_ds, val_ds, test_ds = dataset.split(train_ratio=0.9, val_ratio=0.1, test_ratio=0.0)
+            train_datasets[f"{name}_train"] = train_ds
+            validation_datasets[f"{name}_val"] = val_ds
+            test_datasets[f"{name}_test"] = test_ds
+            logger.info(
+                f"✅  Split dataset {name} into train/validation/test with sizes {len(train_ds)}/{len(val_ds)}/{len(test_ds)}"
+            )
 
         # Define the problem statement to be used; it can change at each call of generate()
-        task = join_task_statement(self.intent, self.input_schema, self.output_schema, self.constraints, directives)
+        task = join_task_statement(self.intent, self.input_schema, self.output_schema)
 
         # Select the metric to optimise and the stopping condition for the search
         target_metric = self.plan_generator.select_target_metric(task)
@@ -152,16 +165,19 @@ class ModelGenerator:
         logger.info(f"🔨 Initialised solution graph with {config.model_search.initial_nodes} nodes")
 
         # Explore the solution graph until the stopping condition is met
-        best_node = self._produce_trained_model(task, run_id, datasets, target_metric, stop_condition)
-        self._cache_model_files(best_node)
+        best_node = self._produce_trained_model(
+            task, run_id, train_datasets, validation_datasets, target_metric, stop_condition
+        )
         logger.info("🧠 Generating inference code for the best solution")
         best_node = self._produce_inference_code(best_node, self.input_schema, self.output_schema, datasets)
-        self._cache_model_files(best_node)
-        logger.info(f"✅ Built predictor for model with performance: {best_node.performance}")
+        logger.info(f"✅ Built predictor for model with validation performance: {best_node.performance}")
 
-        # compile the inference code into a module
-        predictor: types.ModuleType = types.ModuleType("predictor")
-        exec(best_node.inference_code, predictor.__dict__)
+        # Compile the inference code into a module
+        inference_module: types.ModuleType = types.ModuleType("predictor")
+        exec(best_node.inference_code, inference_module.__dict__)
+        # Instantiate the predictor class from the loaded module
+        predictor_class = getattr(inference_module, "PredictorImplementation")
+        predictor = predictor_class(best_node.model_artifacts)
 
         return GenerationResult(
             best_node.training_code,
@@ -169,6 +185,7 @@ class ModelGenerator:
             predictor,
             best_node.model_artifacts,
             best_node.performance,
+            best_node.performance,  # TODO: distinguish validation and test performance
         )
 
     def _initialise_graph(self, n_nodes: int, task: str, metric: Metric) -> None:
@@ -188,7 +205,8 @@ class ModelGenerator:
         self,
         task: str,
         run_name: str,
-        datasets: Dict[str, pd.DataFrame],
+        train_datasets: Dict[str, TabularConvertible],
+        validation_datasets: Dict[str, TabularConvertible],
         target_metric: Metric,
         stop_condition: StoppingCondition,
     ) -> Node:
@@ -197,7 +215,8 @@ class ModelGenerator:
 
         :param task: the problem statement for which to generate a solution
         :param run_name: name of this run, used for working directory
-        :param datasets: datasets to be used for training
+        :param train_datasets: datasets to be used for training
+        :param validation_datasets: datasets to be used for validation
         :param target_metric: metric to optimise for
         :param stop_condition: determines when the search should stop
         :return: graph node containing the best solution
@@ -217,10 +236,10 @@ class ModelGenerator:
             # Select a node to visit (i.e. evaluate)
             node: Node = self.search_policy.select_node_enter()[0]
 
-            # Generate training code for the selected node
+            # Generate training code for the selected node with separate train and validation sets
             logger.info(f"🔨 Solution {i} (graph depth {node.depth}): generating training module")
             node.training_code = self.train_generator.generate_training_code(
-                task, node.solution_plan, list(datasets.keys())
+                task, node.solution_plan, list(train_datasets.keys()), list(validation_datasets.keys())
             )
             node.visited = True
 
@@ -240,19 +259,29 @@ class ModelGenerator:
                         node.training_code, task, node.solution_plan, str(validation)
                     )
                     node.training_code = self.train_generator.fix_training_code(
-                        node.training_code, node.solution_plan, review, list(datasets.keys()), str(validation)
+                        node.training_code,
+                        node.solution_plan,
+                        review,
+                        list(train_datasets.keys()),
+                        list(validation_datasets.keys()),
+                        str(validation),
                     )
                     continue
 
                 # If the code passes all static validations, execute the code
                 # TODO: Training can happen in parallel to further exploration
+                # Combine datasets for execution but maintain separation for model training
+                combined_datasets = {}
+                combined_datasets.update(train_datasets)
+                combined_datasets.update(validation_datasets)
+
                 execute_node(
                     node=node,
                     executor=ProcessExecutor(
                         execution_id=f"{i}-{node.id}-{i_fix}",
                         code=node.training_code,
                         working_dir=f"./workdir/{run_name}/",
-                        datasets=datasets,
+                        datasets=combined_datasets,
                         timeout=config.execution.timeout,
                         code_execution_file_name=config.execution.runfile_name,
                     ),
@@ -265,7 +294,12 @@ class ModelGenerator:
                         node.training_code, task, node.solution_plan, str(node.exception)
                     )
                     node.training_code = self.train_generator.fix_training_code(
-                        node.training_code, node.solution_plan, review, str(node.exception)
+                        node.training_code,
+                        node.solution_plan,
+                        review,
+                        list(train_datasets.keys()),
+                        list(validation_datasets.keys()),
+                        str(node.exception),
                     )
                     continue
                 else:
@@ -296,7 +330,7 @@ class ModelGenerator:
         node: Node,
         input_schema: Type[BaseModel],
         output_schema: Type[BaseModel],
-        datasets: Dict[str, pd.DataFrame],
+        datasets: Dict[str, TabularConvertible],
     ) -> Node:
         """
         Generates inference code for the given node, and validates it.
@@ -306,28 +340,10 @@ class ModelGenerator:
         :param output_schema: the output schema that the predict function must match
         :return: the node with updated inference code
         """
-        # Create directory if it doesn't exist
-        self.filedir.mkdir(parents=True, exist_ok=True)
-
-        # Copy model files to the model directory if not already there
-        for artifact in node.model_artifacts:
-            artifact_path = Path(artifact)
-            if artifact_path.is_file():
-                dest = self.filedir / artifact_path.name
-                if not dest.exists() or not artifact_path.samefile(dest):
-                    shutil.copy2(artifact_path, dest)
-            elif artifact_path.is_dir():
-                for item in artifact_path.glob("*"):
-                    if item.is_file():
-                        dest = self.filedir / item.name
-                        if not dest.exists() or not item.samefile(dest):
-                            shutil.copy2(item, dest)
-
-        # Update node's model_artifacts to use the new path
-        node.model_artifacts = [str(self.filedir)]
+        node.model_artifacts = [Artifact.from_path(path) for path in node.model_artifacts]
 
         # Extract input sample from the datasets
-        input_sample = pd.concat([df.head(10) for df in datasets.values()], axis=1)[
+        input_sample = pd.concat([df.to_pandas().head(10) for df in datasets.values()], axis=1)[
             list(input_schema.model_fields.keys())
         ]
 
@@ -343,7 +359,6 @@ class ModelGenerator:
             input_schema=input_schema,
             output_schema=output_schema,
             training_code=node.training_code,
-            filedir=self.filedir,
         )
 
         # Iteratively validate and fix the inference code
@@ -353,7 +368,7 @@ class ModelGenerator:
             node.exception = None
 
             # Validate the inference code, stopping at the first failed validation
-            validation = validator.validate(node.inference_code)
+            validation = validator.validate(node.inference_code, model_artifacts=node.model_artifacts)
             if not validation.passed:
                 logger.info(f"⚠️ Inference solution {i + 1}/{fix_attempts} failed validation, fixing ...")
                 node.exception_was_raised = True
@@ -364,63 +379,14 @@ class ModelGenerator:
                     output_schema=output_schema,
                     training_code=node.training_code,
                     problems=str(validation),
-                    filedir=self.filedir,
                 )
                 node.inference_code = self.infer_generator.fix_inference_code(
                     node.inference_code,
                     review,
                     str(validation),
-                    filedir=self.filedir,
                 )
                 continue
 
         if node.exception_was_raised:
             raise RuntimeError(f"❌ Failed to generate valid inference code: {str(node.exception)}")
         return node
-
-    # TODO: get rid of this and use fileio
-    def _cache_model_files(self, node: Node) -> None:
-        """
-        Copies the model artifacts to the model cache directory, and updates the paths in the code.
-
-        :param node: graph node containing the model artifacts
-        :return: None
-        """
-        # Make sure the model cache directory exists
-        self.filedir.mkdir(parents=True, exist_ok=True)
-
-        # Copy artifacts directly to the root directory
-        for i in range(len(node.model_artifacts)):
-            path: Path = Path(node.model_artifacts[i])
-            name: str = Path(path).name
-            try:
-                if path.is_dir():
-                    # If it's a directory, copy its contents to root
-                    # Copy directory contents to root if not already there
-                    for item in path.glob("*"):
-                        if item.is_file():
-                            dest = self.filedir / item.name
-                            if not dest.exists() or not item.samefile(dest):
-                                shutil.copy2(item, dest)
-                    # Update code paths
-                    if node.training_code:
-                        node.training_code = node.training_code.replace(str(path), str(self.filedir.as_posix()))
-                    if node.inference_code:
-                        node.inference_code = node.inference_code.replace(str(path), str(self.filedir.as_posix()))
-                    node.model_artifacts[i] = self.filedir
-                else:
-                    # If it's a file, copy directly to root if not already there
-                    dest = self.filedir / name
-                    if not dest.exists() or not path.samefile(dest):
-                        shutil.copy2(path, dest)
-                    # Update code paths
-                    if node.training_code:
-                        node.training_code = node.training_code.replace(name, str((self.filedir / name).as_posix()))
-                    if node.inference_code:
-                        node.inference_code = node.inference_code.replace(name, str((self.filedir / name).as_posix()))
-                    node.model_artifacts[i] = self.filedir / name
-            except shutil.SameFileError:
-                pass
-        # Delete the working directory before returning
-        if os.path.exists("./workdir"):
-            shutil.rmtree("./workdir")

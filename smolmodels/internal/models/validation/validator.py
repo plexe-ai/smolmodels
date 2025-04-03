@@ -48,7 +48,7 @@ class Validator(abc.ABC):
         self.name = name
 
     @abc.abstractmethod
-    def validate(self, code: str) -> ValidationResult:
+    def validate(self, code: str, **kwargs) -> ValidationResult:
         """
         Validates the given code.
 

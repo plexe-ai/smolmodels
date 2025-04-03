@@ -30,25 +30,26 @@ Example:
 """
 
 import logging
-import types
+import os
+import uuid
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Type
-import uuid
+from typing import Dict, List, Type, Any
 
 import pandas as pd
-import os
 from pydantic import BaseModel
 
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
+from smolmodels.datasets import DatasetGenerator
 from smolmodels.directives import Directive
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
-from smolmodels.internal.common.utils.pydantic_utils import map_to_basemodel
 from smolmodels.internal.common.provider import Provider
+from smolmodels.internal.common.utils.pydantic_utils import map_to_basemodel
+from smolmodels.internal.models.entities.artifact import Artifact
 from smolmodels.internal.models.generators import ModelGenerator
+from smolmodels.internal.models.interfaces.predictor import Predictor
 from smolmodels.internal.schemas.resolver import SchemaResolver
-from smolmodels.datasets import DatasetGenerator
 
 
 class ModelState(Enum):
@@ -115,10 +116,10 @@ class Model:
 
         # The model's mutable state is defined by these fields
         self.state: ModelState = ModelState.DRAFT
-        self.predictor: types.ModuleType | None = None
+        self.predictor: Predictor | None = None
         self.trainer_source: str | None = None
         self.predictor_source: str | None = None
-        self.artifacts: List[Path] = []
+        self.artifacts: List[Artifact] = []
         self.metrics: Dict[str, str] = dict()
         self.metadata: Dict[str, str] = dict()  # todo: initialise metadata, etc
 
@@ -173,16 +174,16 @@ class Model:
 
             # Step 3: generate model
             self.model_generator = ModelGenerator(
-                self.intent, self.input_schema, self.output_schema, provider, self.files_path, self.constraints
+                self.intent, self.input_schema, self.output_schema, provider, self.constraints
             )
             generated = self.model_generator.generate(self.training_data, timeout, max_iterations, directives)
 
             # Step 4: update model state and attributes
             self.trainer_source = generated.training_source_code
             self.predictor_source = generated.inference_source_code
-            self.predictor = generated.inference_module
+            self.predictor = generated.predictor
             self.artifacts = generated.model_artifacts
-            self.metrics = generated.performance
+            self.metrics = generated.test_performance  # TODO: expand this
             self.state = ModelState.READY
 
         except Exception as e:
@@ -190,16 +191,23 @@ class Model:
             logger.error(f"Error during model building: {str(e)}")
             raise e
 
-    def predict(self, x: dict) -> dict:
+    def predict(self, x: Dict[str, Any], validate_input: bool = False, validate_output: bool = False) -> Dict[str, Any]:
         """
         Call the model with input x and return the output.
         :param x: input to the model
+        :param validate_input: whether to validate the input against the input schema
+        :param validate_output: whether to validate the output against the output schema
         :return: output of the model
         """
         if self.state != ModelState.READY:
             raise RuntimeError("The model is not ready for predictions.")
         try:
-            return self.predictor.predict(x)
+            if validate_input:
+                self.input_schema.model_validate(x)
+            y = self.predictor.predict(x)
+            if validate_output:
+                self.output_schema.model_validate(y)
+            return y
         except Exception as e:
             raise RuntimeError(f"Error during prediction: {str(e)}") from e
 
