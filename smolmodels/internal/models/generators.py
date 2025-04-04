@@ -325,7 +325,11 @@ class ModelGenerator:
                     break
 
             # Unpack the solution's performance; if this is better than the best so far, update
-            if node.performance and isinstance(node.performance.value, float):
+            if (
+                node.performance
+                and isinstance(node.performance.value, float)
+                and node.performance.value not in [float("inf"), float("-inf")]
+            ):
                 logger.info(f"🤔 Solution {i} (graph depth {node.depth}) performance: {str(node.performance)}")
                 if best_metric is None or node.performance > best_metric:
                     best_metric = node.performance
