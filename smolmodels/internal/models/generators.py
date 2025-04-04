@@ -130,10 +130,6 @@ class ModelGenerator:
         :param run_timeout: The maximum time to spend on each individual model training run, in seconds.
         :return: A GenerationResult object containing the training and inference code, and the predictor module.
         """
-        # Check either timeout or max_iterations is set
-        if timeout is None and max_iterations is None:
-            raise ValueError("Either timeout or max_iterations must be set")
-
         # Store the individual_run_timeout for later use if provided
         self.run_timeout = run_timeout
 
