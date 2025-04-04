@@ -43,6 +43,7 @@ from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.datasets import DatasetGenerator
 from smolmodels.directives import Directive
+from smolmodels.internal.common.datasets.interface import Dataset
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.common.utils.model_utils import calculate_model_size, format_code_snippet
@@ -55,6 +56,7 @@ from smolmodels.internal.models.entities.description import (
     PerformanceInfo,
     CodeInfo,
 )
+from smolmodels.internal.models.entities.metric import Metric
 from smolmodels.internal.models.generators import ModelGenerator
 from smolmodels.internal.models.interfaces.predictor import Predictor
 from smolmodels.internal.schemas.resolver import SchemaResolver
@@ -120,7 +122,7 @@ class Model:
         self.input_schema: Type[BaseModel] = map_to_basemodel("in", input_schema) if input_schema else None
         self.output_schema: Type[BaseModel] = map_to_basemodel("out", output_schema) if output_schema else None
         self.constraints: List[Constraint] = constraints or []
-        self.training_data: Dict[str, pd.DataFrame] = dict()
+        self.training_data: Dict[str, Dataset] = dict()
 
         # The model's mutable state is defined by these fields
         self.state: ModelState = ModelState.DRAFT
@@ -128,7 +130,7 @@ class Model:
         self.trainer_source: str | None = None
         self.predictor_source: str | None = None
         self.artifacts: List[Artifact] = []
-        self.metrics: Dict[str, str] = dict()
+        self.metrics: Dict[str, Metric] = dict()
         self.metadata: Dict[str, str] = dict()  # todo: initialise metadata, etc
 
         # Generator objects used to create schemas, datasets, and the model itself
@@ -191,7 +193,13 @@ class Model:
             self.predictor_source = generated.inference_source_code
             self.predictor = generated.predictor
             self.artifacts = generated.model_artifacts
-            self.metrics = generated.test_performance  # TODO: expand this
+
+            # Convert Metric object to a dictionary with the entire metric object as the value
+            if isinstance(generated.test_performance, Metric):
+                self.metrics = {generated.test_performance.name: generated.test_performance}
+            else:
+                self.metrics = {"unknown": generated.test_performance}
+
             self.state = ModelState.READY
 
         except Exception as e:
@@ -263,9 +271,24 @@ class Model:
         )
 
         # Create performance info
+        # Convert Metric objects to string representation for JSON serialization
+        metrics_dict = {}
+        for key, value in self.metrics.items():
+            if hasattr(value, "value") and hasattr(value, "name"):  # Check if it's a Metric object
+                metrics_dict[key] = str(value.value)
+            else:
+                metrics_dict[key] = str(value)
+
         performance = PerformanceInfo(
-            metrics=self.metrics,
-            training_data_info={name: {"shape": df.shape} for name, df in self.training_data.items()},
+            metrics=metrics_dict,
+            training_data_info={
+                name: {
+                    "modality": data.structure.modality,
+                    "features": data.structure.features,
+                    "structure": data.structure.details,
+                }
+                for name, data in self.training_data.items()
+            },
         )
 
         # Create code info

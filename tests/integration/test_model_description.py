@@ -31,11 +31,11 @@ def iris_data():
         "sepal_width": np.random.uniform(2.0, 4.5, n_samples),
         "petal_length": np.random.uniform(1.0, 6.5, n_samples),
         "petal_width": np.random.uniform(0.1, 2.5, n_samples),
+        "species": ["setosa"] * n_samples,
     }
 
     # Generate target based on petal length and width
     # Simplistic rule: if petal_length > 3.0, it's likely virginica or versicolor
-    data["species"] = ["setosa"] * n_samples
 
     for i in range(n_samples):
         if data["petal_length"][i] < 2.0:

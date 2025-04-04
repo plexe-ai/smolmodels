@@ -71,8 +71,9 @@ def format_schema(schema: Type[BaseModel]) -> Dict[str, Any]:
         return {}
 
     result = {}
-    for field_name, field_info in schema.__annotations__.items():
-        field_type = getattr(field_info, "__name__", str(field_info))
+    # Use model_fields which is the recommended approach in newer Pydantic versions
+    for field_name, field_info in schema.model_fields.items():
+        field_type = getattr(field_info.annotation, "__name__", str(field_info.annotation))
         result[field_name] = field_type
 
     return result
