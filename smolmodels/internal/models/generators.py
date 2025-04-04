@@ -171,7 +171,7 @@ class ModelGenerator:
         )
         logger.info("🧠 Generating inference code for the best solution")
         best_node = self._produce_inference_code(best_node, self.input_schema, self.output_schema, datasets)
-        logger.info(f"✅ Built predictor for model with validation performance: {best_node.performance}")
+        logger.info(f"✅  Built predictor for model with validation performance: {best_node.performance}")
 
         # Compile the inference code into a module
         inference_module: types.ModuleType = types.ModuleType("predictor")
@@ -189,7 +189,7 @@ class ModelGenerator:
             inference_code=best_node.inference_code,
         )
 
-        logger.info(f"📊 Model review complete: {model_metadata['framework']} {model_metadata['model_type']}")
+        logger.info(f"📊 Model review complete: {model_metadata['framework']} | {model_metadata['model_type']}")
 
         return GenerationResult(
             best_node.training_code,
@@ -331,7 +331,7 @@ class ModelGenerator:
                     best_metric = node.performance
             else:
                 logger.info(
-                    f"❌ Solution {i} (graph depth {node.depth}) did not return valid performance: "
+                    f"❌  Solution {i} (graph depth {node.depth}) did not return valid performance: "
                     f"{str(node.performance)}"
                 )
             logger.info(
