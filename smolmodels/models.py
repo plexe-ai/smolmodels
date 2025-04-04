@@ -203,6 +203,9 @@ class Model:
             # Store the model metadata from the generation process
             self.metadata.update(generated.metadata)
 
+            # Store provider information in metadata
+            self.metadata["provider"] = str(provider.model)
+
             self.state = ModelState.READY
 
         except Exception as e:
@@ -310,4 +313,5 @@ class Model:
             code=code,
             training_date=self.metadata.get("creation_date", "Unknown"),
             rationale=self.metadata.get("selection_rationale", "Unknown"),
+            provider=self.metadata.get("provider", "Unknown"),
         )

@@ -61,6 +61,7 @@ class ModelDescription(DataClassJsonMixin):
     code: CodeInfo
     training_date: Optional[str] = None
     rationale: Optional[str] = None
+    provider: Optional[str] = None
 
     def as_text(self) -> str:
         """Convert the model description to a formatted text string."""
@@ -70,6 +71,7 @@ class ModelDescription(DataClassJsonMixin):
             f"State: {self.state}",
             f"Intent: {self.intent}",
             f"Training Date: {self.training_date or 'Not available'}",
+            f"Built with: {self.provider or 'Unknown provider'}",
             "",
             "Input Schema:",
             "\n".join(f"  - {k}: {v}" for k, v in self.schemas.input.items()),
@@ -105,6 +107,7 @@ class ModelDescription(DataClassJsonMixin):
             f"**State:** {self.state}",
             f"**Intent:** {self.intent}",
             f"**Training Date:** {self.training_date or 'Not available'}",
+            f"**Built with:** {self.provider or 'Unknown provider'}",
             "",
             "## Input Schema",
             "\n".join(f"- `{k}`: {v}" for k, v in self.schemas.input.items()),
