@@ -4,6 +4,8 @@ import pandas as pd
 import shutil
 from pathlib import Path
 
+from smolmodels.internal.models.entities.description import ModelDescription
+
 
 def generate_heart_data(n_samples=30, random_seed=42):
     """Generate synthetic heart disease data for testing.
@@ -402,10 +404,10 @@ def verify_prediction(prediction, expected_schema=None):
 
 def verify_model_description(description):
     """Verify that a model description contains expected fields."""
-    assert isinstance(description, dict), "Model description should be a dictionary"
-    required_fields = ["intent", "input_schema", "output_schema"]
+    assert isinstance(description, ModelDescription), "Model description should be a 'ModelDescription' object"
+    required_fields = ["intent", "schemas", "code"]
     for field in required_fields:
-        assert field in description, f"Model description missing required field: {field}"
+        assert hasattr(description, field), f"Model description missing required field: {field}"
 
 
 def cleanup_files(model_dir=None):
