@@ -30,16 +30,12 @@ Example:
 """
 
 import logging
-import os
 import uuid
-from enum import Enum
-from pathlib import Path
 from typing import Dict, List, Type, Any
 
 import pandas as pd
 from pydantic import BaseModel
 
-from smolmodels.config import config
 from smolmodels.constraints import Constraint
 from smolmodels.datasets import DatasetGenerator
 from smolmodels.directives import Directive
@@ -48,6 +44,7 @@ from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.common.utils.model_utils import calculate_model_size, format_code_snippet
 from smolmodels.internal.common.utils.pydantic_utils import map_to_basemodel, format_schema
+from smolmodels.internal.common.utils.model_state import ModelState
 from smolmodels.internal.models.entities.artifact import Artifact
 from smolmodels.internal.models.entities.description import (
     ModelDescription,
@@ -60,13 +57,6 @@ from smolmodels.internal.models.entities.metric import Metric
 from smolmodels.internal.models.generators import ModelGenerator
 from smolmodels.internal.models.interfaces.predictor import Predictor
 from smolmodels.internal.schemas.resolver import SchemaResolver
-
-
-class ModelState(Enum):
-    DRAFT = "draft"
-    BUILDING = "building"
-    READY = "ready"
-    ERROR = "error"
 
 
 logger = logging.getLogger(__name__)
@@ -138,9 +128,6 @@ class Model:
         self.model_generator: ModelGenerator | None = None
 
         self.identifier: str = f"model-{abs(hash(self.intent))}-{str(uuid.uuid4())}"
-        # Directory for any required model files
-        base_dir = os.environ.get("MODEL_PATH", config.file_storage.model_cache_dir)
-        self.files_path: Path = Path(base_dir) / self.identifier
 
     def build(
         self,
