@@ -51,12 +51,12 @@ def save_model(model: Model, path: str | Path) -> str:
     try:
         with tarfile.open(path, "w:gz") as tar:
             metrics_data = {}
-            if model.metrics:
+            if model.metric:
                 metrics_data = {
-                    "name": model.metrics.name,
-                    "value": model.metrics.value,
-                    "comparison_method": model.metrics.comparator.comparison_method.value,
-                    "target": model.metrics.comparator.target,
+                    "name": model.metric.name,
+                    "value": model.metric.value,
+                    "comparison_method": model.metric.comparator.comparison_method.value,
+                    "target": model.metric.comparator.target,
                 }
 
             metadata = {
@@ -202,7 +202,7 @@ def load_model(path: str | Path) -> Model:
                 intent=intent, input_schema=input_schema, output_schema=output_schema, constraints=constraints
             )
             model.state = state
-            model.metrics = metrics
+            model.metric = metrics
             model.metadata = metadata
             model.identifier = identifier
             model.trainer_source = trainer_source

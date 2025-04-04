@@ -130,7 +130,7 @@ class Model:
         self.trainer_source: str | None = None
         self.predictor_source: str | None = None
         self.artifacts: List[Artifact] = []
-        self.metrics: Dict[str, Metric] = dict()
+        self.metric: Metric | None = None
         self.metadata: Dict[str, str] = dict()  # todo: initialise metadata, etc
 
         # Generator objects used to create schemas, datasets, and the model itself
@@ -208,10 +208,7 @@ class Model:
             self.artifacts = generated.model_artifacts
 
             # Convert Metric object to a dictionary with the entire metric object as the value
-            if isinstance(generated.test_performance, Metric):
-                self.metrics = {generated.test_performance.name: generated.test_performance}
-            else:
-                self.metrics = {"unknown": generated.test_performance}
+            self.metric = generated.test_performance
 
             # Store the model metadata from the generation process
             self.metadata.update(generated.metadata)
@@ -265,7 +262,7 @@ class Model:
         Return metrics about the model.
         :return: metrics about the model
         """
-        return self.metrics
+        return None if self.metric is None else {self.metric.name: self.metric.value}
 
     def describe(self) -> ModelDescription:
         """
@@ -292,11 +289,8 @@ class Model:
         # Create performance info
         # Convert Metric objects to string representation for JSON serialization
         metrics_dict = {}
-        for key, value in self.metrics.items():
-            if hasattr(value, "value") and hasattr(value, "name"):  # Check if it's a Metric object
-                metrics_dict[key] = str(value.value)
-            else:
-                metrics_dict[key] = str(value)
+        if hasattr(self.metric, "value") and hasattr(self.metric, "name"):  # Check if it's a Metric object
+            metrics_dict[self.metric.name] = str(self.metric.value)
 
         performance = PerformanceInfo(
             metrics=metrics_dict,
