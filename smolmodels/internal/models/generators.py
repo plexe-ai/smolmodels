@@ -17,7 +17,6 @@ from pydantic import BaseModel
 
 from smolmodels.config import config
 from smolmodels.constraints import Constraint
-from smolmodels.directives import Directive
 from smolmodels.internal.common.datasets.interface import TabularConvertible
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.entities.graph import Graph
@@ -108,6 +107,7 @@ class ModelGenerator:
         self.constraints: List[Constraint] = constraints or []
         self.provider: Provider = provider
         self.isolation: str = "subprocess"  # todo: parameterise and support other isolation methods
+        self.run_timeout = None
         # Initialise the model solution graph, code generators, etc.
         self.graph: Graph = Graph()
         self.plan_generator = SolutionPlanGenerator(provider)  # todo: allow dependency injection for these
@@ -119,22 +119,21 @@ class ModelGenerator:
     def generate(
         self,
         datasets: Dict[str, TabularConvertible],  # TODO: support Dataset instead of just TabularConvertible
+        run_timeout: int,
         timeout: int = None,
         max_iterations=None,
-        directives: List[Directive] = None,
     ) -> GenerationResult:
         """
         Generates a machine learning model based on the given problem statement, input schema, and output schema.
 
         :param datasets: The dataset to use for training the model.
-        :param timeout: The maximum time to spend generating the model, in seconds.
+        :param timeout: The maximum total time to spend generating the model, in seconds (all iterations combined).
         :param max_iterations: The maximum number of iterations to spend generating the model.
-        :param directives: A list of directives to apply to the model generation process.
+        :param run_timeout: The maximum time to spend on each individual model training run, in seconds.
         :return: A GenerationResult object containing the training and inference code, and the predictor module.
         """
-        # Check either timeout or max_iterations is set
-        if timeout is None and max_iterations is None:
-            raise ValueError("Either timeout or max_iterations must be set")
+        # Store the individual_run_timeout for later use if provided
+        self.run_timeout = run_timeout
 
         # Start the model generation run
         run_id = f"run-{datetime.now().isoformat()}".replace(":", "-").replace(".", "-")
@@ -296,7 +295,7 @@ class ModelGenerator:
                         code=node.training_code,
                         working_dir=f"./workdir/{run_name}/",
                         datasets=combined_datasets,
-                        timeout=config.execution.timeout,
+                        timeout=self.run_timeout,
                         code_execution_file_name=config.execution.runfile_name,
                     ),
                     metric_to_optimise=target_metric,
@@ -304,6 +303,12 @@ class ModelGenerator:
 
                 # If the code raised an exception, attempt to fix again
                 if node.exception_was_raised:
+                    # Special logging for TimeoutError as this is an important case to flag
+                    if isinstance(node.exception, TimeoutError):
+                        logger.warning(
+                            f"❌  Model training timed out after {self.run_timeout}s - individual run timeout exceeded"
+                        )
+
                     review = self.train_generator.review_training_code(
                         node.training_code, task, node.solution_plan, str(node.exception)
                     )
