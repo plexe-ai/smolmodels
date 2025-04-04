@@ -200,6 +200,9 @@ class Model:
             else:
                 self.metrics = {"unknown": generated.test_performance}
 
+            # Store the model metadata from the generation process
+            self.metadata.update(generated.metadata)
+
             self.state = ModelState.READY
 
         except Exception as e:

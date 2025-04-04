@@ -7,7 +7,7 @@ generates training and inference code, and returns callable functions for traini
 import logging
 import time
 import types
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import List, Type, Dict
@@ -29,6 +29,7 @@ from smolmodels.internal.models.interfaces.predictor import Predictor
 from smolmodels.internal.models.execution.process_executor import ProcessExecutor
 from smolmodels.internal.models.generation.inference import InferenceCodeGenerator
 from smolmodels.internal.models.generation.planning import SolutionPlanGenerator
+from smolmodels.internal.models.generation.review import ModelReviewer
 from smolmodels.internal.models.generation.training import TrainingCodeGenerator
 from smolmodels.internal.models.search.best_first_policy import BestFirstSearchPolicy
 from smolmodels.internal.models.search.policy import SearchPolicy
@@ -47,6 +48,7 @@ class GenerationResult:
     model_artifacts: List[Path]
     performance: Metric  # Validation performance
     test_performance: Metric = None  # Test set performance
+    metadata: Dict[str, str] = field(default_factory=dict)  # Model metadata
 
 
 class ModelGenerator:
@@ -179,6 +181,17 @@ class ModelGenerator:
         predictor_class = getattr(inference_module, "PredictorImplementation")
         predictor = predictor_class(best_node.model_artifacts)
 
+        # After code generation and model training, review the model to extract metadata
+        model_reviewer = ModelReviewer(self.provider)
+        model_metadata = model_reviewer.review_model(
+            intent=self.intent,
+            solution_plan=best_node.solution_plan,
+            training_code=best_node.training_code,
+            inference_code=best_node.inference_code,
+        )
+
+        logger.info(f"📊 Model review complete: {model_metadata['framework']} {model_metadata['model_type']}")
+
         return GenerationResult(
             best_node.training_code,
             best_node.inference_code,
@@ -186,6 +199,7 @@ class ModelGenerator:
             best_node.model_artifacts,
             best_node.performance,
             best_node.performance,  # TODO: distinguish validation and test performance
+            metadata=model_metadata,
         )
 
     def _initialise_graph(self, n_nodes: int, task: str, metric: Metric) -> None:

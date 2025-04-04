@@ -331,6 +331,18 @@ class _PromptTemplates:
             problems=problems,
         )
 
+    def review_system(self) -> str:
+        return self._render("review/system_prompt.jinja")
+
+    def review_model(self, intent: str, solution_plan: str, training_code: str, inference_code: str) -> str:
+        return self._render(
+            "review/model.jinja",
+            intent=intent,
+            solution_plan=solution_plan,
+            training_code=training_code,
+            inference_code=inference_code,
+        )
+
 
 # Instantiate configuration and templates
 config: _Config = _Config()
