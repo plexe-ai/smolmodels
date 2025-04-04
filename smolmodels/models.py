@@ -155,8 +155,8 @@ class Model:
         # Ensure timeout, max_iterations, and run_timeout make sense
         if timeout is None and max_iterations is None:
             raise ValueError("At least one of 'timeout' or 'max_iterations' must be set")
-        if run_timeout >= timeout:
-            raise ValueError(f"'run_timeout' ({run_timeout}s) must be smaller than 'timeout' ({timeout}s)")
+        if run_timeout is not None and timeout is not None and run_timeout > timeout:
+            raise ValueError(f"Run timeout ({run_timeout}s) cannot exceed total timeout ({timeout}s)")
 
         # TODO: validate that schema features are present in the dataset
         # TODO: validate that datasets do not contain duplicate features
