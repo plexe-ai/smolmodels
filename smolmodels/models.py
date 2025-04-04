@@ -130,7 +130,7 @@ class Model:
         self.trainer_source: str | None = None
         self.predictor_source: str | None = None
         self.artifacts: List[Artifact] = []
-        self.metrics: Dict[str, str] = dict()
+        self.metrics: Dict[str, Metric] = dict()
         self.metadata: Dict[str, str] = dict()  # todo: initialise metadata, etc
 
         # Generator objects used to create schemas, datasets, and the model itself
@@ -209,9 +209,9 @@ class Model:
 
             # Convert Metric object to a dictionary with the entire metric object as the value
             if isinstance(generated.test_performance, Metric):
-                self.metrics = {generated.test_performance.name: generated.test_performance.value}
+                self.metrics = {generated.test_performance.name: generated.test_performance}
             else:
-                self.metrics = {"unknown": str(generated.test_performance)}
+                self.metrics = {"unknown": generated.test_performance}
 
             # Store the model metadata from the generation process
             self.metadata.update(generated.metadata)
@@ -290,8 +290,16 @@ class Model:
         )
 
         # Create performance info
+        # Convert Metric objects to string representation for JSON serialization
+        metrics_dict = {}
+        for key, value in self.metrics.items():
+            if hasattr(value, "value") and hasattr(value, "name"):  # Check if it's a Metric object
+                metrics_dict[key] = str(value.value)
+            else:
+                metrics_dict[key] = str(value)
+
         performance = PerformanceInfo(
-            metrics=self.metrics,
+            metrics=metrics_dict,
             training_data_info={
                 name: {
                     "modality": data.structure.modality,
