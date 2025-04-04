@@ -66,6 +66,7 @@ def test_multiclass_classification(sentiment_data, sentiment_input_schema, senti
         provider="openai/gpt-4o",
         max_iterations=3,  # Minimum iterations for reliable model generation
         timeout=300,  # 5 minute timeout
+        run_timeout=150,
     )
 
     # Test sample predictions
@@ -116,6 +117,7 @@ def test_dataset_generation_and_multiclass(sentiment_input_schema, sentiment_out
         provider="openai/gpt-4o",
         max_iterations=2,  # Minimum iterations for reliable model generation
         timeout=300,  # 5 minute timeout
+        run_timeout=150,
     )
 
     # Test a sample prediction

@@ -136,6 +136,7 @@ def test_model_description(iris_data, iris_input_schema, iris_output_schema, cap
         provider="openai/gpt-4o",
         max_iterations=2,  # Minimum iterations for quick testing
         timeout=180,  # 3 minute timeout
+        run_timeout=150,
     )
 
     # Test that the model is in the ready state

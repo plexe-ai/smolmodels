@@ -94,6 +94,7 @@ def test_customer_churn_prediction(churn_data, churn_input_schema, churn_output_
         provider="openai/gpt-4o",
         max_iterations=4,  # Minimum iterations for reliable model generation
         timeout=300,  # 5 minute timeout
+        run_timeout=150,
     )
 
     # Test sample predictions
@@ -170,6 +171,7 @@ def test_customer_churn_schema_inference(churn_data):
         provider="openai/gpt-4o",
         max_iterations=4,  # Minimum iterations for reliable model generation
         timeout=300,  # 5 minute timeout
+        run_timeout=150,
     )
 
     # Test a sample prediction

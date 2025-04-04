@@ -75,6 +75,7 @@ def test_product_recommendation(product_data, recommendation_input_schema, recom
         provider="openai/gpt-4o",
         max_iterations=3,  # Minimum iterations for reliable model generation
         timeout=300,  # 5 minute timeout
+        run_timeout=150,
     )
 
     # Get a sample style to test with (first style in the dataset)

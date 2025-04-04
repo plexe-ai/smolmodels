@@ -82,6 +82,7 @@ def test_time_series_forecasting(sales_data_copy, sales_input_schema, sales_outp
         provider="openai/gpt-4o",
         max_iterations=4,  # Minimum iterations for reliable model generation
         timeout=400,  # 5 minute timeout
+        run_timeout=150,
     )
 
     # Test prediction for a future date
