@@ -34,7 +34,7 @@ import os
 import uuid
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Type, Any, Union
+from typing import Dict, List, Type, Any
 
 import pandas as pd
 from pydantic import BaseModel
@@ -251,12 +251,12 @@ class Model:
         """
         return self.metrics
 
-    def describe(self, fmt: str = "object") -> Union[ModelDescription, Dict[str, Any], str]:
+    def describe(self) -> ModelDescription:
         """
         Return a structured description of the model.
 
-        :param fmt: Output format ("object", "dict", "text", "markdown", "json")
-        :return: A structured description of the model in the requested format
+        :return: A ModelDescription object with various methods like to_dict(), as_text(),
+                as_markdown(), to_json() for different output formats
         """
         # Create schema info
         schemas = SchemaInfo(
@@ -299,8 +299,8 @@ class Model:
             training=format_code_snippet(self.trainer_source), prediction=format_code_snippet(self.predictor_source)
         )
 
-        # Assemble the complete model description
-        description = ModelDescription(
+        # Assemble and return the complete model description
+        return ModelDescription(
             id=self.identifier,
             state=self.state.value,
             intent=self.intent,
@@ -311,16 +311,3 @@ class Model:
             training_date=self.metadata.get("creation_date", "Unknown"),
             rationale=self.metadata.get("selection_rationale", "Unknown"),
         )
-
-        # Return in the requested format
-        if fmt == "dict":
-            return description.to_dict()
-        elif fmt == "text":
-            return description.as_text()
-        elif fmt == "markdown":
-            return description.as_markdown()
-        elif fmt == "json":
-            return description.to_json()
-
-        # Default to returning the object
-        return description

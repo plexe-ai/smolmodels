@@ -141,30 +141,34 @@ def test_model_description(iris_data, iris_input_schema, iris_output_schema, cap
     # Test that the model is in the ready state
     assert model.state.value == "ready", "Model should be in ready state after building"
 
-    # PART 1: Test different description formats
+    # PART 1: Test description object and its format methods
 
-    # Test object format (default)
-    object_desc = model.describe()
-    assert hasattr(object_desc, "id")
-    assert hasattr(object_desc, "intent")
-    assert hasattr(object_desc, "schemas")
-    assert hasattr(object_desc, "to_dict")
-    assert hasattr(object_desc, "to_json")
+    # Get the model description object
+    desc = model.describe()
+
+    # Test the object has the expected attributes and methods
+    assert hasattr(desc, "id")
+    assert hasattr(desc, "intent")
+    assert hasattr(desc, "schemas")
+    assert hasattr(desc, "to_dict")
+    assert hasattr(desc, "to_json")
+    assert hasattr(desc, "as_text")
+    assert hasattr(desc, "as_markdown")
 
     # Test dictionary format
-    dict_desc = model.describe(fmt="dict")
+    dict_desc = desc.to_dict()
     verify_description_format(dict_desc, "dict")
 
     # Test JSON format
-    json_desc = model.describe(fmt="json")
+    json_desc = desc.to_json()
     verify_description_format(json_desc, "json")
 
     # Test text format
-    text_desc = model.describe(fmt="text")
+    text_desc = desc.as_text()
     verify_description_format(text_desc, "text")
 
     # Test markdown format
-    md_desc = model.describe(fmt="markdown")
+    md_desc = desc.as_markdown()
     verify_description_format(md_desc, "markdown")
 
     # Ensure output is always visible, even when tests pass
