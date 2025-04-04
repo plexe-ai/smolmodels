@@ -152,19 +152,19 @@ def test_model_description(iris_data, iris_input_schema, iris_output_schema, cap
     assert hasattr(object_desc, "to_json")
 
     # Test dictionary format
-    dict_desc = model.describe(format="dict")
+    dict_desc = model.describe(fmt="dict")
     verify_description_format(dict_desc, "dict")
 
     # Test JSON format
-    json_desc = model.describe(format="json")
+    json_desc = model.describe(fmt="json")
     verify_description_format(json_desc, "json")
 
     # Test text format
-    text_desc = model.describe(format="text")
+    text_desc = model.describe(fmt="text")
     verify_description_format(text_desc, "text")
 
     # Test markdown format
-    md_desc = model.describe(format="markdown")
+    md_desc = model.describe(fmt="markdown")
     verify_description_format(md_desc, "markdown")
 
     # Ensure output is always visible, even when tests pass

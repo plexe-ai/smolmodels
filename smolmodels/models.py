@@ -248,11 +248,11 @@ class Model:
         """
         return self.metrics
 
-    def describe(self, format: str = "object") -> Union[ModelDescription, Dict[str, Any], str]:
+    def describe(self, fmt: str = "object") -> Union[ModelDescription, Dict[str, Any], str]:
         """
         Return a structured description of the model.
 
-        :param format: Output format ("object", "dict", "text", "markdown", "json")
+        :param fmt: Output format ("object", "dict", "text", "markdown", "json")
         :return: A structured description of the model in the requested format
         """
         # Create schema info
@@ -310,13 +310,13 @@ class Model:
         )
 
         # Return in the requested format
-        if format == "dict":
+        if fmt == "dict":
             return description.to_dict()
-        elif format == "text":
+        elif fmt == "text":
             return description.as_text()
-        elif format == "markdown":
+        elif fmt == "markdown":
             return description.as_markdown()
-        elif format == "json":
+        elif fmt == "json":
             return description.to_json()
 
         # Default to returning the object
