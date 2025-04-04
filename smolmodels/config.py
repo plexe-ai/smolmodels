@@ -56,7 +56,6 @@ class _Config:
 
     @dataclass(frozen=True)
     class _ExecutionConfig:
-        timeout: int = field(default=300)
         runfile_name: str = field(default="execution_script.py")
 
     @dataclass(frozen=True)

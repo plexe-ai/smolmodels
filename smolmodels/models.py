@@ -139,6 +139,7 @@ class Model:
         directives: List[Directive] = None,
         timeout: int = None,
         max_iterations: int = None,
+        run_timeout: int = 1800,
     ) -> None:
         """
         Build the model using the provided dataset, directives, and optional data generation configuration.
@@ -146,8 +147,9 @@ class Model:
         :param datasets: the datasets to use for training the model
         :param provider: the provider to use for model building
         :param directives: instructions related to the model building process - not the model itself
-        :param timeout: maximum time in seconds to spend building the model
+        :param timeout: maximum total time in seconds to spend building the model (all iterations combined)
         :param max_iterations: maximum number of iterations to spend building the model
+        :param run_timeout: maximum time in seconds for each individual model training run
         :return:
         """
         # TODO: validate that schema features are present in the dataset
@@ -176,7 +178,12 @@ class Model:
             self.model_generator = ModelGenerator(
                 self.intent, self.input_schema, self.output_schema, provider, self.constraints
             )
-            generated = self.model_generator.generate(self.training_data, timeout, max_iterations, directives)
+            generated = self.model_generator.generate(
+                datasets=self.training_data,
+                run_timeout=run_timeout,
+                timeout=timeout,
+                max_iterations=max_iterations,
+            )
 
             # Step 4: update model state and attributes
             self.trainer_source = generated.training_source_code

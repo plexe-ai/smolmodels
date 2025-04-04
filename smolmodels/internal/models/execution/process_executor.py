@@ -49,8 +49,8 @@ class ProcessExecutor(Executor):
         code: str,
         working_dir: Path | str,
         datasets: Dict[str, TabularConvertible],
+        timeout: int,
         code_execution_file_name: str = config.execution.runfile_name,
-        timeout: int = config.execution.timeout,
     ):
         """
         Initialize the ProcessExecutor.
@@ -132,7 +132,9 @@ class ProcessExecutor(Executor):
             return ExecutionResult(
                 term_out=[],
                 exec_time=self.timeout,
-                exception=TimeoutError(f"Execution exceeded {self.timeout}s timeout"),
+                exception=TimeoutError(
+                    f"Execution exceeded {self.timeout}s timeout - individual run timeout limit reached"
+                ),
             )
 
     def cleanup(self):
