@@ -7,6 +7,7 @@ metrics, parameters, and artifacts to MLFlow.
 
 import mlflow
 import logging
+import warnings
 from pathlib import Path
 from typing import Optional
 
@@ -14,6 +15,7 @@ from smolmodels.callbacks import Callback, BuildStateInfo
 from smolmodels.internal.models.entities.metric import Metric
 
 logger = logging.getLogger(__name__)
+warnings.filterwarnings("ignore", category=UserWarning, module="mlflow")
 
 
 class MLFlowCallback(Callback):
@@ -162,7 +164,7 @@ class MLFlowCallback(Callback):
                         logger.warning(f"Could not log artifact {artifact}: {e}")
 
         try:
-            mlflow.end_run()
+            mlflow.end_run(status="FAILED" if info.node.exception_was_raised else "FINISHED")
         except Exception as e:
             logger.warning(f"Error ending MLFlow run: {e}")
 
