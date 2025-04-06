@@ -5,6 +5,7 @@ This module provides a callback implementation that logs model building
 metrics, parameters, and artifacts to MLFlow.
 """
 
+import re
 import mlflow
 import logging
 import warnings
@@ -183,7 +184,7 @@ class MLFlowCallback(Callback):
         if metric and hasattr(metric, "name") and hasattr(metric, "value"):
             try:
                 value = float(metric.value)
-                mlflow.log_metric(f"{prefix}{metric.name}", value, step=step)
+                mlflow.log_metric(re.sub(r"[^a-zA-Z0-9]", "", f"{prefix}{metric.name}"), value, step=step)
             except (ValueError, TypeError) as e:
                 logger.warning(f"Could not convert metric {metric.name} value to float: {e}")
                 # Try to log as tag instead
