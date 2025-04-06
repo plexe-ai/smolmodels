@@ -9,12 +9,11 @@ or other operations to be performed at key points.
 import logging
 from abc import ABC
 from dataclasses import dataclass
-from typing import Optional, Type, Union, Dict
+from typing import Optional, Type, Dict
 
 from pydantic import BaseModel
 
 from smolmodels.internal.common.datasets.interface import TabularConvertible
-from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.entities.node import Node
 
 logger = logging.getLogger(__name__)
@@ -33,7 +32,7 @@ class BuildStateInfo:
     intent: str
     """The natural language description of the model's intent."""
 
-    provider: Union[str, Provider]
+    provider: str
     """The provider (LLM) used for generating the model."""
 
     # Schema fields
