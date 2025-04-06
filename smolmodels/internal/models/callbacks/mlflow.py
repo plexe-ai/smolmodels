@@ -5,6 +5,7 @@ This module provides a callback implementation that logs model building
 metrics, parameters, and artifacts to MLFlow.
 """
 
+import mlflow
 import logging
 from pathlib import Path
 from typing import Optional
@@ -36,18 +37,12 @@ class MLFlowCallback(Callback):
         self.experiment_id = None
         self.connect_timeout = connect_timeout
 
-        # Import MLFlow module
+        # Clean up active runs, if any
         try:
-            import mlflow
-
-            # Clean up active runs, if any
             if mlflow.active_run():
                 mlflow.end_run()
-
-            self.mlflow = mlflow
-
         except Exception as e:
-            raise RuntimeError(f"❌  Error importing MLFlow: {e}") from e
+            raise RuntimeError(f"❌  Error cleaning up active runs: {e}") from e
 
         # Set up MLFlow tracking URI and experiment
         try:
@@ -68,9 +63,9 @@ class MLFlowCallback(Callback):
         :param info: Information about the model building process start.
         """
         # Set or get experiment
-        experiment = self.mlflow.get_experiment_by_name(self.experiment_name)
+        experiment = mlflow.get_experiment_by_name(self.experiment_name)
         if experiment is None:
-            self.experiment_id = self.mlflow.create_experiment(self.experiment_name)
+            self.experiment_id = mlflow.create_experiment(self.experiment_name)
         else:
             self.experiment_id = experiment.experiment_id
         logger.info(f"✅  MLFlow configured with experiment '{self.experiment_name}' (ID: {self.experiment_id})")
@@ -83,8 +78,8 @@ class MLFlowCallback(Callback):
         :param info: Information about the model building process end.
         """
         try:
-            if self.mlflow.active_run():
-                self.mlflow.end_run()
+            if mlflow.active_run():
+                mlflow.end_run()
         except Exception as e:
             raise RuntimeError(f"❌  Error cleaning up MLFlow run: {e}") from e
 
@@ -95,14 +90,18 @@ class MLFlowCallback(Callback):
         :param info: Information about the iteration start.
         """
         run_name = f"iteration-{info.iteration}"
-        self.mlflow.start_run(
+        mlflow.start_run(
             run_name=run_name,
             experiment_id=self.experiment_id,
         )
         logger.info(f"✅  Started MLFlow run: {run_name}")
 
+        # Log training datasets used
+        for name, data in info.datasets.items():
+            mlflow.log_input(mlflow.data.from_pandas(data.to_pandas()), context="training", tags={"name": name})
+
         # Log model parameters
-        self.mlflow.log_params(
+        mlflow.log_params(
             {
                 "intent": info.intent,
                 "input_schema": str(info.input_schema.model_fields),
@@ -121,8 +120,12 @@ class MLFlowCallback(Callback):
 
         :param info: Information about the iteration end.
         """
-        if not self.mlflow.active_run():
+        if not mlflow.active_run():
             return
+
+        # Log validation datasets used
+        for name, data in info.datasets.items():
+            mlflow.log_input(mlflow.data.from_pandas(data.to_pandas()), context="validation", tags={"name": name})
 
         if info.node.training_code:
             try:
@@ -130,7 +133,7 @@ class MLFlowCallback(Callback):
                 code_path = Path("trainer_source.py")
                 with open(code_path, "w") as f:
                     f.write(info.node.training_code)
-                self.mlflow.log_artifact(str(code_path))
+                mlflow.log_artifact(str(code_path))
             except Exception as e:
                 logger.warning(f"Could not log trainer source: {e}")
 
@@ -140,23 +143,23 @@ class MLFlowCallback(Callback):
 
         # Log execution time
         if info.node.execution_time:
-            self.mlflow.log_metric("execution_time", info.node.execution_time, step=info.iteration)
+            mlflow.log_metric("execution_time", info.node.execution_time, step=info.iteration)
 
         # Log whether exception was raised
         if info.node.exception_was_raised:
-            self.mlflow.set_tag(f"iteration_{info.iteration}_error", str(info.node.exception))
+            mlflow.set_tag(f"iteration_{info.iteration}_error", str(info.node.exception))
 
         # Log model artifacts if any
         if info.node.model_artifacts:
             for artifact in info.node.model_artifacts:
                 if Path(artifact).exists():
                     try:
-                        self.mlflow.log_artifact(str(artifact))
+                        mlflow.log_artifact(str(artifact))
                     except Exception as e:
                         logger.warning(f"Could not log artifact {artifact}: {e}")
 
         try:
-            self.mlflow.end_run()
+            mlflow.end_run()
         except Exception as e:
             logger.warning(f"Error ending MLFlow run: {e}")
 
@@ -168,14 +171,14 @@ class MLFlowCallback(Callback):
         :param prefix: Optional prefix for the metric name
         :param step: Optional step number
         """
-        if self.mlflow is None or not self.mlflow.active_run():
+        if mlflow is None or not mlflow.active_run():
             return
 
         if metric and hasattr(metric, "name") and hasattr(metric, "value"):
             try:
                 value = float(metric.value)
-                self.mlflow.log_metric(f"{prefix}{metric.name}", value, step=step)
+                mlflow.log_metric(f"{prefix}{metric.name}", value, step=step)
             except (ValueError, TypeError) as e:
                 logger.warning(f"Could not convert metric {metric.name} value to float: {e}")
                 # Try to log as tag instead
-                self.mlflow.set_tag(f"{prefix}{metric.name}", str(metric.value))
+                mlflow.set_tag(f"{prefix}{metric.name}", str(metric.value))

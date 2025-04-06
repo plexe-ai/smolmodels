@@ -9,10 +9,11 @@ or other operations to be performed at key points.
 import logging
 from abc import ABC
 from dataclasses import dataclass
-from typing import Optional, Type, Union
+from typing import Optional, Type, Union, Dict
 
 from pydantic import BaseModel
 
+from smolmodels.internal.common.datasets.interface import TabularConvertible
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.entities.node import Node
 
@@ -54,6 +55,9 @@ class BuildStateInfo:
     # Iteration fields
     iteration: int = 0
     """Current iteration number (0-indexed)."""
+
+    # Dataset fields
+    datasets: Optional[Dict[str, TabularConvertible]] = None
 
     # Current node being evaluated
     node: Optional[Node] = None

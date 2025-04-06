@@ -270,6 +270,7 @@ class ModelGenerator:
                             run_timeout=self.run_timeout,
                             max_iterations=stop_condition.max_generations,
                             timeout=stop_condition.max_time,
+                            datasets=train_datasets,
                             iteration=i,
                         )
                     )
@@ -383,6 +384,7 @@ class ModelGenerator:
                             run_timeout=self.run_timeout,
                             max_iterations=stop_condition.max_generations,
                             timeout=stop_condition.max_time,
+                            datasets=validation_datasets,
                             iteration=i,
                             node=node,
                         )
