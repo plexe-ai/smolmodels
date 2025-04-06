@@ -98,7 +98,7 @@ class MLFlowCallback(Callback):
 
         # Log training datasets used
         for name, data in info.datasets.items():
-            mlflow.log_input(mlflow.data.from_pandas(data.to_pandas()), context="training", tags={"name": name})
+            mlflow.log_input(mlflow.data.from_pandas(data.to_pandas(), name=name), context="training")
 
         # Log model parameters
         mlflow.log_params(
@@ -108,9 +108,12 @@ class MLFlowCallback(Callback):
                 "output_schema": str(info.output_schema.model_fields),
                 "provider": str(info.provider),
                 "run_timeout": info.run_timeout,
-                "max_iterations": info.max_iterations,
-                "timeout": info.timeout,
                 "iteration": info.iteration,
+            }
+        )
+        mlflow.set_tags(
+            {
+                "provider": str(info.provider),
             }
         )
 
@@ -125,7 +128,7 @@ class MLFlowCallback(Callback):
 
         # Log validation datasets used
         for name, data in info.datasets.items():
-            mlflow.log_input(mlflow.data.from_pandas(data.to_pandas()), context="validation", tags={"name": name})
+            mlflow.log_input(mlflow.data.from_pandas(data.to_pandas(), name=name), context="validation")
 
         if info.node.training_code:
             try:
@@ -147,7 +150,7 @@ class MLFlowCallback(Callback):
 
         # Log whether exception was raised
         if info.node.exception_was_raised:
-            mlflow.set_tag(f"iteration_{info.iteration}_error", str(info.node.exception))
+            mlflow.set_tags({"exception_was_raised": True, "exception": type(info.node.exception)})
 
         # Log model artifacts if any
         if info.node.model_artifacts:
@@ -163,7 +166,8 @@ class MLFlowCallback(Callback):
         except Exception as e:
             logger.warning(f"Error ending MLFlow run: {e}")
 
-    def _log_metric(self, metric: Metric, prefix: str = "", step: Optional[int] = None) -> None:
+    @staticmethod
+    def _log_metric(metric: Metric, prefix: str = "", step: Optional[int] = None) -> None:
         """
         Log a SmolModels Metric object to MLFlow.
 
@@ -181,4 +185,4 @@ class MLFlowCallback(Callback):
             except (ValueError, TypeError) as e:
                 logger.warning(f"Could not convert metric {metric.name} value to float: {e}")
                 # Try to log as tag instead
-                mlflow.set_tag(f"{prefix}{metric.name}", str(metric.value))
+                mlflow.set_tag("performance_is_invalid", True)
