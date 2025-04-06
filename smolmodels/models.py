@@ -39,6 +39,7 @@ from pydantic import BaseModel
 from smolmodels.constraints import Constraint
 from smolmodels.datasets import DatasetGenerator
 from smolmodels.directives import Directive
+from smolmodels.callbacks import Callback, BuildStateInfo
 from smolmodels.internal.common.datasets.interface import Dataset
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.provider import Provider
@@ -137,6 +138,7 @@ class Model:
         timeout: int = None,
         max_iterations: int = None,
         run_timeout: int = 1800,
+        callbacks: List[Callback] = None,
     ) -> None:
         """
         Build the model using the provided dataset, directives, and optional data generation configuration.
@@ -147,8 +149,12 @@ class Model:
         :param timeout: maximum total time in seconds to spend building the model (all iterations combined)
         :param max_iterations: maximum number of iterations to spend building the model
         :param run_timeout: maximum time in seconds for each individual model training run
+        :param callbacks: list of callbacks to notify during the model building process
         :return:
         """
+        # Initialize callbacks list if not provided
+        callbacks = callbacks or []
+
         # Ensure timeout, max_iterations, and run_timeout make sense
         if timeout is None and max_iterations is None:
             raise ValueError("At least one of 'timeout' or 'max_iterations' must be set")
@@ -158,8 +164,19 @@ class Model:
         # TODO: validate that schema features are present in the dataset
         # TODO: validate that datasets do not contain duplicate features
         try:
-            provider = Provider(model=provider)
+            provider_obj = Provider(model=provider)
             self.state = ModelState.BUILDING
+
+            for callback in callbacks:
+                try:
+                    callback.on_build_start(
+                        BuildStateInfo(
+                            intent=self.intent,
+                            provider=provider_obj.model,
+                        )
+                    )
+                except Exception as e:
+                    logger.warning(f"Error in callback {callback.__class__.__name__}.on_build_start: {e}")
 
             # Step 1: coerce datasets to supported formats
             self.training_data = {
@@ -168,7 +185,7 @@ class Model:
             }
 
             # Step 2: resolve schemas
-            self.schema_resolver = SchemaResolver(provider, self.intent)
+            self.schema_resolver = SchemaResolver(provider_obj, self.intent)
 
             if self.input_schema is None and self.output_schema is None:
                 self.input_schema, self.output_schema = self.schema_resolver.resolve(self.training_data)
@@ -179,13 +196,14 @@ class Model:
 
             # Step 3: generate model
             self.model_generator = ModelGenerator(
-                self.intent, self.input_schema, self.output_schema, provider, self.constraints
+                self.intent, self.input_schema, self.output_schema, provider_obj, self.constraints
             )
             generated = self.model_generator.generate(
                 datasets=self.training_data,
                 run_timeout=run_timeout,
                 timeout=timeout,
                 max_iterations=max_iterations,
+                callbacks=callbacks,
             )
 
             # Step 4: update model state and attributes
@@ -201,9 +219,21 @@ class Model:
             self.metadata.update(generated.metadata)
 
             # Store provider information in metadata
-            self.metadata["provider"] = str(provider.model)
+            self.metadata["provider"] = str(provider_obj.model)
 
             self.state = ModelState.READY
+
+            # TODO: invoke callbacks for 'on_build_end' event
+            for callback in callbacks:
+                try:
+                    callback.on_build_end(
+                        BuildStateInfo(
+                            intent=self.intent,
+                            provider=provider_obj.model,
+                        )
+                    )
+                except Exception as e:
+                    logger.warning(f"Error in callback {callback.__class__.__name__}.on_build_end: {e}")
 
         except Exception as e:
             self.state = ModelState.ERROR

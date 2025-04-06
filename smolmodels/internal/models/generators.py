@@ -122,6 +122,7 @@ class ModelGenerator:
         run_timeout: int,
         timeout: int = None,
         max_iterations=None,
+        callbacks=None,
     ) -> GenerationResult:
         """
         Generates a machine learning model based on the given problem statement, input schema, and output schema.
@@ -130,6 +131,7 @@ class ModelGenerator:
         :param timeout: The maximum total time to spend generating the model, in seconds (all iterations combined).
         :param max_iterations: The maximum number of iterations to spend generating the model.
         :param run_timeout: The maximum time to spend on each individual model training run, in seconds.
+        :param callbacks: list of callbacks to notify during the model building process.
         :return: A GenerationResult object containing the training and inference code, and the predictor module.
         """
         # Store the individual_run_timeout for later use if provided
@@ -167,7 +169,7 @@ class ModelGenerator:
 
         # Explore the solution graph until the stopping condition is met
         best_node = self._produce_trained_model(
-            task, run_id, train_datasets, validation_datasets, target_metric, stop_condition
+            task, run_id, train_datasets, validation_datasets, target_metric, stop_condition, callbacks
         )
         logger.info("🧠 Generating inference code for the best solution")
         best_node = self._produce_inference_code(best_node, self.input_schema, self.output_schema, datasets)
@@ -222,6 +224,7 @@ class ModelGenerator:
         validation_datasets: Dict[str, TabularConvertible],
         target_metric: Metric,
         stop_condition: StoppingCondition,
+        callbacks=None,
     ) -> Node:
         """
         Searches for the best training solution in the solution graph.
@@ -232,11 +235,15 @@ class ModelGenerator:
         :param validation_datasets: datasets to be used for validation
         :param target_metric: metric to optimise for
         :param stop_condition: determines when the search should stop
+        :param callbacks: list of callbacks to notify during the model building process
         :return: graph node containing the best solution
         """
         start_time = time.time()
         i = 0
         best_metric: Metric = target_metric
+
+        # Initialize callbacks if not provided
+        callbacks = callbacks or []
 
         # Explore the solution graph until the stopping condition is met
         while not stop_condition.is_met(i, start_time, best_metric):
@@ -248,6 +255,26 @@ class ModelGenerator:
 
             # Select a node to visit (i.e. evaluate)
             node: Node = self.search_policy.select_node_enter()[0]
+
+            # Notify callbacks of iteration start
+            from smolmodels.callbacks import BuildStateInfo
+
+            for callback in callbacks:
+                try:
+                    callback.on_iteration_start(
+                        BuildStateInfo(
+                            intent=self.intent,
+                            input_schema=self.input_schema,
+                            output_schema=self.output_schema,
+                            provider=self.provider.model,
+                            run_timeout=self.run_timeout,
+                            max_iterations=stop_condition.max_generations,
+                            timeout=stop_condition.max_time,
+                            iteration=i,
+                        )
+                    )
+                except Exception as e:
+                    logger.warning(f"Error in callback {callback.__class__.__name__}.on_iteration_start: {e}")
 
             # Generate training code for the selected node with separate train and validation sets
             logger.info(f"🔨 Solution {i} (graph depth {node.depth}): generating training module")
@@ -341,6 +368,28 @@ class ModelGenerator:
             logger.info(
                 f"📈 Explored {i + 1}/{stop_condition.max_generations} nodes, best performance so far: {str(best_metric)}"
             )
+
+            # Notify callbacks of iteration end
+            from smolmodels.callbacks import BuildStateInfo
+
+            for callback in callbacks:
+                try:
+                    callback.on_iteration_end(
+                        BuildStateInfo(
+                            intent=self.intent,
+                            input_schema=self.input_schema,
+                            output_schema=self.output_schema,
+                            provider=self.provider.model,
+                            run_timeout=self.run_timeout,
+                            max_iterations=stop_condition.max_generations,
+                            timeout=stop_condition.max_time,
+                            iteration=i,
+                            node=node,
+                        )
+                    )
+                except Exception as e:
+                    logger.warning(f"Error in callback {callback.__class__.__name__}.on_iteration_end: {e}")
+
             i += 1
 
         valid_nodes = [n for n in self.graph.nodes if n.performance is not None and not n.exception_was_raised]
