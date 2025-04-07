@@ -14,16 +14,12 @@ Build machine learning models using natural language and minimal code
 [Benchmarks](#5-benchmarks)
 
 <br>
+<img src="backed-by-yc.png" alt="backed-by-yc" width="40%">
 
 Create machine learning models with minimal code by describing what you want them to do in
 plain words. You explain the task, and the library builds a model for you, including data generation, feature 
 engineering, training, and packaging.
 </div>
-
-> [!NOTE]
-> This library is in early development, and we're actively working on new features and improvements! Please report any
-> bugs or share your feature requests on [GitHub](https://github.com/plexe-ai/smolmodels/issues) 
-> or [Discord](https://discord.gg/SefZDepGMv) 💛
 
 
 ## 1. Quickstart
