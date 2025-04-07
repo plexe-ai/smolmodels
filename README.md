@@ -14,7 +14,7 @@ Build machine learning models using natural language and minimal code
 [Benchmarks](#5-benchmarks)
 
 <br>
-<img src="backed-by-yc.png" alt="backed-by-yc" width="30%">
+<img src="resources/backed-by-yc.png" alt="backed-by-yc" width="20%">
 <br>
 
 Create machine learning models with minimal code by describing what you want them to do in
