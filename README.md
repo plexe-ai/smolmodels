@@ -5,6 +5,9 @@
 [![PyPI version](https://img.shields.io/pypi/v/smolmodels.svg)](https://pypi.org/project/smolmodels/)
 [![Discord](https://img.shields.io/discord/1300920499886358529?logo=discord&logoColor=white)](https://discord.gg/SefZDepGMv)
 
+<img src="resources/backed-by-yc.png" alt="backed-by-yc" width="20%">
+
+
 Build machine learning models using natural language and minimal code
 
 [Quickstart](#1-quickstart) |
@@ -13,8 +16,6 @@ Build machine learning models using natural language and minimal code
 [Documentation](#4-documentation) |
 [Benchmarks](#5-benchmarks)
 
-<br>
-<img src="resources/backed-by-yc.png" alt="backed-by-yc" width="20%">
 <br>
 
 Create machine learning models with minimal code by describing what you want them to do in
