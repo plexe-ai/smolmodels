@@ -15,6 +15,7 @@ Build machine learning models using natural language and minimal code
 
 <br>
 <img src="backed-by-yc.png" alt="backed-by-yc" width="30%">
+<br>
 
 Create machine learning models with minimal code by describing what you want them to do in
 plain words. You explain the task, and the library builds a model for you, including data generation, feature 
