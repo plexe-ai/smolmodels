@@ -5,6 +5,9 @@
 [![PyPI version](https://img.shields.io/pypi/v/smolmodels.svg)](https://pypi.org/project/smolmodels/)
 [![Discord](https://img.shields.io/discord/1300920499886358529?logo=discord&logoColor=white)](https://discord.gg/SefZDepGMv)
 
+<img src="resources/backed-by-yc.png" alt="backed-by-yc" width="20%">
+
+
 Build machine learning models using natural language and minimal code
 
 [Quickstart](#1-quickstart) |
@@ -19,11 +22,6 @@ Create machine learning models with minimal code by describing what you want the
 plain words. You explain the task, and the library builds a model for you, including data generation, feature 
 engineering, training, and packaging.
 </div>
-
-> [!NOTE]
-> This library is in early development, and we're actively working on new features and improvements! Please report any
-> bugs or share your feature requests on [GitHub](https://github.com/plexe-ai/smolmodels/issues) 
-> or [Discord](https://discord.gg/SefZDepGMv) 💛
 
 
 ## 1. Quickstart
