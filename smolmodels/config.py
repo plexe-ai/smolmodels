@@ -168,6 +168,12 @@ class _Config:
     class _DataGenerationConfig:
         pass  # todo: implement
 
+    @dataclass(frozen=True)
+    class _RayConfig:
+        address: str = field(default=None)  # None for local, Ray address for remote
+        num_cpus: int = field(default=None)  # None for auto-detect
+        num_gpus: int = field(default=None)  # None for auto-detect
+
     # configuration objects
     file_storage: _FileStorageConfig = field(default_factory=_FileStorageConfig)
     logging: _LoggingConfig = field(default_factory=_LoggingConfig)
@@ -175,6 +181,7 @@ class _Config:
     code_generation: _CodeGenerationConfig = field(default_factory=_CodeGenerationConfig)
     execution: _ExecutionConfig = field(default_factory=_ExecutionConfig)
     data_generation: _DataGenerationConfig = field(default_factory=_DataGenerationConfig)
+    ray: _RayConfig = field(default_factory=_RayConfig)
 
 
 @dataclass(frozen=True)

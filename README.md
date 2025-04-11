@@ -108,7 +108,31 @@ The model can now be used to make predictions, and can be saved or loaded using 
 sentiment = model.predict({"headline": "600B wiped off NVIDIA market cap", ...})
 ```
 
-### 2.3. 🎲 Data Generation and Schema Inference
+### 2.3. 🚀 Distributed Training with Ray
+
+SmolModels supports distributed model training and evaluation with Ray for faster parallel processing:
+
+```python
+from smolmodels import Model
+from smolmodels.config import config
+
+# Optional: Configure Ray cluster address if using remote Ray
+# config.ray.address = "ray://10.1.2.3:10001"
+
+model = Model(
+    intent="Predict house prices based on various features",
+    distributed=True  # Enable distributed execution
+)
+
+model.build(
+    datasets=[df],
+    provider="openai/gpt-4o-mini"
+)
+```
+
+Ray distributes your workload across available CPU cores, significantly speeding up model generation and evaluation when exploring multiple model variants.
+
+### 2.4. 🎲 Data Generation and Schema Inference
 The library can generate synthetic data for training and testing. This is useful if you have no data available, or 
 want to augment existing data. You can do this with the `sm.DatasetGenerator` class:
 
@@ -228,5 +252,6 @@ The web interface provides an easy way to create models, view their status, and 
 - [X] Use Pydantic for schemas and split data generation into a separate module
 - [X] Smolmodels self-hosted platform ⭐ (More details coming soon!)
 - [X] Lightweight installation option without heavy deep learning dependencies
+- [X] Distributed training with Ray on AWS
 - [ ] Support for non-tabular data types in model generation
 - [ ] File upload to docker containers
