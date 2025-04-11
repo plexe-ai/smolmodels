@@ -25,7 +25,6 @@ from smolmodels.internal.models.entities.artifact import Artifact
 from smolmodels.internal.models.entities.node import Node
 from smolmodels.internal.models.entities.stopping_condition import StoppingCondition
 from smolmodels.internal.models.interfaces.predictor import Predictor
-from smolmodels.internal.models.execution.process_executor import ProcessExecutor
 from smolmodels.internal.models.generation.inference import InferenceCodeGenerator
 from smolmodels.internal.models.generation.planning import SolutionPlanGenerator
 from smolmodels.internal.models.generation.review import ModelReviewer
@@ -316,9 +315,12 @@ class ModelGenerator:
                 combined_datasets.update(train_datasets)
                 combined_datasets.update(validation_datasets)
 
+                from smolmodels.internal.models.execution import create_executor
+
                 execute_node(
                     node=node,
-                    executor=ProcessExecutor(
+                    executor=create_executor(
+                        distributed=getattr(self, "distributed", False),
                         execution_id=f"{i}-{node.id}-{i_fix}",
                         code=node.training_code,
                         working_dir=f"./workdir/{run_name}/",
