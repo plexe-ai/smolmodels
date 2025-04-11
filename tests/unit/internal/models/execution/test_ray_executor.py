@@ -1,6 +1,7 @@
 from pathlib import Path
 import pytest
 import pandas as pd
+import ray
 
 from smolmodels.internal.models.execution.ray_executor import RayExecutor
 from smolmodels.internal.common.datasets.tabular import TabularDataset
@@ -45,7 +46,6 @@ def cleanup_ray():
     # Setup
     yield
     # Teardown - ensure Ray is shut down
-    import ray
 
     if ray.is_initialized():
         ray.shutdown()

@@ -3211,10 +3211,9 @@ tests = ["pytest (>=4.6)"]
 name = "msgpack"
 version = "1.1.0"
 description = "MessagePack serializer"
-optional = true
+optional = false
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"all\""
 files = [
     {file = "msgpack-1.1.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:7ad442d527a7e358a469faf43fda45aaf4ac3249c8310a82f0ccff9164e5dccd"},
     {file = "msgpack-1.1.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:74bed8f63f8f14d75eec75cf3d04ad581da6b914001b474a5d3cd3372c8cc27d"},
@@ -5008,10 +5007,9 @@ cffi = {version = "*", markers = "implementation_name == \"pypy\""}
 name = "ray"
 version = "2.44.1"
 description = "Ray provides a simple, universal API for building distributed applications."
-optional = true
+optional = false
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"all\""
 files = [
     {file = "ray-2.44.1-cp310-cp310-macosx_10_15_x86_64.whl", hash = "sha256:7d83999ead98bed7e70afddcda870cc1684773cb888e90768ce1a4c72c5fe009"},
     {file = "ray-2.44.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:6f221b1426d8657ce0c24508d5ff11cabc4a8c40a833c8c5bb63e2217f37cfd9"},
@@ -7015,11 +7013,11 @@ test = ["big-O", "importlib-resources ; python_version < \"3.9\"", "jaraco.funct
 type = ["pytest-mypy"]
 
 [extras]
-all = ["accelerate", "ray", "safetensors", "tokenizers", "torch", "transformers"]
+all = ["accelerate", "safetensors", "tokenizers", "torch", "transformers"]
 deep-learning = ["accelerate", "safetensors", "tokenizers", "torch", "transformers"]
 lightweight = []
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "d20cb15d48b6d885ab6ecac15bd9adc322a14ad4e81d2660b797f15aabf075fa"
+content-hash = "6ea3f3532818ba92e81175fcca431a6394f71003491de4fb72ae866b9ae3ef81"
