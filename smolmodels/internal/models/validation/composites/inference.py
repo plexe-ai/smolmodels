@@ -10,7 +10,6 @@ from typing import Type
 
 from pydantic import BaseModel
 
-from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.validation.composite import CompositeValidator
 from smolmodels.internal.models.validation.primitives.predict import PredictorValidator
 from smolmodels.internal.models.validation.primitives.syntax import SyntaxValidator
@@ -23,8 +22,6 @@ class InferenceCodeValidator(CompositeValidator):
 
     def __init__(
         self,
-        provider: Provider,
-        intent: str,
         input_schema: Type[BaseModel],
         output_schema: Type[BaseModel],
         input_sample: pd.DataFrame,
@@ -36,6 +33,6 @@ class InferenceCodeValidator(CompositeValidator):
             "prediction",
             [
                 SyntaxValidator(),
-                PredictorValidator(provider, intent, input_schema, output_schema, input_sample),
+                PredictorValidator(input_schema, output_schema, input_sample),
             ],
         )

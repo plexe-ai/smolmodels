@@ -12,7 +12,6 @@ import pandas as pd
 
 from pydantic import BaseModel
 
-from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.models.validation.validator import Validator, ValidationResult
 from smolmodels.internal.models.interfaces.predictor import Predictor
 
@@ -24,8 +23,6 @@ class PredictorValidator(Validator):
 
     def __init__(
         self,
-        provider: Provider,
-        intent: str,
         input_schema: Type[BaseModel],
         output_schema: Type[BaseModel],
         sample: pd.DataFrame,
@@ -33,15 +30,11 @@ class PredictorValidator(Validator):
         """
         Initialize the PredictorValidator with the name 'predictor'.
 
-        :param provider: The data provider to use for generating test data.
-        :param intent: The intent of the predictor.
         :param input_schema: The input schema of the predictor.
         :param output_schema: The output schema of the predictor.
         :param sample: The sample input data to test the predictor.
         """
         super().__init__("predictor")
-        self.provider: Provider = provider
-        self.intent: str = intent
         self.input_schema: Type[BaseModel] = input_schema
         self.output_schema: Type[BaseModel] = output_schema
         self.input_sample: pd.DataFrame = sample

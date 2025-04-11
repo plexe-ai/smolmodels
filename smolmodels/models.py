@@ -55,7 +55,7 @@ from smolmodels.internal.models.entities.description import (
     CodeInfo,
 )
 from smolmodels.internal.models.entities.metric import Metric
-from smolmodels.internal.models.generators import ModelGenerator
+from smolmodels.internal.models.agents import ModelBuilderAgentOrchestrator
 from smolmodels.internal.models.interfaces.predictor import Predictor
 from smolmodels.internal.schemas.resolver import SchemaResolver
 
@@ -126,7 +126,7 @@ class Model:
 
         # Generator objects used to create schemas, datasets, and the model itself
         self.schema_resolver: SchemaResolver | None = None
-        self.model_generator: ModelGenerator | None = None
+        self.model_generator: ModelBuilderAgentOrchestrator | None = None
 
         self.identifier: str = f"model-{abs(hash(self.intent))}-{str(uuid.uuid4())}"
 
@@ -139,6 +139,7 @@ class Model:
         max_iterations: int = None,
         run_timeout: int = 1800,
         callbacks: List[Callback] = None,
+        verbose: bool = False,
     ) -> None:
         """
         Build the model using the provided dataset, directives, and optional data generation configuration.
@@ -150,6 +151,7 @@ class Model:
         :param max_iterations: maximum number of iterations to spend building the model
         :param run_timeout: maximum time in seconds for each individual model training run
         :param callbacks: list of callbacks to notify during the model building process
+        :param verbose: whether to display detailed agent logs during model building (default: False)
         :return:
         """
         # Initialize callbacks list if not provided
@@ -195,8 +197,13 @@ class Model:
                 self.input_schema, _ = self.schema_resolver.resolve(self.training_data)
 
             # Step 3: generate model
-            self.model_generator = ModelGenerator(
-                self.intent, self.input_schema, self.output_schema, provider_obj, self.constraints
+            self.model_generator = ModelBuilderAgentOrchestrator(
+                intent=self.intent,
+                input_schema=self.input_schema,
+                output_schema=self.output_schema,
+                provider=provider_obj,
+                constraints=self.constraints,
+                verbose=verbose,
             )
             generated = self.model_generator.generate(
                 datasets=self.training_data,

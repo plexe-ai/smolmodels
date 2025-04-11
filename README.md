@@ -98,6 +98,7 @@ model.build(
     datasets=[dataset_a, dataset_b],
     provider="openai/gpt-4o-mini",
     timeout=3600,                       # [optional] max time in seconds
+    verbose=False,                      # [optional] show detailed agent logs
     max_iterations=10                   # [optional] max number of model solutions to explore
 )
 ```
@@ -184,6 +185,34 @@ export GEMINI_API_KEY=<your-API-key>
 > [!TIP]
 > The library uses LiteLLM as its provider abstraction layer. For other supported providers and models,
 > check the [LiteLLM](https://docs.litellm.ai/docs/providers) documentation.
+
+### 3.3. Command Line Interface
+`smolmodels` can be used directly from the command line after installation:
+
+```bash
+# Display help information
+smolmodels --help
+
+# Build a model
+smolmodels build --intent "Predict heart attack risk based on patient data" \
+                 --dataset heart_data.csv \
+                 --provider openai/gpt-4o-mini \
+                 --output heart_model.tar.gz
+
+# Make predictions with a model
+smolmodels predict heart_model.tar.gz --input-values age=64 gender=1 cp=2 trtbps=145
+
+# Show model information
+smolmodels info heart_model.tar.gz
+```
+
+For detailed command usage:
+```bash
+# Get help for specific commands
+smolmodels build --help
+smolmodels predict --help
+smolmodels info --help
+```
 
 ## 4. Documentation
 For full documentation, visit [docs.plexe.ai](https://docs.plexe.ai).

@@ -2,8 +2,8 @@
 This module provides utility functions for manipulating Pydantic models.
 """
 
-from pydantic import BaseModel, create_model, TypeAdapter
-from typing import Type, List, Dict, Any
+from pydantic import BaseModel, create_model
+from typing import Type, List, Dict, Any, get_type_hints
 
 
 def merge_models(model_name: str, models: List[Type[BaseModel]]) -> Type[BaseModel]:
@@ -43,21 +43,36 @@ def map_to_basemodel(name: str, schema: dict | Type[BaseModel]) -> Type[BaseMode
     :param [dict] schema: the schema to be converted to a Pydantic model
     :return: the Pydantic model
     """
+    # Pydantic model: return as is
+    if isinstance(schema, type) and issubclass(schema, BaseModel):
+        return schema
+
     # Dictionary: convert to Pydantic model, if possible
     if isinstance(schema, dict):
         try:
-            TypeAdapter(dict[str, type]).validate_python(schema)
-            # Convert schema to proper type annotations
-            annotated_schema = {k: (v, ...) for k, v in schema.items()}
+            # Handle both Dict[str, type] and Dict[str, str] formats
+            annotated_schema = {}
+
+            for k, v in schema.items():
+                # If v is a string like "int", convert it to the actual type
+                if isinstance(v, str):
+                    type_mapping = {"int": int, "float": float, "str": str, "bool": bool, "list": list, "dict": dict}
+                    if v in type_mapping:
+                        annotated_schema[k] = (type_mapping[v], ...)
+                    else:
+                        raise ValueError(f"Invalid type specification: {v} for field {k}")
+                # If v is already a type, use it directly
+                elif isinstance(v, type):
+                    annotated_schema[k] = (v, ...)
+                else:
+                    raise ValueError(f"Invalid field specification for {k}: {v}")
+
             return create_model(name, **annotated_schema)
         except Exception as e:
             raise ValueError(f"Invalid schema definition: {e}")
-    # Pydantic model: return as is
-    elif isinstance(schema, type) and issubclass(schema, BaseModel):
-        return schema
+
     # All other schema types are invalid
-    else:
-        raise TypeError("Schema must be a Pydantic model or a dictionary.")
+    raise TypeError("Schema must be a Pydantic model or a dictionary of field names to types.")
 
 
 def format_schema(schema: Type[BaseModel]) -> Dict[str, Any]:
@@ -74,6 +89,32 @@ def format_schema(schema: Type[BaseModel]) -> Dict[str, Any]:
     # Use model_fields which is the recommended approach in newer Pydantic versions
     for field_name, field_info in schema.model_fields.items():
         field_type = getattr(field_info.annotation, "__name__", str(field_info.annotation))
+        result[field_name] = field_type
+
+    return result
+
+
+def convert_schema_to_type_dict(schema: Type[BaseModel]) -> Dict[str, type]:
+    """
+    Convert a Pydantic model to a dictionary mapping field names to their Python types.
+
+    This is useful for tools that require type information without the full Pydantic field metadata.
+
+    :param schema: A Pydantic model to convert
+    :return: A dictionary with field names as keys and Python types as values
+    """
+    if not schema or not issubclass(schema, BaseModel):
+        raise TypeError("Schema must be a Pydantic BaseModel")
+
+    result = {}
+
+    # Get the actual type annotations, which will be Python types
+    type_hints = get_type_hints(schema)
+
+    # Extract annotations from model fields
+    for field_name, field_info in schema.model_fields.items():
+        # Use the type hint if available, otherwise fall back to the field annotation
+        field_type = type_hints.get(field_name, field_info.annotation)
         result[field_name] = field_type
 
     return result

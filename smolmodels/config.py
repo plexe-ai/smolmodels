@@ -8,7 +8,7 @@ import warnings
 from dataclasses import dataclass, field
 from importlib.resources import files
 from string import Template
-from typing import List
+from typing import List, Optional
 from functools import cached_property
 from jinja2 import Environment, FileSystemLoader
 import sys
@@ -66,6 +66,7 @@ class _Config:
                 "pandas",
                 "numpy",
                 "scikit-learn",
+                "sklearn",
                 "joblib",
                 "mlxtend",
                 "xgboost",
@@ -85,6 +86,32 @@ class _Config:
             ]
         )
 
+        # Additional standard library modules for agent execution
+        _standard_lib_modules: List[str] = field(
+            default_factory=lambda: [
+                "pathlib",
+                "typing",
+                "dataclasses",
+                "json",
+                "time",
+                "datetime",
+                "os",
+                "sys",
+                "math",
+                "random",
+                "itertools",
+                "collections",
+                "functools",
+                "operator",
+                "re",
+                "copy",
+                "warnings",
+                "logging",
+                "importlib",
+                "types",
+            ]
+        )
+
         @property
         def allowed_packages(self) -> List[str]:
             """Dynamically determine which packages are available and can be used."""
@@ -96,6 +123,23 @@ class _Config:
                     available_packages.append(package)
 
             return available_packages
+
+        @property
+        def authorized_agent_imports(self) -> List[str]:
+            """Return the combined list of allowed packages and standard library modules for agent execution."""
+            # Start with allowed packages
+            imports = self.allowed_packages.copy()
+
+            # Add additional ML packages that might not be in allowed_packages
+            additional_ml_packages = ["lightgbm", "catboost", "tensorflow"]
+            for package in additional_ml_packages:
+                if package not in imports:
+                    imports.append(package)
+
+            # Add standard library modules
+            imports.extend(self._standard_lib_modules)
+
+            return imports
 
         @property
         def deep_learning_available(self) -> bool:
@@ -340,6 +384,25 @@ class _PromptTemplates:
             solution_plan=solution_plan,
             training_code=training_code,
             inference_code=inference_code,
+        )
+
+    def agent_builder_prompt(
+        self,
+        task: str,
+        train_datasets: List[str],
+        validation_datasets: List[str],
+        max_iterations: Optional[int] = None,
+        timeout: Optional[int] = None,
+        run_timeout: Optional[int] = None,
+    ) -> str:
+        return self._render(
+            "agent/builder_prompt.jinja",
+            task=task,
+            train_datasets=train_datasets,
+            validation_datasets=validation_datasets,
+            max_iterations=max_iterations,
+            timeout=timeout,
+            run_timeout=run_timeout,
         )
 
 

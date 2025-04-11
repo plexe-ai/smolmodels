@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "smolmodels"
-version = "0.14.0"
-description = "A framework for building ML models from natural language"
+version = "0.15.0"
+description = "An agentic framework for building ML models from natural language"
 authors = [
     "marcellodebernardi <marcello.debernardi@outlook.com>",
     "vaibs-d <vaibhavatlamarts@gmail.com>"
@@ -22,6 +22,9 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules"
 ]
 keywords = ["custom ai", "llm", "machine learning model", "data generation"]
+
+[tool.poetry.scripts]
+smolmodels = "smolmodels.main:main"
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"

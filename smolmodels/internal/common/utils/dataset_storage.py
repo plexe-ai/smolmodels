@@ -7,8 +7,11 @@ shared memory for cross-process dataset sharing.
 """
 
 from typing import Type, TypeVar, Optional
+import logging
 
 from smolmodels.internal.common.datasets.interface import Dataset
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=Dataset)
 

@@ -32,6 +32,7 @@ def main():
         datasets=[generate_heart_data(50)],
         provider="openai/gpt-4o",
         max_iterations=5,
+        verbose=False,  # Set to True to see detailed agent logs
     )
 
     # Run a prediction on the built model
