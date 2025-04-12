@@ -11,14 +11,14 @@ Note: When using the execute_training_code tool, pass dataset names in the datas
 as a list of dataset names from the options listed above.
 
 ## Process Parameters
-Maximum iterations: {% if max_iterations is not none %}{{max_iterations}}{% else %}Not specified{% endif %}
-Timeout: {% if timeout is not none %}{{timeout}}{% else %}Not specified{% endif %} seconds
-Per-run timeout: {{run_timeout}} seconds
+Maximum solutions to try: {% if max_iterations is not none %}{{max_iterations}}{% else %}Not specified{% endif %}
+Search Timeout: {% if timeout is not none %}{{timeout}}{% else %}Not specified{% endif %} seconds
+Per-training-run timeout: {{run_timeout}} seconds
 
 Follow these steps to build the model:
 
 1. Select an appropriate target metric to optimize using the `select_target_metric` tool.
-2. Generate 3-5 different solution plans using the `generate_solution_plan` tool.
+2. Generate 1-{% if max_iterations is not none %}{{max_iterations}}{% else %}3{% endif %} solution plans using the `generate_solution_plan` tool.
 3. For each solution plan:
    a. Generate training code using the `generate_training_code` tool.
    b. Validate the training code using the `validate_training_code` tool.
@@ -27,13 +27,15 @@ Follow these steps to build the model:
       of dataset names (e.g., ["dataset1_train", "dataset1_val"]). The training code MUST be executed using the
       tool, not run directly.
    e. Track the performance of each solution on the target metric.
-4. Select the best performing solution (best value on the target metric).
-5. Generate inference code for the best solution using the `generate_inference_code` tool.
+4. Select the best performing solution (the one that returns the best evaluation metric value).
+5. Generate inference code for the best solution using the `generate_inference_code` tool. Do not generate inference code
+   for all solutions, only for the best one.
 6. Validate the inference code using the `validate_inference_code` tool.
 7. If validation fails, review and fix the code using the 'review_inference_code' and 'fix_inference_code' tools.
 8. Extract metadata about the model using the `review_model` tool.
 
-Your final output should include the following:
+Once you have successfully completed the steps above, you must stop iterating, and return the deliverables as final
+output in JSON format. Your final output should include the following:
 1. The best performing solution plan (key: solution_plan)
 2. The training code for the best solution (key: training_code)
 3. The inference code for the best solution (key: inference_code)

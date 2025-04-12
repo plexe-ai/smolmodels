@@ -1,9 +1,10 @@
 import json
 import logging
-import textwrap
 from typing import Type
 
 from pydantic import BaseModel
+
+from smolmodels.internal.common.utils.pydantic_utils import convert_schema_to_type_dict
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +16,12 @@ def join_task_statement(intent: str, input_schema: Type[BaseModel], output_schem
         "\n\n"
         f"{intent}"
         "\n\n"
-        "# Input Schema"
+        "# Expected Model Input Schema"
         "\n\n"
-        f"{json.dumps(input_schema.model_fields, indent=4, default=str)}"
+        f"{json.dumps(convert_schema_to_type_dict(input_schema), indent=4, default=str)}"
         "\n\n"
-        "# Output Schema"
+        "# Expected Model Output Schema"
         "\n\n"
-        f"{json.dumps(output_schema.model_fields, indent=4, default=str)}"
+        f"{json.dumps(convert_schema_to_type_dict(output_schema), indent=4, default=str)}"
     )
-    logger.debug(f"Joined user inputs into problem statement: {textwrap.shorten(problem_statement, 40)}")
     return problem_statement
