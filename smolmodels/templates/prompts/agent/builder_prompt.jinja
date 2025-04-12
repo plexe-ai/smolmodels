@@ -18,7 +18,7 @@ Per-training-run timeout: {{run_timeout}} seconds
 Follow these steps to build the model:
 
 1. Select an appropriate target metric to optimize using the `select_target_metric` tool.
-2. Generate 1-{% if max_iterations is not none %}{{max_iterations}}{% else %}3{% endif %} solution plans using the `generate_solution_plan` tool.
+2. Generate {% if max_iterations is not none %}{{max_iterations}}{% else %}3{% endif %} solution plans using the `generate_solution_plan` tool.
 3. For each solution plan:
    a. Generate training code using the `generate_training_code` tool.
    b. Validate the training code using the `validate_training_code` tool.
@@ -27,6 +27,8 @@ Follow these steps to build the model:
       of dataset names (e.g., ["dataset1_train", "dataset1_val"]) and the current iteration number. The training code MUST be executed using the
       tool, not run directly.
    e. Track the performance of each solution on the target metric.
+   f. Note: you MUST execute all the generated solutions, to make sure you have tried all of them. You cannot
+      skip any solution, and you must not move on to the next step until all solutions have been executed.
 4. Select the best performing solution (the one that returns the best evaluation metric value).
 5. Generate inference code for the best solution using the `generate_inference_code` tool. Do not generate inference code
    for all solutions, only for the best one.
