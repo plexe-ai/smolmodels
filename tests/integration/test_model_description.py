@@ -120,7 +120,7 @@ def verify_description_format(description, format_type):
         assert "## Output Schema" in description
 
 
-def test_model_description(iris_data, iris_input_schema, iris_output_schema, capsys):
+def test_model_description(iris_data, iris_input_schema, iris_output_schema):
     """Test model description generation in various formats and content verification."""
 
     # Create a model for iris species classification
@@ -173,16 +173,14 @@ def test_model_description(iris_data, iris_input_schema, iris_output_schema, cap
     verify_description_format(md_desc, "markdown")
 
     # Ensure output is always visible, even when tests pass
-    # The capsys.disabled() context manager prevents pytest from capturing the output
-    with capsys.disabled():
-        print("\n\n=== MODEL DESCRIPTION IN JSON FORMAT ===\n")
-        print(json_desc)
+    print("\n\n=== MODEL DESCRIPTION IN JSON FORMAT ===\n")
+    print(json_desc)
 
-        print("\n\n=== MODEL DESCRIPTION IN TEXT FORMAT ===\n")
-        print(text_desc)
+    print("\n\n=== MODEL DESCRIPTION IN TEXT FORMAT ===\n")
+    print(text_desc)
 
-        print("\n\n=== MODEL DESCRIPTION IN MARKDOWN FORMAT ===\n")
-        print(md_desc)
+    print("\n\n=== MODEL DESCRIPTION IN MARKDOWN FORMAT ===\n")
+    print(md_desc)
 
     # PART 2: Verify description content details
 
