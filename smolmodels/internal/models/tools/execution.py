@@ -11,11 +11,14 @@ from typing import Dict, List
 
 from smolagents import tool
 
+from smolmodels.callbacks import Callback
+from smolmodels.internal.common.datasets.interface import TabularConvertible
+from smolmodels.internal.common.registries.objects import ObjectRegistry
+from smolmodels.internal.models.entities.code import Code
+from smolmodels.internal.models.entities.artifact import Artifact
 from smolmodels.internal.models.entities.metric import Metric, MetricComparator, ComparisonMethod
 from smolmodels.internal.models.entities.node import Node
 from smolmodels.internal.models.execution.process_executor import ProcessExecutor
-from smolmodels.internal.common.registries.datasets import DatasetRegistry
-from smolmodels.internal.common.registries.artifacts import ArtifactRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +30,8 @@ def execute_training_code(
     working_dir: str,
     dataset_names: List[str],
     timeout: int,
-    metric_to_optimize: Dict,
+    metric_to_optimise_name: str,
+    metric_to_optimise_comparison_method: str,
     iteration: int = 0,
 ) -> Dict:
     """Executes training code in an isolated environment.
@@ -38,60 +42,31 @@ def execute_training_code(
         working_dir: Directory to use for execution
         dataset_names: List of dataset names to retrieve from the registry
         timeout: Maximum execution time in seconds
-        metric_to_optimize: The metric to optimize for
+        metric_to_optimise_name: The name of the metric to optimize for
+        metric_to_optimise_comparison_method: The comparison method for the metric
         iteration: Current iteration number (default: 0)
 
     Returns:
         A dictionary containing execution results with model artifacts and their registry names
     """
-    from smolmodels.internal.common.registries.callbacks import CallbackRegistry
     from smolmodels.callbacks import BuildStateInfo
 
-    callback_registry = CallbackRegistry()
-    callbacks = callback_registry.get_all()
+    object_registry = ObjectRegistry()
 
     execution_id = f"{node_id}-{uuid.uuid4()}"
     try:
         # Get actual datasets from registry
-        datasets = DatasetRegistry().get_multiple(dataset_names)
-
-        # Convert metric_to_optimize back to a Metric object
-        # Handle missing keys and set reasonable defaults
-        metric_name = metric_to_optimize.get("name", "unknown")
-
-        # Set a default value to negative infinity for metrics to maximize
-        # or positive infinity for metrics to minimize
-        import math
-
-        default_value = -math.inf
-        metric_value = metric_to_optimize.get("value", default_value)
-
-        # Handle the comparison_method properly, as it may come as a string
-        comparison_method_value = metric_to_optimize.get("comparison_method", "ComparisonMethod.HIGHER_IS_BETTER")
+        datasets = object_registry.get_multiple(TabularConvertible, dataset_names)
 
         # Convert string to enum if needed
-        if isinstance(comparison_method_value, str):
-            if "HIGHER_IS_BETTER" in comparison_method_value:
-                comparison_method = ComparisonMethod.HIGHER_IS_BETTER
-            elif "LOWER_IS_BETTER" in comparison_method_value:
-                comparison_method = ComparisonMethod.LOWER_IS_BETTER
-                # For lower is better metrics, default should be positive infinity
-                if "value" not in metric_to_optimize:
-                    metric_value = math.inf
-            elif "TARGET_IS_BETTER" in comparison_method_value:
-                comparison_method = ComparisonMethod.TARGET_IS_BETTER
-            else:
-                # Default to higher is better if unknown
-                comparison_method = ComparisonMethod.HIGHER_IS_BETTER
+        if "HIGHER_IS_BETTER" in metric_to_optimise_comparison_method:
+            comparison_method = ComparisonMethod.HIGHER_IS_BETTER
+        elif "LOWER_IS_BETTER" in metric_to_optimise_comparison_method:
+            comparison_method = ComparisonMethod.LOWER_IS_BETTER
+        elif "TARGET_IS_BETTER" in metric_to_optimise_comparison_method:
+            comparison_method = ComparisonMethod.TARGET_IS_BETTER
         else:
-            # Assume it's already a ComparisonMethod enum
-            comparison_method = comparison_method_value
-
-        metric = Metric(
-            name=metric_name,
-            value=metric_value,
-            comparator=MetricComparator(comparison_method=comparison_method),
-        )
+            comparison_method = ComparisonMethod.HIGHER_IS_BETTER
 
         # Create a node to store execution results
         node = Node(solution_plan="")  # We only need this for execute_node
@@ -99,7 +74,7 @@ def execute_training_code(
         # Get callbacks from the registry and notify them
         node.training_code = code
         # Notification for iteration end with all required fields
-        for callback in callbacks:
+        for callback in object_registry.get_all(Callback).values():
             try:
                 callback.on_iteration_start(
                     BuildStateInfo(
@@ -137,41 +112,26 @@ def execute_training_code(
         node.model_artifacts = result.model_artifacts
 
         # Handle the performance metric properly
-        is_worst = True
         performance_value = None
+        is_worst = True
 
-        if isinstance(result.performance, (int, float)):
+        if result.performance is not None and isinstance(result.performance, (int, float)):
             performance_value = result.performance
             is_worst = False
 
         # Create a metric object with proper handling of None or invalid values
         node.performance = Metric(
-            name=metric.name,
+            name=metric_to_optimise_name,
             value=performance_value,
-            comparator=metric.comparator,
+            comparator=MetricComparator(comparison_method=comparison_method),
             is_worst=is_worst,
         )
-        logger.debug(f"Unpacked execution results into node: {node}")
 
-        # Get model artifacts from node
-        artifact_paths = node.model_artifacts if node.model_artifacts else []
-
-        # Register artifacts directly in the ArtifactRegistry
-        artifact_names = []
-        if artifact_paths:
-            try:
-                # Use ArtifactRegistry to register artifacts
-                artifact_registry = ArtifactRegistry()
-                artifact_names = artifact_registry.register_batch([str(path) for path in artifact_paths])
-                logger.info(f"Registered {len(artifact_names)} artifacts with names: {artifact_names}")
-            except Exception as e:
-                logger.error(f"Error registering artifacts: {str(e)}")
-                # Continue with empty names list
-
-        # Get callbacks from the registry and notify them
         node.training_code = code
+
+        # Notify callbacks about the execution end
         # Notification for iteration end with all required fields
-        for callback in callbacks:
+        for callback in object_registry.get_all(Callback).values():
             try:
                 # Create build state info with required fields
                 # Some fields like intent, input_schema, etc. will be empty here
@@ -190,6 +150,18 @@ def execute_training_code(
             except Exception as e:
                 logger.warning(f"Error in callback {callback.__class__.__name__}.on_iteration_end: {e}")
 
+        # Check if the execution failed in any way
+        if node.exception is not None:
+            raise RuntimeError(f"Execution failed with exception: {node.exception}")
+        if result.performance is None or not isinstance(result.performance, (int, float)):
+            raise RuntimeError(f"Execution failed due to not producing a valid performance: {result.performance}")
+
+        # Register code and artifacts
+        artifact_paths = node.model_artifacts if node.model_artifacts else []
+        artifacts = [Artifact.from_path(p) for p in artifact_paths]
+        object_registry.register_multiple(Artifact, {a.name: a for a in artifacts})
+        object_registry.register(Code, execution_id, Code(node.training_code))
+
         # Return results
         return {
             "success": not node.exception_was_raised,
@@ -205,8 +177,8 @@ def execute_training_code(
                 else None
             ),
             "exception": str(node.exception) if node.exception else None,
-            "model_artifacts": [str(artifact) for artifact in artifact_paths],
-            "model_artifact_names": artifact_names,
+            "model_artifact_names": [a.name for a in artifacts],
+            "training_code_id": execution_id,
         }
     except Exception as e:
         logger.error(f"Error executing training code: {str(e)}")

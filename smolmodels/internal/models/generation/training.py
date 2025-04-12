@@ -134,7 +134,6 @@ class TrainingCodeGenerator:
                 plan=plan,
                 training_code=training_code,
                 problems=problems,
-                history=self.history,
                 allowed_packages=config.code_generation.allowed_packages,
             ),
         )

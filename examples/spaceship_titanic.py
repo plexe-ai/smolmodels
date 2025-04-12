@@ -54,13 +54,16 @@ mlflow_callback = sm.callbacks.MLFlowCallback(
 # 2B: Build the model with the dataset
 model.build(
     datasets=[pd.read_csv("examples/datasets/spaceship-titanic-train.csv")],
-    provider="openai/gpt-4o",
-    max_iterations=5,
+    provider="anthropic/claude-3-7-sonnet-20250219",
+    max_iterations=4,
     timeout=300,  # 5 minute timeout
     run_timeout=150,
     verbose=True,
     callbacks=[mlflow_callback],
 )
+
+# Step 5: Save the model
+sm.save_model(model, "spaceship_titanic_model.tar.gz")
 
 # Step 3: Run a prediction on the built model
 test_df = pd.read_csv("examples/datasets/spaceship-titanic-test.csv")
@@ -68,9 +71,6 @@ predictions = pd.DataFrame.from_records([model.predict(x) for x in test_df.to_di
 
 # Step 4: print a sample of predictions
 print(predictions.sample(10))
-
-# Step 5: Save the model
-sm.save_model(model, "spaceship_titanic_model.tar.gz")
 
 # Step 6: Print model description
 description = model.describe()

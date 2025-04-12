@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 @tool
 def select_target_metric(task: str, provider: str) -> Dict:
     """
-    Selects the appropriate target metric for the given task.
+    Selects the appropriate target metric to optimise for the given task.
 
     Args:
         task: The task definition combining intent, input schema, and output schema

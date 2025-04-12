@@ -7,7 +7,7 @@ import logging
 import warnings
 from dataclasses import dataclass, field
 from importlib.resources import files
-from typing import List, Optional
+from typing import List
 from functools import cached_property
 from jinja2 import Environment, FileSystemLoader
 import sys
@@ -240,14 +240,13 @@ class _PromptTemplates:
             use_validation_files=len(validation_data_files) > 0,
         )
 
-    def training_review(self, problem_statement, plan, training_code, problems, history, allowed_packages) -> str:
+    def training_review(self, problem_statement, plan, training_code, problems, allowed_packages) -> str:
         return self._render(
             "training/review.jinja",
             problem_statement=problem_statement,
             plan=plan,
             training_code=training_code,
             problems=problems,
-            history=history,
             allowed_packages=allowed_packages,
         )
 
@@ -338,21 +337,21 @@ class _PromptTemplates:
 
     def agent_builder_prompt(
         self,
-        task: str,
-        train_datasets: List[str],
-        validation_datasets: List[str],
-        max_iterations: Optional[int] = None,
-        timeout: Optional[int] = None,
-        run_timeout: Optional[int] = None,
+        intent: str,
+        input_schema: str,
+        output_schema: str,
+        datasets: List[str],
+        working_dir: str,
+        max_iterations: int = None,
     ) -> str:
         return self._render(
-            "agent/builder_prompt.jinja",
-            task=task,
-            train_datasets=train_datasets,
-            validation_datasets=validation_datasets,
+            "agent/agent_manager_prompt.jinja",
+            intent=intent,
+            input_schema=input_schema,
+            output_schema=output_schema,
+            datasets=datasets,
+            working_dir=working_dir,
             max_iterations=max_iterations,
-            timeout=timeout,
-            run_timeout=run_timeout,
         )
 
 

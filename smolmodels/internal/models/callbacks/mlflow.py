@@ -107,8 +107,8 @@ class MLFlowCallback(Callback):
         mlflow.log_params(
             {
                 "intent": info.intent,
-                "input_schema": str(info.input_schema.model_fields),
-                "output_schema": str(info.output_schema.model_fields),
+                # "input_schema": str(info.input_schema.model_fields),
+                # "output_schema": str(info.output_schema.model_fields),
                 "provider": str(info.provider),
                 "run_timeout": info.run_timeout,
                 "iteration": info.iteration,
@@ -165,7 +165,8 @@ class MLFlowCallback(Callback):
                         logger.warning(f"Could not log artifact {artifact}: {e}")
 
         try:
-            mlflow.end_run(status="FAILED" if info.node.exception_was_raised else "FINISHED")
+            is_failed = info.node.exception_was_raised or info.node.performance is None
+            mlflow.end_run(status="FAILED" if is_failed else "FINISHED")
         except Exception as e:
             logger.warning(f"Error ending MLFlow run: {e}")
 

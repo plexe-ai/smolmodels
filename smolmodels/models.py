@@ -29,19 +29,25 @@ Example:
 >>>    print(prediction)
 """
 
+import os
+import json
 import logging
 import uuid
 from typing import Dict, List, Type, Any
+from datetime import datetime
 
 import pandas as pd
 from pydantic import BaseModel
 
+from smolmodels.config import prompt_templates
 from smolmodels.constraints import Constraint
 from smolmodels.datasets import DatasetGenerator
 from smolmodels.callbacks import Callback, BuildStateInfo
-from smolmodels.internal.common.datasets.interface import Dataset
+from smolmodels.internal.agents import SmolmodelsAgent
+from smolmodels.internal.common.datasets.interface import Dataset, TabularConvertible
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
 from smolmodels.internal.common.provider import Provider
+from smolmodels.internal.common.registries.objects import ObjectRegistry
 from smolmodels.internal.common.utils.model_utils import calculate_model_size, format_code_snippet
 from smolmodels.internal.common.utils.pydantic_utils import map_to_basemodel, format_schema
 from smolmodels.internal.common.utils.model_state import ModelState
@@ -54,7 +60,6 @@ from smolmodels.internal.models.entities.description import (
     CodeInfo,
 )
 from smolmodels.internal.models.entities.metric import Metric
-from smolmodels.internal.models.agents import ModelBuilderAgentOrchestrator
 from smolmodels.internal.models.interfaces.predictor import Predictor
 from smolmodels.internal.schemas.resolver import SchemaResolver
 
@@ -125,9 +130,15 @@ class Model:
 
         # Generator objects used to create schemas, datasets, and the model itself
         self.schema_resolver: SchemaResolver | None = None
-        self.model_generator: ModelBuilderAgentOrchestrator | None = None
 
+        # Registries used to make datasets, artifacts and other objects available across the system
+        self.object_registry = ObjectRegistry()
+
+        # Setup the working directory and unique identifiers
         self.identifier: str = f"model-{abs(hash(self.intent))}-{str(uuid.uuid4())}"
+        self.run_id = f"run-{datetime.now().isoformat()}".replace(":", "-").replace(".", "-")
+        self.working_dir = f"./workdir/{self.run_id}/"
+        os.makedirs(self.working_dir, exist_ok=True)
 
     def build(
         self,
@@ -151,8 +162,10 @@ class Model:
         :param verbose: whether to display detailed agent logs during model building (default: False)
         :return:
         """
-        # Initialize callbacks list if not provided
-        callbacks = callbacks or []
+        # Ensure the object registry is cleared before building
+        self.object_registry.clear()
+        # Register all callbacks in the object registry
+        self.object_registry.register_multiple(Callback, {f"{i}": c for i, c in enumerate(callbacks or [])})
 
         # Ensure timeout, max_iterations, and run_timeout make sense
         if timeout is None and max_iterations is None:
@@ -166,22 +179,12 @@ class Model:
             provider_obj = Provider(model=provider)
             self.state = ModelState.BUILDING
 
-            for callback in callbacks:
-                try:
-                    callback.on_build_start(
-                        BuildStateInfo(
-                            intent=self.intent,
-                            provider=provider_obj.model,
-                        )
-                    )
-                except Exception as e:
-                    logger.warning(f"Error in callback {callback.__class__.__name__}.on_build_start: {e}")
-
-            # Step 1: coerce datasets to supported formats
+            # Step 1: coerce datasets to supported formats and register them
             self.training_data = {
                 f"dataset_{i}": DatasetAdapter.coerce((data.data if isinstance(data, DatasetGenerator) else data))
                 for i, data in enumerate(datasets)
             }
+            self.object_registry.register_multiple(TabularConvertible, self.training_data)
 
             # Step 2: resolve schemas
             self.schema_resolver = SchemaResolver(provider_obj, self.intent)
@@ -193,22 +196,77 @@ class Model:
             elif self.input_schema is None:
                 self.input_schema, _ = self.schema_resolver.resolve(self.training_data)
 
+            # Run callbacks for build start
+            for callback in self.object_registry.get_all(Callback).values():
+                try:
+                    # Note: callbacks still receive the actual dataset objects for backward compatibility
+                    callback.on_build_start(
+                        BuildStateInfo(
+                            intent=self.intent,
+                            input_schema=self.input_schema,
+                            output_schema=self.output_schema,
+                            provider=provider,
+                            run_timeout=run_timeout,
+                            max_iterations=max_iterations,
+                            timeout=timeout,
+                            datasets={
+                                name: self.object_registry.get(TabularConvertible, name)
+                                for name in self.training_data.keys()
+                            },
+                        )
+                    )
+                except Exception as e:
+                    logger.warning(f"Error in callback {callback.__class__.__name__}.on_build_start: {e}")
+
             # Step 3: generate model
-            self.model_generator = ModelBuilderAgentOrchestrator(
+            # Start the model generation run
+            agent_prompt = prompt_templates.agent_builder_prompt(
                 intent=self.intent,
-                input_schema=self.input_schema,
-                output_schema=self.output_schema,
-                provider=provider_obj,
-                constraints=self.constraints,
-                verbose=verbose,
-            )
-            generated = self.model_generator.generate(
-                datasets=self.training_data,
-                run_timeout=run_timeout,
-                timeout=timeout,
+                input_schema=json.dumps(format_schema(self.input_schema), indent=4),
+                output_schema=json.dumps(format_schema(self.output_schema), indent=4),
+                datasets=list(self.training_data.keys()),
+                working_dir=self.working_dir,
                 max_iterations=max_iterations,
-                callbacks=callbacks,
             )
+            agent = SmolmodelsAgent(
+                verbose=verbose,
+                max_steps=30,
+            )
+            generated = agent.run(
+                agent_prompt,
+                additional_args={
+                    "intent": self.intent,
+                    "working_dir": self.working_dir,
+                    "input_schema": format_schema(self.input_schema),
+                    "output_schema": format_schema(self.output_schema),
+                    "provider": provider,
+                    "max_iterations": max_iterations,
+                    "timeout": timeout,
+                    "run_timeout": run_timeout,
+                },
+            )
+
+            # Run callbacks for build end
+            for callback in self.object_registry.get_all(Callback).values():
+                try:
+                    # Note: callbacks still receive the actual dataset objects for backward compatibility
+                    callback.on_build_end(
+                        BuildStateInfo(
+                            intent=self.intent,
+                            input_schema=self.input_schema,
+                            output_schema=self.output_schema,
+                            provider=provider,
+                            run_timeout=run_timeout,
+                            max_iterations=max_iterations,
+                            timeout=timeout,
+                            datasets={
+                                name: self.object_registry.get(TabularConvertible, name)
+                                for name in self.training_data.keys()
+                            },
+                        )
+                    )
+                except Exception as e:
+                    logger.warning(f"Error in callback {callback.__class__.__name__}.on_build_end: {e}")
 
             # Step 4: update model state and attributes
             self.trainer_source = generated.training_source_code
@@ -228,7 +286,7 @@ class Model:
             self.state = ModelState.READY
 
             # TODO: invoke callbacks for 'on_build_end' event
-            for callback in callbacks:
+            for callback in self.object_registry.get_all(Callback).values():
                 try:
                     callback.on_build_end(
                         BuildStateInfo(
