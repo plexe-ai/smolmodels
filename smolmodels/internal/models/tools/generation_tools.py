@@ -107,8 +107,8 @@ def generate_inference_code(
     Generates inference code based on the training code.
 
     Args:
-        input_schema: The input schema for the model as a dictionary mapping field names to types
-        output_schema: The output schema for the model as a dictionary mapping field names to types
+        input_schema: The input schema for the model, for example {"feat_1": int, "feat_2": str}
+        output_schema: The output schema for the model, for example {"output": float}
         training_code: The training code that was used
         provider: The string identifier representing the model that should be used, e.g. 'openai/gpt-4o'
 
@@ -116,13 +116,6 @@ def generate_inference_code(
         Generated inference code as a string
     """
     from smolmodels.internal.common.utils.pydantic_utils import map_to_basemodel
-    import logging
-
-    logger = logging.getLogger(__name__)
-
-    # Debug logging
-    logger.debug(f"Input schema type: {type(input_schema)}, value: {input_schema}")
-    logger.debug(f"Output schema type: {type(output_schema)}, value: {output_schema}")
 
     try:
         # Convert dict schemas to Type[BaseModel]
@@ -132,9 +125,7 @@ def generate_inference_code(
         infer_generator = InferenceCodeGenerator(Provider(provider))
         return infer_generator.generate_inference_code(input_model, output_model, training_code)
     except Exception as e:
-        logger.error(f"Error generating inference code: {str(e)}")
-        # Re-raise with better context
-        raise ValueError(f"Failed to generate inference code: {str(e)}")
+        raise ValueError(f"Failed to generate inference code: {str(e)}") from e
 
 
 @tool
@@ -172,7 +163,8 @@ def review_inference_code(
 
 @tool
 def fix_inference_code(inference_code: str, review: str, problems: str, provider: str) -> str:
-    """Fixes issues in the inference code based on the review.
+    """
+    Fixes issues in the inference code based on the review.
 
     Args:
         inference_code: The inference code to fix
