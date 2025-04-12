@@ -28,6 +28,7 @@ def execute_training_code(
     dataset_names: List[str],
     timeout: int,
     metric_to_optimize: Dict,
+    iteration: int = 0,
 ) -> Dict:
     """Executes training code in an isolated environment.
 
@@ -38,10 +39,17 @@ def execute_training_code(
         dataset_names: List of dataset names to retrieve from the registry
         timeout: Maximum execution time in seconds
         metric_to_optimize: The metric to optimize for
+        iteration: Current iteration number (default: 0)
 
     Returns:
         A dictionary containing execution results with model artifacts and their registry names
     """
+    from smolmodels.internal.common.registries.callbacks import CallbackRegistry
+    from smolmodels.callbacks import BuildStateInfo
+
+    callback_registry = CallbackRegistry()
+    callbacks = callback_registry.get_all()
+
     execution_id = f"{node_id}-{uuid.uuid4()}"
     try:
         # Get actual datasets from registry
@@ -87,6 +95,25 @@ def execute_training_code(
 
         # Create a node to store execution results
         node = Node(solution_plan="")  # We only need this for execute_node
+
+        # Get callbacks from the registry and notify them
+        node.training_code = code
+        # Notification for iteration end with all required fields
+        for callback in callbacks:
+            try:
+                callback.on_iteration_start(
+                    BuildStateInfo(
+                        intent="goobers",  # Will be filled by agent context
+                        provider="openai/gpt-4o",  # Will be filled by agent context
+                        input_schema=None,  # Will be filled by agent context
+                        output_schema=None,  # Will be filled by agent context
+                        datasets=datasets,
+                        iteration=iteration,
+                        node=node,
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"Error in callback {callback.__class__.__name__}.on_iteration_end: {e}")
 
         # Import here to avoid circular imports
         from smolmodels.config import config
@@ -140,6 +167,28 @@ def execute_training_code(
             except Exception as e:
                 logger.error(f"Error registering artifacts: {str(e)}")
                 # Continue with empty names list
+
+        # Get callbacks from the registry and notify them
+        node.training_code = code
+        # Notification for iteration end with all required fields
+        for callback in callbacks:
+            try:
+                # Create build state info with required fields
+                # Some fields like intent, input_schema, etc. will be empty here
+                # but will be filled in by the model builder agent context
+                callback.on_iteration_end(
+                    BuildStateInfo(
+                        intent="goobers",  # Will be filled by agent context
+                        provider="openai/gpt-4o",  # Will be filled by agent context
+                        input_schema=None,  # Will be filled by agent context
+                        output_schema=None,  # Will be filled by agent context
+                        datasets=datasets,
+                        iteration=iteration,
+                        node=node,
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"Error in callback {callback.__class__.__name__}.on_iteration_end: {e}")
 
         # Return results
         return {

@@ -13,7 +13,10 @@ Addison Howard, Ashley Chow, and Ryan Holbrook. Spaceship Titanic.
 https://kaggle.com/competitions/spaceship-titanic, 2022. Kaggle.
 """
 
+from datetime import datetime
+
 import pandas as pd
+
 import smolmodels as sm
 
 # Step 1: Define the model using the Spaceship Titanic problem statement as the model description
@@ -43,6 +46,12 @@ model = sm.Model(
 )
 
 # Step 2: Build the model using the Spaceship Titanic training dataset
+# 2A [OPTIONAL]: Define MLFlow callback for tracking
+mlflow_callback = sm.callbacks.MLFlowCallback(
+    tracking_uri="http://127.0.0.1:8080",
+    experiment_name=f"spaceship-titanic-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+)
+# 2B: Build the model with the dataset
 model.build(
     datasets=[pd.read_csv("examples/datasets/spaceship-titanic-train.csv")],
     provider="openai/gpt-4o",
@@ -50,6 +59,7 @@ model.build(
     timeout=300,  # 5 minute timeout
     run_timeout=150,
     verbose=True,
+    callbacks=[mlflow_callback],
 )
 
 # Step 3: Run a prediction on the built model

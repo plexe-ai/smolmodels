@@ -10,7 +10,7 @@ Key Features:
 - Input/Output Schema: Defines the structure and types of inputs and outputs.
 - Constraints: Rules that must hold true for input/output pairs.
 - Mutable State: Tracks the model's lifecycle, training metrics, and metadata.
-- Build Process: Integrates solution generation with directives and callbacks.
+- Build Process: Integrates solution generation with callbacks.
 
 Example:
 >>>    model = Model(
@@ -38,7 +38,6 @@ from pydantic import BaseModel
 
 from smolmodels.constraints import Constraint
 from smolmodels.datasets import DatasetGenerator
-from smolmodels.directives import Directive
 from smolmodels.callbacks import Callback, BuildStateInfo
 from smolmodels.internal.common.datasets.interface import Dataset
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
@@ -134,7 +133,6 @@ class Model:
         self,
         datasets: List[pd.DataFrame | DatasetGenerator],
         provider: str = "openai/gpt-4o-mini",
-        directives: List[Directive] = None,
         timeout: int = None,
         max_iterations: int = None,
         run_timeout: int = 1800,
@@ -142,11 +140,10 @@ class Model:
         verbose: bool = False,
     ) -> None:
         """
-        Build the model using the provided dataset, directives, and optional data generation configuration.
+        Build the model using the provided dataset and optional data generation configuration.
 
         :param datasets: the datasets to use for training the model
         :param provider: the provider to use for model building
-        :param directives: instructions related to the model building process - not the model itself
         :param timeout: maximum total time in seconds to spend building the model (all iterations combined)
         :param max_iterations: maximum number of iterations to spend building the model
         :param run_timeout: maximum time in seconds for each individual model training run

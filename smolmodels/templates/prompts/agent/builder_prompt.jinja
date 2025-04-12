@@ -24,7 +24,7 @@ Follow these steps to build the model:
    b. Validate the training code using the `validate_training_code` tool.
    c. If validation fails, review and fix the code using the 'review_training_code' and 'fix_training_code' tools.
    d. Execute the training code using the `execute_training_code` tool, passing dataset_names as a simple list
-      of dataset names (e.g., ["dataset1_train", "dataset1_val"]). The training code MUST be executed using the
+      of dataset names (e.g., ["dataset1_train", "dataset1_val"]) and the current iteration number. The training code MUST be executed using the
       tool, not run directly.
    e. Track the performance of each solution on the target metric.
 4. Select the best performing solution (the one that returns the best evaluation metric value).

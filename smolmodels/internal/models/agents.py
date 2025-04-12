@@ -14,6 +14,7 @@ code generation, validation, and performance evaluation.
 import logging
 import os
 import types
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +29,7 @@ from smolmodels.internal.common.datasets.interface import TabularConvertible
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.common.registries.datasets import DatasetRegistry
 from smolmodels.internal.common.registries.artifacts import ArtifactRegistry
+from smolmodels.internal.common.registries.callbacks import CallbackRegistry
 from smolmodels.internal.models.entities.metric import Metric, MetricComparator, ComparisonMethod
 from smolmodels.internal.models.interfaces.predictor import Predictor
 from smolmodels.internal.models.tools.execution_tools import execute_training_code
@@ -49,6 +51,7 @@ from smolmodels.internal.models.tools.validation_tools import (
 from smolmodels.internal.common.utils.prompt_utils import join_task_statement
 
 logger = logging.getLogger(__name__)
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="smolagents")
 
 
 @dataclass
@@ -204,11 +207,13 @@ class ModelBuilderAgentOrchestrator:
             run_timeout=run_timeout,
         )
 
-        # Initialize callbacks if not provided
-        callbacks = callbacks or []
+        # Initialize and register callbacks in the CallbackRegistry
+        callback_registry = CallbackRegistry()
+        callback_registry.clear()  # Clear any previous callbacks
+        callback_registry.register_batch(callbacks)
 
         # Run callbacks for build start
-        for callback in callbacks:
+        for callback in callback_registry.get_all():
             try:
                 from smolmodels.callbacks import BuildStateInfo
 
@@ -276,6 +281,11 @@ class ModelBuilderAgentOrchestrator:
                     "input_schema": input_schema_dict,
                     "output_schema": output_schema_dict,
                     "model_artifact_names": self.current_artifact_names,
+                    # Add information for callback context
+                    "intent": self.intent,
+                    "max_iterations": max_iterations,
+                    "timeout": timeout,
+                    "run_timeout": run_timeout,
                 },
             )
 
@@ -283,7 +293,7 @@ class ModelBuilderAgentOrchestrator:
             generation_result = self._process_agent_result(result)
 
             # Run callbacks for build end
-            for callback in callbacks:
+            for callback in callback_registry.get_all():
                 try:
                     from smolmodels.callbacks import BuildStateInfo
 
@@ -339,7 +349,9 @@ class ModelBuilderAgentOrchestrator:
 
     @staticmethod
     def _process_agent_result(result: dict) -> GenerationResult:
-        """Process the result from the agent run to create a GenerationResult object."""
+        """
+        Process the result from the agent run to create a GenerationResult object.
+        """
         # In smolagents, the run method returns a structured dict with the final output
 
         try:
@@ -383,13 +395,8 @@ class ModelBuilderAgentOrchestrator:
 
             artifacts = []
             if artifact_names:
-                logger.info(f"Loading {len(artifact_names)} artifacts from registry")
-                try:
-                    # Get paths from registry using names
-                    artifacts = [a for a in artifact_registry.get_multiple(artifact_names).values()]
-                except Exception as e:
-                    logger.warning(f"Failed to retrieve artifacts from registry: {str(e)}")
-                    artifacts = []
+                # Get paths from registry using names
+                artifacts = [a for a in artifact_registry.get_multiple(artifact_names).values()]
 
             # Model metadata
             metadata = result.get("metadata", {"model_type": "unknown", "framework": "unknown"})
