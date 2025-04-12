@@ -270,7 +270,6 @@ class ModelBuilderAgentOrchestrator:
                     "task": task,
                     "train_datasets": train_dataset_names,
                     "validation_datasets": validation_dataset_names,
-                    "test_datasets": test_dataset_names,
                     "working_dir": working_dir,
                     "run_id": run_id,
                     "provider": self.provider.model,
@@ -353,19 +352,30 @@ class ModelBuilderAgentOrchestrator:
             inference_code = result.get("inference_code", "")
 
             # Extract performance metrics
-            metrics = result.get("performance", {})
+            if "performance" in result and isinstance(result["performance"], dict):
+                metrics = result["performance"]
+            else:
+                metrics = {}
+
             metric_name = metrics.get("name", "unknown")
             metric_value = metrics.get("value", 0.0)
-
-            # Determine if higher is better based on comparison_method or metric name
             comparison_str = metrics.get("comparison_method", "")
-            if isinstance(comparison_str, str) and "LOWER_IS_BETTER" in comparison_str:
-                higher_is_better = False
-            else:
-                # For most metrics, higher is better (accuracy, f1, etc.)
-                # For some metrics like error or loss, lower is better
-                lower_is_better_metrics = ["error", "loss", "mae", "mse", "rmse"]
-                higher_is_better = not any(m in metric_name.lower() for m in lower_is_better_metrics)
+            comparison_method_map = {
+                "HIGHER_IS_BETTER": ComparisonMethod.HIGHER_IS_BETTER,
+                "LOWER_IS_BETTER": ComparisonMethod.LOWER_IS_BETTER,
+                "TARGET_IS_BETTER": ComparisonMethod.TARGET_IS_BETTER,
+            }
+            comparison_method = ComparisonMethod.HIGHER_IS_BETTER  # Default to higher is better
+            for key, method in comparison_method_map.items():
+                if key in comparison_str:
+                    comparison_method = method
+
+            comparator = MetricComparator(comparison_method)
+            performance = Metric(
+                name=metric_name,
+                value=metric_value,
+                comparator=comparator,
+            )
 
             # Get model artifacts from registry or result
             artifact_registry = ArtifactRegistry()
@@ -383,18 +393,6 @@ class ModelBuilderAgentOrchestrator:
 
             # Model metadata
             metadata = result.get("metadata", {"model_type": "unknown", "framework": "unknown"})
-
-            # Create metric object
-            comparison_method = ComparisonMethod.HIGHER_IS_BETTER
-            if not higher_is_better:
-                comparison_method = ComparisonMethod.LOWER_IS_BETTER
-
-            comparator = MetricComparator(comparison_method)
-            performance = Metric(
-                name=metric_name,
-                value=metric_value,
-                comparator=comparator,
-            )
 
             # Compile the inference code into a module
             inference_module: types.ModuleType = types.ModuleType("predictor")
