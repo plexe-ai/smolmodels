@@ -9,7 +9,7 @@ from typing import Tuple, Dict, Type
 
 from pydantic import BaseModel, create_model
 
-from smolmodels.config import config
+from smolmodels.config import prompt_templates
 from smolmodels.internal.common.datasets.interface import TabularConvertible
 from smolmodels.internal.common.provider import Provider
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
@@ -69,8 +69,8 @@ class SchemaResolver:
             # Use LLM to decide what the output should be
             output_col = json.loads(
                 self.provider.query(
-                    system_message=config.code_generation.prompt_schema_base.safe_substitute(),
-                    user_message=config.code_generation.prompt_schema_identify_target.safe_substitute(
+                    system_message=prompt_templates.schema_base(),
+                    user_message=prompt_templates.schema_identify_target(
                         columns="\n".join(f"- {feat}" for feat in feature_names), intent=self.intent
                     ),
                     response_format=OutputSchema,
@@ -121,10 +121,8 @@ class SchemaResolver:
             response = SchemaResponse(
                 **json.loads(
                     self.provider.query(
-                        system_message=config.code_generation.prompt_schema_base.safe_substitute(),
-                        user_message=config.code_generation.prompt_schema_generate_from_intent.safe_substitute(
-                            intent=self.intent
-                        ),
+                        system_message=prompt_templates.schema_base(),
+                        user_message=prompt_templates.schema_generate_from_intent(intent=self.intent),
                         response_format=SchemaResponse,
                     )
                 )

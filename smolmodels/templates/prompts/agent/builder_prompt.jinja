@@ -35,12 +35,13 @@ Follow these steps to build the model:
 8. Extract metadata about the model using the `review_model` tool.
 
 Once you have successfully completed the steps above, you must stop iterating, and return the deliverables as final
-output in JSON format. Your final output should include the following:
+output in JSON format. Your final output must have the following structure:
 1. The best performing solution plan (key: solution_plan)
 2. The training code for the best solution (key: training_code)
 3. The inference code for the best solution (key: inference_code)
 4. The performance metrics of the best solution (key: performance)
-5. The model's metadata (key: metadata)
+5. The model's metadata from the review step (key: metadata)
 6. The artifact names for the final model (key: model_artifact_names)
 
-Aim to maximize the performance of the model while respecting all constraints.
+Each of the keys above must be in the "root" level of the JSON output. Aim to maximize the performance of the model
+while respecting all constraints.
