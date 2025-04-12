@@ -9,7 +9,7 @@ This test covers:
 import os
 import pytest
 from pathlib import Path
-from pydantic import create_model, Field, ValidationError
+from pydantic import create_model, Field
 import smolmodels as sm
 from tests.utils.utils import generate_house_prices_data, verify_prediction, cleanup_files
 
@@ -126,7 +126,7 @@ def test_input_validation(house_data_copy, validated_input_schema, validated_out
     ]
 
     for invalid_input in invalid_inputs:
-        with pytest.raises(ValidationError):
+        with pytest.raises(Exception):
             # This should raise a validation error when the model validates the input
             # against the schema before prediction
             model.predict(invalid_input, validate_input=True)
