@@ -10,7 +10,6 @@ import mlflow
 import logging
 import warnings
 from pathlib import Path
-from typing import Optional
 
 from smolmodels.callbacks import Callback, BuildStateInfo
 from smolmodels.internal.models.entities.metric import Metric
@@ -92,7 +91,10 @@ class MLFlowCallback(Callback):
 
         :param info: Information about the iteration start.
         """
-        run_name = f"iteration-{info.iteration}"
+        import datetime
+
+        timestamp = datetime.datetime.now().isoformat().replace(":", "-").replace(".", "-")
+        run_name = f"run-{timestamp}"
         mlflow.start_run(
             run_name=run_name,
             experiment_id=self.experiment_id,
@@ -145,11 +147,11 @@ class MLFlowCallback(Callback):
 
         # Log node performance if available
         if info.node.performance:
-            self._log_metric(info.node.performance, step=info.iteration)
+            self._log_metric(info.node.performance)
 
         # Log execution time
         if info.node.execution_time:
-            mlflow.log_metric("execution_time", info.node.execution_time, step=info.iteration)
+            mlflow.log_metric("execution_time", info.node.execution_time)
 
         # Log whether exception was raised
         if info.node.exception_was_raised:
@@ -171,13 +173,12 @@ class MLFlowCallback(Callback):
             logger.warning(f"Error ending MLFlow run: {e}")
 
     @staticmethod
-    def _log_metric(metric: Metric, prefix: str = "", step: Optional[int] = None) -> None:
+    def _log_metric(metric: Metric, prefix: str = "") -> None:
         """
         Log a SmolModels Metric object to MLFlow.
 
         :param metric: SmolModels Metric object
         :param prefix: Optional prefix for the metric name
-        :param step: Optional step number
         """
         if mlflow is None or not mlflow.active_run():
             return
@@ -185,7 +186,7 @@ class MLFlowCallback(Callback):
         if metric and hasattr(metric, "name") and hasattr(metric, "value"):
             try:
                 value = float(metric.value)
-                mlflow.log_metric(re.sub(r"[^a-zA-Z0-9]", "", f"{prefix}{metric.name}"), value, step=step)
+                mlflow.log_metric(re.sub(r"[^a-zA-Z0-9]", "", f"{prefix}{metric.name}"), value)
             except (ValueError, TypeError) as e:
                 logger.warning(f"Could not convert metric {metric.name} value to float: {e}")
                 # Try to log as tag instead

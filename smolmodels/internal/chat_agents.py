@@ -8,13 +8,14 @@ for the actual model building process.
 import yaml
 import importlib
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from smolagents import LiteLLMModel, tool, ToolCallingAgent
 import pandas as pd
 from pydantic import create_model
 
 from smolmodels.models import Model
+from smolmodels.internal.common.provider import ProviderConfig
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,11 @@ def build_model(
     input_schema: Dict[str, str] = None,
     output_schema: Dict[str, str] = None,
     provider: str = "openai/gpt-4o-mini",
+    orchestrator_provider: Optional[str] = None,
+    research_provider: Optional[str] = None,
+    engineer_provider: Optional[str] = None,
+    ops_provider: Optional[str] = None,
+    tool_provider: Optional[str] = None,
     max_iterations: int = 10,
 ) -> Dict[str, Any]:
     """
@@ -36,7 +42,12 @@ def build_model(
         dataset_paths: Paths to CSV files containing training data
         input_schema: Dictionary mapping field names to types (as strings)
         output_schema: Dictionary mapping field names to types (as strings)
-        provider: LLM provider to use for model generation
+        provider: Default LLM provider to use for model generation
+        orchestrator_provider: LLM provider specifically for the orchestrator agent
+        research_provider: LLM provider specifically for the ML Research Scientist agent
+        engineer_provider: LLM provider specifically for the ML Engineer agent
+        ops_provider: LLM provider specifically for the ML Ops Engineer agent
+        tool_provider: LLM provider specifically for tool operations
         max_iterations: Maximum number of iterations for model building
 
     Returns:
@@ -66,12 +77,22 @@ def build_model(
         # Load datasets
         datasets = [pd.read_csv(path) for path in dataset_paths]
 
+        # Create provider configuration
+        provider_config = ProviderConfig(
+            default_provider=provider,
+            orchestrator_provider=orchestrator_provider,
+            research_provider=research_provider,
+            engineer_provider=engineer_provider,
+            ops_provider=ops_provider,
+            tool_provider=tool_provider,
+        )
+
         # Create and build the model
         model = Model(intent=intent, input_schema=input_model, output_schema=output_model)
 
         model.build(
             datasets=datasets,
-            provider=provider,
+            provider=provider_config,
             max_iterations=max_iterations,
             timeout=1800,  # 30 minutes default timeout
         )

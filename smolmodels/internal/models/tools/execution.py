@@ -32,7 +32,6 @@ def execute_training_code(
     timeout: int,
     metric_to_optimise_name: str,
     metric_to_optimise_comparison_method: str,
-    iteration: int = 0,
 ) -> Dict:
     """Executes training code in an isolated environment.
 
@@ -44,7 +43,6 @@ def execute_training_code(
         timeout: Maximum execution time in seconds
         metric_to_optimise_name: The name of the metric to optimize for
         metric_to_optimise_comparison_method: The comparison method for the metric
-        iteration: Current iteration number (default: 0)
 
     Returns:
         A dictionary containing execution results with model artifacts and their registry names
@@ -83,7 +81,7 @@ def execute_training_code(
                         input_schema=None,  # Will be filled by agent context
                         output_schema=None,  # Will be filled by agent context
                         datasets=datasets,
-                        iteration=iteration,
+                        iteration=0,  # Default value, no longer used for MLFlow run naming
                         node=node,
                     )
                 )
@@ -143,7 +141,7 @@ def execute_training_code(
                         input_schema=None,  # Will be filled by agent context
                         output_schema=None,  # Will be filled by agent context
                         datasets=datasets,
-                        iteration=iteration,
+                        iteration=0,  # Default value, no longer used for MLFlow run naming
                         node=node,
                     )
                 )

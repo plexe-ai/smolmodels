@@ -5,7 +5,7 @@ logging and retry mechanisms for querying the providers.
 
 import logging
 import textwrap
-from typing import Type
+from typing import Type, Optional
 
 import litellm
 from litellm import completion, supports_response_schema
@@ -14,6 +14,54 @@ from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 logger = logging.getLogger(__name__)
+
+
+class ProviderConfig:
+    """
+    Configuration class for specifying different LLM providers for various agent roles.
+
+    This allows for granular control of which providers/models are used for different
+    parts of the multi-agent system.
+
+    Attributes:
+        default_provider: The default provider to use when specific ones aren't set
+        orchestrator_provider: Provider for the orchestrator/manager agent
+        research_provider: Provider for the ML Research Scientist agent
+        engineer_provider: Provider for the ML Engineer agent
+        ops_provider: Provider for the ML Ops Engineer agent
+        tool_provider: Provider for tool operations
+    """
+
+    def __init__(
+        self,
+        default_provider: str = "openai/gpt-4o-mini",
+        orchestrator_provider: Optional[str] = None,
+        research_provider: Optional[str] = None,
+        engineer_provider: Optional[str] = None,
+        ops_provider: Optional[str] = None,
+        tool_provider: Optional[str] = None,
+    ):
+        # Default provider is used when specific ones aren't set
+        self.default_provider = default_provider
+
+        # Agent-specific providers
+        self.orchestrator_provider = orchestrator_provider or default_provider
+        self.research_provider = research_provider or default_provider
+        self.engineer_provider = engineer_provider or default_provider
+        self.ops_provider = ops_provider or default_provider
+
+        # Provider for tool operations
+        self.tool_provider = tool_provider or default_provider
+
+    def __repr__(self) -> str:
+        return (
+            f"ProviderConfig(default={self.default_provider}, "
+            f"orchestrator={self.orchestrator_provider}, "
+            f"research={self.research_provider}, "
+            f"engineer={self.engineer_provider}, "
+            f"ops={self.ops_provider}, "
+            f"tool={self.tool_provider})"
+        )
 
 
 class Provider:

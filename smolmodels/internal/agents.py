@@ -86,7 +86,7 @@ class SmolmodelsAgent:
 
         # Set verbosity levels
         self.orchestrator_verbosity = 2 if verbose else 1
-        self.specialist_verbosity = 1 if verbose else 0
+        self.specialist_verbosity = 1 if verbose else 1
 
         # Create solution planner agent - plans ML approaches
         self.ml_research_agent = ToolCallingAgent(

@@ -31,7 +31,17 @@ pip install smolmodels
 
 ### Two Ways to Use smolmodels
 
-#### A. Library API
+#### A. Interactive Chat Interface
+Launch the interactive chat interface to build models through conversational AI:
+
+```bash
+# Start the chat interface
+smolmodels
+```
+
+This opens a Gradio UI where you can describe your model, upload datasets, and get explanations throughout the process.
+
+#### B. Library API
 ```python
 import smolmodels as sm
 
@@ -59,16 +69,6 @@ prediction = model.predict({
 sm.save_model(model, "sentiment-model")
 loaded_model = sm.load_model("sentiment-model.tar.gz")
 ```
-
-#### B. Interactive Chat Interface
-Launch the interactive chat interface to build models through conversational AI:
-
-```bash
-# Start the chat interface
-smolmodels
-```
-
-This opens a Gradio UI where you can describe your model, upload datasets, and get explanations throughout the process.
 
 ## 2. Features
 

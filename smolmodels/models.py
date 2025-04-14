@@ -46,7 +46,7 @@ from smolmodels.callbacks import Callback, BuildStateInfo
 from smolmodels.internal.agents import SmolmodelsAgent
 from smolmodels.internal.common.datasets.interface import Dataset, TabularConvertible
 from smolmodels.internal.common.datasets.adapter import DatasetAdapter
-from smolmodels.internal.common.provider import Provider
+from smolmodels.internal.common.provider import Provider, ProviderConfig
 from smolmodels.internal.common.registries.objects import ObjectRegistry
 from smolmodels.internal.common.utils.model_utils import calculate_model_size, format_code_snippet
 from smolmodels.internal.common.utils.pydantic_utils import map_to_basemodel, format_schema
@@ -143,7 +143,7 @@ class Model:
     def build(
         self,
         datasets: List[pd.DataFrame | DatasetGenerator],
-        provider: str = "openai/gpt-4o-mini",
+        provider: str | ProviderConfig = "openai/gpt-4o-mini",
         timeout: int = None,
         max_iterations: int = None,
         run_timeout: int = 1800,
@@ -154,7 +154,8 @@ class Model:
         Build the model using the provided dataset and optional data generation configuration.
 
         :param datasets: the datasets to use for training the model
-        :param provider: the provider to use for model building
+        :param provider: the provider to use for model building, either a string or a ProviderConfig
+                         for granular control of which models to use for different agent roles
         :param timeout: maximum total time in seconds to spend building the model (all iterations combined)
         :param max_iterations: maximum number of iterations to spend building the model
         :param run_timeout: maximum time in seconds for each individual model training run
@@ -176,7 +177,14 @@ class Model:
         # TODO: validate that schema features are present in the dataset
         # TODO: validate that datasets do not contain duplicate features
         try:
-            provider_obj = Provider(model=provider)
+            # Convert string provider to config if needed
+            if isinstance(provider, str):
+                provider_config = ProviderConfig(default_provider=provider)
+            else:
+                provider_config = provider
+
+            # We use the tool_provider for schema resolution and tool operations
+            provider_obj = Provider(model=provider_config.tool_provider)
             self.state = ModelState.BUILDING
 
             # Step 1: coerce datasets to supported formats and register them
@@ -205,7 +213,7 @@ class Model:
                             intent=self.intent,
                             input_schema=self.input_schema,
                             output_schema=self.output_schema,
-                            provider=provider,
+                            provider=provider_config.tool_provider,  # Use tool_provider for callbacks
                             run_timeout=run_timeout,
                             max_iterations=max_iterations,
                             timeout=timeout,
@@ -229,6 +237,10 @@ class Model:
                 max_iterations=max_iterations,
             )
             agent = SmolmodelsAgent(
+                orchestrator_model_id=provider_config.orchestrator_provider,
+                ml_researcher_model_id=provider_config.research_provider,
+                ml_engineer_model_id=provider_config.engineer_provider,
+                ml_ops_engineer_model_id=provider_config.ops_provider,
                 verbose=verbose,
                 max_steps=30,
             )
@@ -239,7 +251,7 @@ class Model:
                     "working_dir": self.working_dir,
                     "input_schema": format_schema(self.input_schema),
                     "output_schema": format_schema(self.output_schema),
-                    "provider": provider,
+                    "provider": provider_config.tool_provider,  # Use tool_provider for tool operations
                     "max_iterations": max_iterations,
                     "timeout": timeout,
                     "run_timeout": run_timeout,
@@ -281,17 +293,22 @@ class Model:
             self.metadata.update(generated.metadata)
 
             # Store provider information in metadata
-            self.metadata["provider"] = str(provider_obj.model)
+            self.metadata["provider"] = str(provider_config.default_provider)
+            self.metadata["orchestrator_provider"] = str(provider_config.orchestrator_provider)
+            self.metadata["research_provider"] = str(provider_config.research_provider)
+            self.metadata["engineer_provider"] = str(provider_config.engineer_provider)
+            self.metadata["ops_provider"] = str(provider_config.ops_provider)
+            self.metadata["tool_provider"] = str(provider_config.tool_provider)
 
             self.state = ModelState.READY
 
-            # TODO: invoke callbacks for 'on_build_end' event
+            # Run callbacks for 'on_build_end' event
             for callback in self.object_registry.get_all(Callback).values():
                 try:
                     callback.on_build_end(
                         BuildStateInfo(
                             intent=self.intent,
-                            provider=provider_obj.model,
+                            provider=provider_config.tool_provider,  # Use tool_provider for callbacks
                         )
                     )
                 except Exception as e:
