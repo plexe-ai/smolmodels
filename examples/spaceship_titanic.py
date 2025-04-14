@@ -4,9 +4,9 @@ uses the Kaggle 'Spaceship Titanic' competition's training dataset.
 
 The dataset is owned and hosted by Kaggle, and is available at https://www.kaggle.com/c/spaceship-titanic/overview
 under the Attribution 4.0 International (CC BY 4.0) license (https://creativecommons.org/licenses/by/4.0/). This
-dataset is not part of the smolmodels package, and Plexe AI claims no ownership over it. The dataset is used here
-for demonstration purposes only. Please refer to the Kaggle competition page for more details on the dataset and
-its usage.
+dataset is not part of the smolmodels package or in any way affiliated to it, and Plexe AI claims no rights over it.
+The dataset is used here for demonstration purposes only. Please refer to the Kaggle competition page for more details
+on the dataset and its usage.
 
 Citation:
 Addison Howard, Ashley Chow, and Ryan Holbrook. Spaceship Titanic.
@@ -52,6 +52,7 @@ mlflow_callback = sm.callbacks.MLFlowCallback(
     experiment_name=f"spaceship-titanic-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
 )
 # 2B: Build the model with the dataset
+# NOTE: In order to run this example, you will need to download the dataset from Kaggle
 model.build(
     datasets=[pd.read_csv("examples/datasets/spaceship-titanic-train.csv")],
     provider="anthropic/claude-3-7-sonnet-20250219",
@@ -62,14 +63,14 @@ model.build(
     callbacks=[mlflow_callback],
 )
 
-# Step 5: Save the model
+# Step 3: Save the model
 sm.save_model(model, "spaceship_titanic_model.tar.gz")
 
-# Step 3: Run a prediction on the built model
+# Step 4: Run a prediction on the built model
 test_df = pd.read_csv("examples/datasets/spaceship-titanic-test.csv")
 predictions = pd.DataFrame.from_records([model.predict(x) for x in test_df.to_dict(orient="records")])
 
-# Step 4: print a sample of predictions
+# Step 5: print a sample of predictions
 print(predictions.sample(10))
 
 # Step 6: Print model description
