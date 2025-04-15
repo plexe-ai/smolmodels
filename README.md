@@ -70,6 +70,8 @@ sm.save_model(model, "sentiment-model")
 loaded_model = sm.load_model("sentiment-model.tar.gz")
 ```
 
+![Demo](https://screen.studio/share/lAlqnr6L)
+
 ## 2. Features
 
 ### 2.1. 💬 Natural Language Model Definition
