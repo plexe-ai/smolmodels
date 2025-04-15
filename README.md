@@ -70,7 +70,7 @@ sm.save_model(model, "sentiment-model")
 loaded_model = sm.load_model("sentiment-model.tar.gz")
 ```
 
-[![Demo](resources/demo-thumbnail.png)](https://screen.studio/share/lAlqnr6L)
+[![Demo](resources/demo-thumbnail.png)](https://github.com/user-attachments/assets/05ac238b-464c-457c-a63a-819bfe9a4fed)
 
 ## 2. Features
 
