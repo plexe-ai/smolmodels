@@ -198,6 +198,5 @@ def execute_training_code(
             "success": False,
             "performance": None,
             "exception": str(e),
-            "model_artifacts": [],
             "model_artifact_names": [],
         }

@@ -8,9 +8,7 @@ with large context window, such as the Google Gemini models.
 from pathlib import Path
 
 # === Config ===
-EXTENSIONS = {
-    ".py",
-}
+EXTENSIONS = {".py", ".md"}
 TARGET_DIRS = {"smolmodels"}
 ROOT_FILES = {"README.md"}  # Loose files to include from root
 OUTPUT_FILE = "smolmodels-full-codebase.txt"

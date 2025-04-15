@@ -33,7 +33,7 @@ def generate_training_code(
     Returns:
         Generated training code as a string
     """
-    train_generator = TrainingCodeGenerator(Provider("openai/gpt-4o"))
+    train_generator = TrainingCodeGenerator(Provider(llm_to_use))
     return train_generator.generate_training_code(task, solution_plan, train_datasets, validation_datasets)
 
 
@@ -62,7 +62,7 @@ def fix_training_code(
     Returns:
         Fixed training code as a string
     """
-    train_generator = TrainingCodeGenerator(Provider("openai/gpt-4o"))
+    train_generator = TrainingCodeGenerator(Provider(llm_to_use))
     return train_generator.fix_training_code(
         training_code, solution_plan, review, train_datasets, validation_datasets, issue
     )
@@ -98,7 +98,7 @@ def generate_inference_code(
         input_model = map_to_basemodel("InputSchema", input_schema)
         output_model = map_to_basemodel("OutputSchema", output_schema)
 
-        infer_generator = InferenceCodeGenerator(Provider("openai/gpt-4o"))
+        infer_generator = InferenceCodeGenerator(Provider(llm_to_use))
         return infer_generator.generate_inference_code(input_model, output_model, training_code)
     except Exception as e:
         raise ValueError(f"Failed to generate inference code: {str(e)}") from e
@@ -118,5 +118,5 @@ def fix_inference_code(inference_code: str, review: str, problems: str, llm_to_u
     Returns:
         Fixed inference code as a string
     """
-    infer_generator = InferenceCodeGenerator(Provider("openai/gpt-4o"))
+    infer_generator = InferenceCodeGenerator(Provider(llm_to_use))
     return infer_generator.fix_inference_code(inference_code, review, problems)
