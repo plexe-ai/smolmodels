@@ -5,7 +5,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/smolmodels.svg)](https://pypi.org/project/smolmodels/)
 [![Discord](https://img.shields.io/discord/1300920499886358529?logo=discord&logoColor=white)](https://discord.gg/SefZDepGMv)
 
-<img src="resources/backed-by-yc.png" alt="backed-by-yc" width="20%">
+<img src="resources/backed-by-yc.png" alt="backed-by-yc" width="25%">
 
 
 Build machine learning models using natural language and minimal code
@@ -20,6 +20,9 @@ Build machine learning models using natural language and minimal code
 
 **smolmodels** lets you create machine learning models by describing them in plain language. Simply explain what you want, and the AI-powered system builds a fully functional model through an automated agentic approach.
 </div>
+
+
+[![Demo](resources/demo-thumbnail.png)](https://github.com/user-attachments/assets/05ac238b-464c-457c-a63a-819bfe9a4fed)
 
 
 ## 1. Quickstart
@@ -69,8 +72,6 @@ prediction = model.predict({
 sm.save_model(model, "sentiment-model")
 loaded_model = sm.load_model("sentiment-model.tar.gz")
 ```
-
-[![Demo](resources/demo-thumbnail.png)](https://github.com/user-attachments/assets/05ac238b-464c-457c-a63a-819bfe9a4fed)
 
 ## 2. Features
 
