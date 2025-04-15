@@ -167,7 +167,9 @@ class MLFlowCallback(Callback):
                         logger.warning(f"Could not log artifact {artifact}: {e}")
 
         try:
-            is_failed = info.node.exception_was_raised or info.node.performance is None
+            is_failed = (
+                info.node.exception_was_raised or info.node.performance is None or info.node.performance.is_worst
+            )
             mlflow.end_run(status="FAILED" if is_failed else "FINISHED")
         except Exception as e:
             logger.warning(f"Error ending MLFlow run: {e}")

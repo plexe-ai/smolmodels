@@ -117,6 +117,14 @@ def execute_training_code(
             performance_value = result.performance
             is_worst = False
 
+            if (
+                result.performance in [float("inf"), float("-inf")]
+                or result.performance < 1e-7
+                or result.performance > 1 - 1e-7
+            ):
+                performance_value = None
+                is_worst = True
+
         # Create a metric object with proper handling of None or invalid values
         node.performance = Metric(
             name=metric_to_optimise_name,
@@ -151,7 +159,13 @@ def execute_training_code(
         # Check if the execution failed in any way
         if node.exception is not None:
             raise RuntimeError(f"Execution failed with exception: {node.exception}")
-        if result.performance is None or not isinstance(result.performance, (int, float)):
+        if (
+            result.performance is None
+            or not isinstance(result.performance, (int, float))
+            or result.performance in [float("inf"), float("-inf")]
+            or result.performance < 1e-7
+            or result.performance > 1 - 1e-7
+        ):
             raise RuntimeError(f"Execution failed due to not producing a valid performance: {result.performance}")
 
         # Register code and artifacts
