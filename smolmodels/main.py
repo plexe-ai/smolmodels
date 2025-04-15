@@ -2,14 +2,31 @@
 Application entry point for using the smolmodels package as a conversational agent.
 """
 
+import argparse
 from smolagents import GradioUI
 
 from smolmodels.internal.chat_agents import ChatSmolmodelsAgent
 
 
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Run the Smolmodels conversational agent with Gradio UI.")
+    parser.add_argument(
+        "--model",
+        "-m",
+        type=str,
+        default="openai/gpt-4o-mini",
+        help="Model ID to use for the agent (default: openai/gpt-4o-mini)",
+    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
+
+    return parser.parse_args()
+
+
 def main():
     """Main function to run the Gradio UI for the Smolmodels conversational agent."""
-    agent = ChatSmolmodelsAgent("openai/gpt-4o", verbose=True)
+    args = parse_arguments()
+    agent = ChatSmolmodelsAgent(args.model, verbose=args.verbose)
     GradioUI(agent.agent).launch()
 
 
