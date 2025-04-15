@@ -175,12 +175,13 @@ class MLFlowCallback(Callback):
             logger.warning(f"Error ending MLFlow run: {e}")
 
     @staticmethod
-    def _log_metric(metric: Metric, prefix: str = "") -> None:
+    def _log_metric(metric: Metric, prefix: str = "", step: int = None) -> None:
         """
         Log a SmolModels Metric object to MLFlow.
 
         :param metric: SmolModels Metric object
         :param prefix: Optional prefix for the metric name
+        :param step: Optional step (iteration) for the metric
         """
         if mlflow is None or not mlflow.active_run():
             return
@@ -188,7 +189,12 @@ class MLFlowCallback(Callback):
         if metric and hasattr(metric, "name") and hasattr(metric, "value"):
             try:
                 value = float(metric.value)
-                mlflow.log_metric(re.sub(r"[^a-zA-Z0-9]", "", f"{prefix}{metric.name}"), value)
+                metric_name = re.sub(r"[^a-zA-Z0-9]", "", f"{prefix}{metric.name}")
+
+                if step is not None:
+                    mlflow.log_metric(metric_name, value, step=step)
+                else:
+                    mlflow.log_metric(metric_name, value)
             except (ValueError, TypeError) as e:
                 logger.warning(f"Could not convert metric {metric.name} value to float: {e}")
                 # Try to log as tag instead
