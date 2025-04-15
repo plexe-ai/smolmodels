@@ -51,9 +51,9 @@ model.build(
         ops_provider="anthropic/claude-3-7-sonnet-20250219",
         tool_provider="openai/gpt-4o",
     ),
-    max_iterations=4,
-    timeout=300,  # 5 minute timeout
-    run_timeout=150,
+    max_iterations=8,
+    timeout=1800,  # 30 minute timeout
+    run_timeout=180,
     verbose=False,
     callbacks=[mlflow_callback],
 )
