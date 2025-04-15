@@ -7177,4 +7177,4 @@ lightweight = []
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "d4983cd1e6b6227735bffaac0bcd7a0fe755e6d6390d227d5248039fe3b976b1"
+content-hash = "c265e118ca66924580e8401786edeef67c850745faf74be8db041350f1248689"
