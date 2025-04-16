@@ -1,4 +1,4 @@
-"""Integration test for model description functionality in smolmodels.
+"""Integration test for model description functionality in plexe.
 
 This test covers:
 1. Creating a simple model for iris flower classification
@@ -15,7 +15,7 @@ from pydantic import create_model
 
 import pandas as pd
 import numpy as np
-import smolmodels as sm
+import plexe
 from tests.utils.utils import cleanup_files
 
 
@@ -124,7 +124,7 @@ def test_model_description(iris_data, iris_input_schema, iris_output_schema):
     """Test model description generation in various formats and content verification."""
 
     # Create a model for iris species classification
-    model = sm.Model(
+    model = plexe.Model(
         intent="Classify iris flowers into species based on their sepal and petal measurements",
         input_schema=iris_input_schema,
         output_schema=iris_output_schema,

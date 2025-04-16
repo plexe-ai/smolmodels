@@ -1,4 +1,4 @@
-"""Integration test for schema validation in smolmodels.
+"""Integration test for schema validation in plexe.
 
 This test covers:
 1. Creating models with fields that have validation requirements
@@ -10,7 +10,7 @@ import os
 import pytest
 from pathlib import Path
 from pydantic import create_model, Field
-import smolmodels as sm
+import plexe
 from tests.utils.utils import generate_house_prices_data, verify_prediction, cleanup_files
 
 
@@ -74,7 +74,7 @@ def run_around_tests(model_dir):
 def test_input_validation(house_data_copy, validated_input_schema, validated_output_schema):
     """Test validation of input schema."""
     # Create a model with validated input schema
-    model = sm.Model(
+    model = plexe.Model(
         intent="Predict the price of a house based on its features, with input validation",
         input_schema=validated_input_schema,
         output_schema=validated_output_schema,
@@ -141,7 +141,7 @@ def test_output_validation(house_data_copy, validated_input_schema):
     )
 
     # Create a model with standard input but strictly bounded output
-    model = sm.Model(
+    model = plexe.Model(
         intent="Predict the price of a house based on its features, ensuring predictions are between 500-600k",
         input_schema=validated_input_schema,
         output_schema=strict_output_schema,

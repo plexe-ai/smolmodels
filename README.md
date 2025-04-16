@@ -1,8 +1,8 @@
 <div align="center">
 
-# smolmodels ✨
+# plexe ✨
 
-[![PyPI version](https://img.shields.io/pypi/v/smolmodels.svg)](https://pypi.org/project/smolmodels/)
+[![PyPI version](https://img.shields.io/pypi/v/plexe.svg)](https://pypi.org/project/plexe/)
 [![Discord](https://img.shields.io/discord/1300920499886358529?logo=discord&logoColor=white)](https://discord.gg/SefZDepGMv)
 
 <img src="resources/backed-by-yc.png" alt="backed-by-yc" width="25%">
@@ -18,7 +18,7 @@ Build machine learning models using natural language.
 
 <br>
 
-**smolmodels** lets you create machine learning models by describing them in plain language. Simply explain what you want, and the AI-powered system builds a fully functional model through an automated agentic approach.
+**plexe** lets you create machine learning models by describing them in plain language. Simply explain what you want, and the AI-powered system builds a fully functional model through an automated agentic approach.
 </div>
 
 
@@ -29,27 +29,28 @@ Build machine learning models using natural language.
 
 ### Installation
 ```bash
-pip install smolmodels
+pip install plexe
 ```
 
-### Two Ways to Use smolmodels
+### Two Ways to Use plexe
 
 #### A. Interactive Chat Interface
 Launch the interactive chat interface to build models through conversational AI:
 
 ```bash
 # Start the chat interface
-smolmodels
+plexe
 ```
 
 This opens a Gradio UI where you can describe your model, upload datasets, and get explanations throughout the process.
 
 #### B. Library API
+
 ```python
-import smolmodels as sm
+import plexe
 
 # Define the model
-model = sm.Model(
+model = plexe.Model(
     intent="Predict sentiment from news articles",
     input_schema={"headline": str, "content": str},
     output_schema={"sentiment": str}
@@ -69,8 +70,8 @@ prediction = model.predict({
 })
 
 # Save for later use
-sm.save_model(model, "sentiment-model")
-loaded_model = sm.load_model("sentiment-model.tar.gz")
+plexe.save_model(model, "sentiment-model")
+loaded_model = plexe.load_model("sentiment-model.tar.gz")
 ```
 
 ## 2. Features
@@ -79,7 +80,7 @@ loaded_model = sm.load_model("sentiment-model.tar.gz")
 Define models using plain English descriptions:
 
 ```python
-model = sm.Model(
+model = plexe.Model(
     intent="Predict housing prices based on features like size, location, etc.",
     input_schema={"square_feet": int, "bedrooms": int, "location": str},
     output_schema={"price": float}
@@ -111,13 +112,13 @@ Generate synthetic data or infer schemas automatically:
 
 ```python
 # Generate synthetic data
-dataset = sm.DatasetGenerator(
+dataset = plexe.DatasetGenerator(
     schema={"features": str, "target": int}
 )
 dataset.generate(500)  # Generate 500 samples
 
 # Infer schema from intent
-model = sm.Model(intent="Predict customer churn based on usage patterns")
+model = plexe.Model(intent="Predict customer churn based on usage patterns")
 model.build(provider="openai/gpt-4o-mini")  # Schema inferred automatically
 ```
 
@@ -135,9 +136,9 @@ See [LiteLLM providers](https://docs.litellm.ai/docs/providers) for available pr
 
 ### 3.1. Installation Options
 ```bash
-pip install smolmodels                  # Standard installation
-pip install smolmodels[lightweight]     # Minimal dependencies
-pip install smolmodels[all]             # With deep learning support
+pip install plexe                  # Standard installation
+pip install plexe[lightweight]     # Minimal dependencies
+pip install plexe[all]             # With deep learning support
 ```
 
 ### 3.2. API Keys
@@ -159,8 +160,8 @@ Evaluated on 20 OpenML benchmarks and 12 Kaggle competitions, showing higher per
 Deploy as a platform with API and web UI:
 
 ```bash
-git clone https://github.com/plexe-ai/smolmodels.git
-cd smolmodels/docker
+git clone https://github.com/plexe-ai/plexe.git
+cd plexe/docker
 cp .env.example .env  # Add your API key
 docker-compose up -d
 ```

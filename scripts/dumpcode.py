@@ -9,9 +9,9 @@ from pathlib import Path
 
 # === Config ===
 EXTENSIONS = {".py", ".md"}
-TARGET_DIRS = {"smolmodels"}
+TARGET_DIRS = {"plexe"}
 ROOT_FILES = {"README.md"}  # Loose files to include from root
-OUTPUT_FILE = "smolmodels-full-codebase.txt"
+OUTPUT_FILE = "plexe-full-codebase.txt"
 
 
 def collect_files(base: Path):

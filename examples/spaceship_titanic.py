@@ -1,10 +1,10 @@
 """
-This script demonstrates how to run the smolmodels ML engineering agent to build a predictive model. The example
+This script demonstrates how to run the plexe ML engineering agent to build a predictive model. The example
 uses the Kaggle 'Spaceship Titanic' competition's training dataset.
 
 The dataset is owned and hosted by Kaggle, and is available at https://www.kaggle.com/c/spaceship-titanic/overview
 under the Attribution 4.0 International (CC BY 4.0) license (https://creativecommons.org/licenses/by/4.0/). This
-dataset is not part of the smolmodels package or in any way affiliated to it, and Plexe AI claims no rights over it.
+dataset is not part of the plexe package or in any way affiliated to it, and Plexe AI claims no rights over it.
 The dataset is used here for demonstration purposes only. Please refer to the Kaggle competition page for more details
 on the dataset and its usage.
 
@@ -17,10 +17,10 @@ from datetime import datetime
 
 import pandas as pd
 
-import smolmodels as sm
+import plexe
 
 # Step 1: Define the model using the Spaceship Titanic problem statement as the model description
-model = sm.Model(
+model = plexe.Model(
     intent=(
         "From features describing a Spaceship Titanic passenger's information, determine whether they were "
         "transported or not."
@@ -47,7 +47,7 @@ model = sm.Model(
 
 # Step 2: Build the model using the Spaceship Titanic training dataset
 # 2A [OPTIONAL]: Define MLFlow callback for tracking
-mlflow_callback = sm.callbacks.MLFlowCallback(
+mlflow_callback = plexe.callbacks.MLFlowCallback(
     tracking_uri="http://127.0.0.1:8080",
     experiment_name=f"spaceship-titanic-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
 )
@@ -64,7 +64,7 @@ model.build(
 )
 
 # Step 3: Save the model
-sm.save_model(model, "spaceship_titanic_model.tar.gz")
+plexe.save_model(model, "spaceship_titanic_model.tar.gz")
 
 # Step 4: Run a prediction on the built model
 test_df = pd.read_csv("examples/datasets/spaceship-titanic-test.csv")

@@ -1,5 +1,5 @@
 """
-Unit tests for callback system in SmolModels.
+Unit tests for callback system in Plexe.
 """
 
 import unittest
@@ -7,10 +7,10 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 from pydantic import create_model
 
-from smolmodels.callbacks import Callback, BuildStateInfo
-from smolmodels.models import Model
-from smolmodels.internal.common.utils.model_state import ModelState
-from smolmodels.internal.models.entities.node import Node
+from plexe.callbacks import Callback, BuildStateInfo
+from plexe.models import Model
+from plexe.internal.common.utils.model_state import ModelState
+from plexe.internal.models.entities.node import Node
 
 
 class TestCallbacks(unittest.TestCase):
@@ -39,8 +39,8 @@ class TestCallbacks(unittest.TestCase):
         # Create a mock callback
         callback = MagicMock(spec=Callback)
 
-        # Patch the SmolmodelsAgent to avoid actual model building
-        with patch("smolmodels.internal.agents.SmolmodelsAgent.run") as mock_run:
+        # Patch the PlexeAgent to avoid actual model building
+        with patch("plexe.internal.agents.PlexeAgent.run") as mock_run:
             # Setup the mock to return a valid result
             mock_result = MagicMock()
             mock_result.training_source_code = "def train(): pass"
@@ -85,8 +85,8 @@ class TestCallbacks(unittest.TestCase):
 
         callback = ErrorCallback()
 
-        # Patch the SmolmodelsAgent to avoid actual model building
-        with patch("smolmodels.internal.agents.SmolmodelsAgent.run") as mock_run:
+        # Patch the PlexeAgent to avoid actual model building
+        with patch("plexe.internal.agents.PlexeAgent.run") as mock_run:
             # Setup the mock to return a valid result
             mock_result = MagicMock()
             mock_result.training_source_code = "def train(): pass"
@@ -116,12 +116,12 @@ class TestCallbacks(unittest.TestCase):
         callback = MagicMock(spec=Callback)
 
         # Create a more sophisticated mock that simulates calling iteration callbacks
-        with patch("smolmodels.internal.agents.SmolmodelsAgent.run") as mock_run:
+        with patch("plexe.internal.agents.PlexeAgent.run") as mock_run:
 
             def side_effect(*args, **kwargs):
                 # Retrieve callbacks from the object registry since the new architecture
                 # uses the registry to store callbacks
-                from smolmodels.internal.common.registries.objects import ObjectRegistry
+                from plexe.internal.common.registries.objects import ObjectRegistry
 
                 registry = ObjectRegistry()
                 callbacks = list(registry.get_all(Callback).values())
