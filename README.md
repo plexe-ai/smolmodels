@@ -8,7 +8,7 @@
 <img src="resources/backed-by-yc.png" alt="backed-by-yc" width="25%">
 
 
-Build machine learning models using natural language and minimal code
+Build machine learning models using natural language.
 
 [Quickstart](#1-quickstart) |
 [Features](#2-features) |
