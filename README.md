@@ -5,7 +5,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/plexe.svg)](https://pypi.org/project/plexe/)
 [![Discord](https://img.shields.io/discord/1300920499886358529?logo=discord&logoColor=white)](https://discord.gg/SefZDepGMv)
 
-<img src="resources/backed-by-yc.png" alt="backed-by-yc" width="15%">
+<img src="resources/backed-by-yc.png" alt="backed-by-yc" width="18%">
 
 
 Build machine learning models using natural language.
