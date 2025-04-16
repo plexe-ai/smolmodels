@@ -128,6 +128,8 @@ model.build(provider="openai/gpt-4o-mini")    # OpenAI
 model.build(provider="anthropic/claude-3-opus")  # Anthropic
 model.build(provider="google/gemini-1.5-pro")    # Google
 ```
+See [LiteLLM providers](https://docs.litellm.ai/docs/providers) for available providers.
+
 
 ## 3. Installation
 
@@ -145,21 +147,7 @@ export OPENAI_API_KEY=<your-key>
 export ANTHROPIC_API_KEY=<your-key>
 export GEMINI_API_KEY=<your-key>
 ```
-
-### 3.3. Command Line Interface
-```bash
-# Build a model
-smolmodels build --intent "Predict customer churn" \
-                 --dataset customer_data.csv \
-                 --provider openai/gpt-4o-mini \
-                 --output churn_model.tar.gz
-
-# Make predictions
-smolmodels predict churn_model.tar.gz --input-values usage=high spend=1200 tenure=24
-
-# Show model details
-smolmodels info churn_model.tar.gz
-```
+See [LiteLLM providers](https://docs.litellm.ai/docs/providers) for environment variable names.
 
 ## 4. Documentation
 For full documentation, visit [docs.plexe.ai](https://docs.plexe.ai).
