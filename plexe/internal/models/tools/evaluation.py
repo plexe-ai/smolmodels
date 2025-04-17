@@ -3,6 +3,7 @@ This module defines agent tools for evaluating the properties and performance of
 """
 
 import logging
+from typing import Dict
 
 from smolagents import tool
 
@@ -15,7 +16,13 @@ logger = logging.getLogger(__name__)
 
 @tool
 def review_finalised_model(
-    intent: str, solution_plan: str, training_code_id: str, inference_code_id: str, llm_to_use: str
+    intent: str,
+    input_schema: Dict[str, str],
+    output_schema: Dict[str, str],
+    solution_plan: str,
+    training_code_id: str,
+    inference_code_id: str,
+    llm_to_use: str,
 ) -> dict:
     """
     Reviews the entire model and extracts metadata. Use this function once you have completed work on the model, and
@@ -23,6 +30,8 @@ def review_finalised_model(
 
     Args:
         intent: The model intent
+        input_schema: The input schema for the model, for example {"feat_1": "int", "feat_2": "str"}
+        output_schema: The output schema for the model, for example {"output": "float"}
         solution_plan: The solution plan explanation based on which the model was implemented
         training_code_id: The training code id returned by the MLEngineer agent for the selected ML model
         inference_code_id: The inference code id returned by the MLOperationsEngineer agent for the selected ML model
@@ -46,4 +55,6 @@ def review_finalised_model(
         raise ValueError(f"Inference code with ID {inference_code_id} not found. Is this the correct ID?")
 
     reviewer = ModelReviewer(Provider(llm_to_use))
-    return reviewer.review_model(intent, solution_plan, training_code.code, inference_code.code)
+    return reviewer.review_model(
+        intent, input_schema, output_schema, solution_plan, training_code.code, inference_code.code
+    )

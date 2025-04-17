@@ -326,10 +326,20 @@ class _PromptTemplates:
     def review_system(self) -> str:
         return self._render("review/system_prompt.jinja")
 
-    def review_model(self, intent: str, solution_plan: str, training_code: str, inference_code: str) -> str:
+    def review_model(
+        self,
+        intent: str,
+        input_schema: str,
+        output_schema: str,
+        solution_plan: str,
+        training_code: str,
+        inference_code: str,
+    ) -> str:
         return self._render(
             "review/model.jinja",
             intent=intent,
+            input_schema=input_schema,
+            output_schema=output_schema,
             solution_plan=solution_plan,
             training_code=training_code,
             inference_code=inference_code,
