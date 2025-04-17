@@ -98,6 +98,16 @@ class ModelReviewer:
             metadata = {
                 "framework": review_data["framework"],
                 "model_type": review_data["model_type"],
+                "task_type": review_data["task_type"],
+                "domain": review_data["domain"],
+                "behaviour": review_data["behaviour"],
+                "preprocessing_summary": review_data["preprocessing_summary"],
+                "architecture_summary": review_data["architecture_summary"],
+                "training_procedure": review_data["training_procedure"],
+                "evaluation_metric": review_data["evaluation_metric"],
+                "inference_behavior": review_data["inference_behavior"],
+                "strengths": review_data["strengths"],
+                "limitations": review_data["limitations"],
                 "selection_rationale": review_data["explanation"],
                 "creation_date": datetime.now().isoformat(),
             }
@@ -109,6 +119,16 @@ class ModelReviewer:
             return {
                 "framework": "Unknown",
                 "model_type": "Unknown",
+                "task_type": "Unknown",
+                "domain": "Unknown",
+                "behaviour": "Unknown",
+                "preprocessing_summary": "Unknown",
+                "architecture_summary": "Unknown",
+                "training_procedure": "Unknown",
+                "evaluation_metric": "Unknown",
+                "inference_behavior": "Unknown",
+                "strengths": "Unknown",
+                "limitations": "Unknown",
                 "selection_rationale": "Could not determine model details due to an error.",
                 "creation_date": datetime.now().isoformat(),
             }
