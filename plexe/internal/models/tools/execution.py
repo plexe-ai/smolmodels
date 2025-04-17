@@ -118,9 +118,10 @@ def execute_training_code(
             is_worst = False
 
             if (
-                result.performance in [float("inf"), float("-inf")]
-                or result.performance < 1e-7
-                or result.performance > 1 - 1e-7
+                result.performance
+                in [float("inf"), float("-inf")]
+                # or result.performance < 1e-7
+                # or result.performance > 1 - 1e-7
             ):
                 performance_value = None
                 is_worst = True
@@ -163,8 +164,8 @@ def execute_training_code(
             result.performance is None
             or not isinstance(result.performance, (int, float))
             or result.performance in [float("inf"), float("-inf")]
-            or result.performance < 1e-7
-            or result.performance > 1 - 1e-7
+            # or result.performance < 1e-7
+            # or result.performance > 1 - 1e-7
         ):
             raise RuntimeError(f"Execution failed due to not producing a valid performance: {result.performance}")
 
