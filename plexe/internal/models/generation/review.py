@@ -30,7 +30,7 @@ class ModelReviewResponse(BaseModel):
     task_type: str  # e.g. classification, regression, generation
     domain: str  # e.g. NLP, computer vision, tabular, multimodal
 
-    behaviour: str  # what the model 'does', what relationship is it really learning
+    behavior: str  # what the model 'does', what relationship is it really learning
 
     preprocessing_summary: str  # high-level view of input processing pipeline
     architecture_summary: str  # concise summary of model architecture
@@ -100,7 +100,7 @@ class ModelReviewer:
                 "model_type": review_data["model_type"],
                 "task_type": review_data["task_type"],
                 "domain": review_data["domain"],
-                "behaviour": review_data["behaviour"],
+                "behavior": review_data["behavior"],
                 "preprocessing_summary": review_data["preprocessing_summary"],
                 "architecture_summary": review_data["architecture_summary"],
                 "training_procedure": review_data["training_procedure"],
@@ -121,7 +121,7 @@ class ModelReviewer:
                 "model_type": "Unknown",
                 "task_type": "Unknown",
                 "domain": "Unknown",
-                "behaviour": "Unknown",
+                "behavior": "Unknown",
                 "preprocessing_summary": "Unknown",
                 "architecture_summary": "Unknown",
                 "training_procedure": "Unknown",
