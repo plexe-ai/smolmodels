@@ -108,7 +108,7 @@ class ModelReviewer:
                 "inference_behavior": review_data["inference_behavior"],
                 "strengths": review_data["strengths"],
                 "limitations": review_data["limitations"],
-                "selection_rationale": review_data["explanation"],
+                "selection_rationale": review_data["selection_rationale"],
                 "creation_date": datetime.now().isoformat(),
             }
             return metadata
