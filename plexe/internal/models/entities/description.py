@@ -62,6 +62,16 @@ class ModelDescription(DataClassJsonMixin):
     training_date: Optional[str] = None
     rationale: Optional[str] = None
     provider: Optional[str] = None
+    task_type: Optional[str] = None
+    domain: Optional[str] = None
+    behavior: Optional[str] = None
+    preprocessing_summary: Optional[str] = None
+    architecture_summary: Optional[str] = None
+    training_procedure: Optional[str] = None
+    evaluation_metric: Optional[str] = None
+    inference_behavior: Optional[str] = None
+    strengths: Optional[str] = None
+    limitations: Optional[str] = None
 
     def as_text(self) -> str:
         """Convert the model description to a formatted text string."""
@@ -83,6 +93,22 @@ class ModelDescription(DataClassJsonMixin):
             f"  - Framework: {self.implementation.framework or 'Not specified'}",
             f"  - Model Type: {self.implementation.model_type or 'Not specified'}",
             f"  - Size: {self.implementation.size or 'Unknown'} bytes",
+            "",
+            "Task Information:",
+            f"  - Task Type: {self.task_type or 'Not specified'}",
+            f"  - Domain: {self.domain or 'Not specified'}",
+            f"  - Behavior: {self.behavior or 'Not specified'}",
+            "",
+            "Technical Details:",
+            f"  - Preprocessing: {self.preprocessing_summary or 'Not available'}",
+            f"  - Architecture: {self.architecture_summary or 'Not available'}",
+            f"  - Training Procedure: {self.training_procedure or 'Not available'}",
+            f"  - Evaluation Metric: {self.evaluation_metric or 'Not available'}",
+            f"  - Inference Behavior: {self.inference_behavior or 'Not available'}",
+            "",
+            "Analysis:",
+            f"  - Strengths: {self.strengths or 'Not available'}",
+            f"  - Limitations: {self.limitations or 'Not available'}",
             "",
             "Performance Metrics:",
             "\n".join(f"  - {k}: {v}" for k, v in self.performance.metrics.items()),
@@ -120,6 +146,22 @@ class ModelDescription(DataClassJsonMixin):
             f"- **Model Type:** {self.implementation.model_type or 'Not specified'}",
             f"- **Size:** {self.implementation.size or 'Unknown'} bytes",
             f"- **Artifacts:** {', '.join(self.implementation.artifacts) or 'None'}",
+            "",
+            "## Task Information",
+            f"- **Task Type:** {self.task_type or 'Not specified'}",
+            f"- **Domain:** {self.domain or 'Not specified'}",
+            f"- **Behavior:** {self.behavior or 'Not specified'}",
+            "",
+            "## Technical Details",
+            f"- **Preprocessing:** {self.preprocessing_summary or 'Not available'}",
+            f"- **Architecture:** {self.architecture_summary or 'Not available'}",
+            f"- **Training Procedure:** {self.training_procedure or 'Not available'}",
+            f"- **Evaluation Metric:** {self.evaluation_metric or 'Not available'}",
+            f"- **Inference Behavior:** {self.inference_behavior or 'Not available'}",
+            "",
+            "## Analysis",
+            f"- **Strengths:** {self.strengths or 'Not available'}",
+            f"- **Limitations:** {self.limitations or 'Not available'}",
             "",
             "## Performance Metrics",
             "\n".join(f"- **{k}:** {v}" for k, v in self.performance.metrics.items()),
